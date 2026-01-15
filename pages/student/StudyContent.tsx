@@ -9,6 +9,20 @@ interface StudyContentPageProps {
     onAppealSubmit?: (data: { contentId: string; contentTitle: string; text: string; image?: string }) => void;
 }
 
+// Helper for deterministic gradient colors (Consistent with Exams Page)
+const getGradientClass = (index: number) => {
+    const gradients = [
+        'bg-gradient-to-br from-rose-600 to-red-700 shadow-rose-200',       // Red
+        'bg-gradient-to-br from-amber-500 to-orange-700 shadow-orange-200', // Orange/Gold
+        'bg-gradient-to-br from-lime-500 to-green-700 shadow-lime-200',    // Green
+        'bg-gradient-to-br from-emerald-500 to-teal-700 shadow-emerald-200', // Teal
+        'bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-200',    // Blue
+        'bg-gradient-to-br from-violet-500 to-purple-700 shadow-purple-200', // Purple
+        'bg-gradient-to-br from-fuchsia-600 to-pink-700 shadow-pink-200',   // Pink
+    ];
+    return gradients[index % gradients.length];
+};
+
 const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, onAppealSubmit }) => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [selectedContent, setSelectedContent] = useState<StudyContent | null>(null);
@@ -81,53 +95,49 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
 
   const FolderList = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {displayFolders.map(folder => (
-        <Card key={folder.id} className="cursor-pointer hover:border-indigo-400 transition-all hover:shadow-lg group bg-white border-slate-200 p-0 overflow-hidden h-full">
-          <div onClick={() => setSelectedFolder(folder)} className="flex flex-col h-full">
-            
-            {/* Full Width Image Container */}
-            <div className="w-full h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center group-hover:bg-slate-200 transition-colors">
-               {folder.icon ? (
-                   <img 
-                    src={folder.icon} 
-                    alt={folder.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                   />
-               ) : (
-                   <div className="p-6 bg-white rounded-full shadow-sm text-indigo-400 group-hover:text-indigo-600 group-hover:scale-110 transition-all duration-500">
-                       <FolderIcon size={48} fill="currentColor" className="opacity-20" />
-                   </div>
-               )}
-               {/* Gradient Overlay */}
-               <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            </div>
-
-            {/* Content Body */}
-            <div className="p-5 flex flex-col flex-1">
-              <div className="mb-2">
-                <h3 className="font-bold text-slate-800 text-lg line-clamp-1 group-hover:text-indigo-700 transition-colors">
-                    {folder.name}
-                </h3>
-              </div>
-              
-              <p className="text-sm text-slate-500 line-clamp-2 mb-4 flex-1">
-                  {folder.description || 'No description provided.'}
-              </p>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
-                <div className="inline-flex items-center text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
-                    {contents.filter(c => c.folderId === folder.id).length} Documents
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {displayFolders.map((folder, index) => {
+        const itemCount = contents.filter(c => c.folderId === folder.id).length;
+        
+        return (
+            <div 
+                key={folder.id}
+                onClick={() => setSelectedFolder(folder)}
+                className={`relative overflow-hidden rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
+            >
+                {/* Background Decoration */}
+                <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500">
+                    {folder.icon ? (
+                        <img src={folder.icon} className="w-40 h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
+                    ) : (
+                        <FolderIcon size={160} fill="currentColor" />
+                    )}
                 </div>
-                
-                <span className="text-xs font-bold text-indigo-600 flex items-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-                    Open Folder <ArrowLeft className="rotate-180 ml-1" size={14} />
-                </span>
-              </div>
+
+                {/* Content */}
+                <div className="relative z-10">
+                    <h3 className="text-2xl font-bold leading-tight mb-2 drop-shadow-sm font-serif tracking-wide line-clamp-2">
+                        {folder.name}
+                    </h3>
+                    <p className="text-white/90 text-sm font-medium line-clamp-2">
+                        {folder.description || 'Lecture Notes & Materials'}
+                    </p>
+                </div>
+
+                {/* Footer Info */}
+                <div className="relative z-10 flex items-center justify-between mt-2">
+                    <div className="flex items-center space-x-2 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
+                        <FileText size={14} className="text-white/90" />
+                        <span>{itemCount} Documents</span>
+                    </div>
+                    
+                    <span className="flex items-center text-xs font-bold bg-white/20 p-1.5 rounded-full hover:bg-white/30 transition-colors group-hover:translate-x-1 duration-300">
+                        <ArrowLeft className="rotate-180" size={16} />
+                    </span>
+                </div>
             </div>
-          </div>
-        </Card>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -335,10 +345,13 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   return (
     <div className="animate-fade-in">
       {!selectedContent && (
-        <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center">
-            <span className="bg-indigo-600 w-2 h-8 rounded-full mr-3"></span>
-            Study Material
-        </h1>
+        <div className="mb-6">
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+                <span className="bg-indigo-600 w-2 h-8 rounded-full mr-3"></span>
+                Study Material
+            </h1>
+            <p className="text-slate-500 text-sm ml-5 mt-1">Browse notes and study resources.</p>
+        </div>
       )}
       {!selectedFolder ? <FolderList /> : <ContentList />}
 
