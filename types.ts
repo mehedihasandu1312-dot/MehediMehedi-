@@ -60,6 +60,7 @@ export interface Appeal {
   image?: string; // Optional screenshot/image URL
   status: 'PENDING' | 'REPLIED';
   reply?: string;
+  replyImage?: string; // Admin can reply with an image
   timestamp: string;
 }
 

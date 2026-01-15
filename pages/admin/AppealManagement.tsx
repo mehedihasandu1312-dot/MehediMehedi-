@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X } from 'lucide-react';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
@@ -22,6 +22,8 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
     // Modal State
     const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
     const [replyText, setReplyText] = useState('');
+    const [replyImage, setReplyImage] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Calculate Dashboard Metrics
     const stats = useMemo(() => {
@@ -40,14 +42,33 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
 
     const openReplyModal = (appeal: Appeal) => {
         setSelectedAppeal(appeal);
-        setReplyText('');
+        setReplyText(appeal.reply || '');
+        setReplyImage(appeal.replyImage || '');
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    setReplyImage(event.target.result as string);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleSendReply = () => {
-        if (!selectedAppeal || !replyText.trim()) return;
+        if (!selectedAppeal || (!replyText.trim() && !replyImage)) {
+            alert("Please enter text or attach an image.");
+            return;
+        }
 
         setAppeals(prev => prev.map(a => 
-            a.id === selectedAppeal.id ? { ...a, status: 'REPLIED', reply: replyText } : a
+            a.id === selectedAppeal.id 
+            ? { ...a, status: 'REPLIED', reply: replyText, replyImage: replyImage } 
+            : a
         ));
 
         alert("Reply sent successfully!");
@@ -173,7 +194,14 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                     {appeal.reply && (
                                         <div className="flex items-start text-xs text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-100 mt-2">
                                             <CheckCircle size={14} className="mr-2 mt-0.5 shrink-0" />
-                                            <div><span className="font-bold">You Replied:</span> {appeal.reply}</div>
+                                            <div>
+                                                <span className="font-bold">You Replied:</span> {appeal.reply}
+                                                {appeal.replyImage && (
+                                                    <div className="mt-1">
+                                                        <span className="text-[10px] font-bold uppercase text-emerald-600">Image Attached</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -196,11 +224,12 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                 </div>
             </div>
 
-            {/* SMART REPLY MODAL */}
+            {/* SMART REPLY MODAL - FIXED LAYOUT */}
             <Modal isOpen={!!selectedAppeal} onClose={() => setSelectedAppeal(null)} title="Resolve Appeal">
                 {selectedAppeal && (
-                    <div className="flex flex-col h-[70vh] md:h-auto">
-                        <div className="flex-1 overflow-y-auto mb-4">
+                    <div className="flex flex-col h-[80vh]">
+                        {/* Scrollable Body */}
+                        <div className="flex-1 overflow-y-auto pr-2">
                             {/* Student Context */}
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
                                 <div className="flex items-center gap-2 mb-2">
@@ -219,7 +248,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                             </div>
 
                             {/* Smart Reply Section */}
-                            <div className="space-y-3">
+                            <div className="space-y-3 pb-4">
                                 <div className="flex justify-between items-center">
                                     <label className="text-sm font-bold text-slate-700">Your Reply</label>
                                     <span className="text-xs text-indigo-600 font-medium">Smart Suggestions</span>
@@ -244,10 +273,50 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                     value={replyText}
                                     onChange={(e) => setReplyText(e.target.value)}
                                 />
+
+                                {/* Admin Image Upload */}
+                                <div>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        onChange={handleImageUpload} 
+                                        accept="image/*"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <Button 
+                                            type="button" 
+                                            size="sm" 
+                                            variant="outline" 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="flex items-center text-xs"
+                                        >
+                                            <Upload size={14} className="mr-2" /> Attach Solution Image
+                                        </Button>
+                                        {replyImage && (
+                                            <span className="text-xs text-emerald-600 font-bold flex items-center">
+                                                <CheckCircle size={12} className="mr-1" /> Image Added
+                                            </span>
+                                        )}
+                                    </div>
+                                    
+                                    {replyImage && (
+                                        <div className="mt-2 relative inline-block">
+                                            <img src={replyImage} alt="Reply preview" className="h-24 rounded border border-slate-300" />
+                                            <button 
+                                                onClick={() => setReplyImage('')}
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                        {/* Footer Buttons - Always Visible */}
+                        <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 mt-auto bg-white sticky bottom-0">
                             <Button variant="outline" onClick={() => setSelectedAppeal(null)}>Cancel</Button>
                             <Button onClick={handleSendReply} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
                                 <Send size={16} className="mr-2" /> Mark Resolved

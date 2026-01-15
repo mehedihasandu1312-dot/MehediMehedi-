@@ -172,14 +172,24 @@ const StudentAppeals: React.FC<Props> = ({ appeals, studentName }) => {
                         </div>
 
                         {/* Admin Reply */}
-                        {selectedAppeal.reply ? (
+                        {selectedAppeal.reply || selectedAppeal.replyImage ? (
                             <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                                 <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2 flex items-center">
                                     <CheckCircle size={14} className="mr-1" /> Admin Response
                                 </h4>
-                                <p className="text-sm text-emerald-900 leading-relaxed">
-                                    {selectedAppeal.reply}
-                                </p>
+                                {selectedAppeal.reply && (
+                                    <p className="text-sm text-emerald-900 leading-relaxed mb-3">
+                                        {selectedAppeal.reply}
+                                    </p>
+                                )}
+                                {selectedAppeal.replyImage && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Attached Solution:</p>
+                                        <a href={selectedAppeal.replyImage} target="_blank" rel="noreferrer" className="block">
+                                            <img src={selectedAppeal.replyImage} alt="Admin Reply" className="max-h-48 rounded border border-emerald-200 shadow-sm" />
+                                        </a>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg">
