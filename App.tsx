@@ -196,6 +196,35 @@ const App: React.FC = () => {
       alert("Appeal submitted successfully! Admin will review it shortly.");
   };
 
+  // --- FILTER LOGIC FOR STUDENT VIEW ---
+  // Only show folders and exams relevant to the student's class
+  const getFilteredDataForStudent = () => {
+      if (!user || user.role !== UserRole.STUDENT || !user.class) {
+          // If no class set or not student, return all (or empty if strict)
+          // For safety, if class is not set, maybe return nothing or generic
+          return { studentFolders: folders, studentExams: exams }; 
+      }
+
+      const studentFolders = folders.filter(f => 
+          !f.targetClass || f.targetClass === user.class
+      );
+
+      const studentExams = exams.filter(e => {
+          // 1. If exam is in a folder, check if that folder is visible
+          if (e.folderId) {
+              const parentFolder = folders.find(f => f.id === e.folderId);
+              return !parentFolder?.targetClass || parentFolder.targetClass === user.class;
+          }
+          // 2. If exam is loose, check its own targetClass
+          return !e.targetClass || e.targetClass === user.class;
+      });
+
+      return { studentFolders, studentExams };
+  };
+
+  const { studentFolders, studentExams } = getFilteredDataForStudent();
+
+
   if (authLoading || (user && globalLoading)) {
       return (
           <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
@@ -231,8 +260,8 @@ const App: React.FC = () => {
                     <StudentDashboard 
                         user={user} 
                         onLogout={handleLogout} 
-                        exams={exams} 
-                        results={studentResults.filter(r => r.score >= 0)} // Pass all results for history
+                        exams={studentExams} 
+                        results={studentResults.filter(r => r.score >= 0)} 
                     />
                 } 
               />
@@ -242,9 +271,9 @@ const App: React.FC = () => {
                 path="/student/content" 
                 element={
                     <StudyContentPage 
-                        folders={folders} 
+                        folders={studentFolders} 
                         contents={contents} 
-                        onAppealSubmit={handleAddAppeal} // Passed the handler
+                        onAppealSubmit={handleAddAppeal} 
                     />
                 } 
               />
@@ -252,8 +281,8 @@ const App: React.FC = () => {
                 path="/student/exams" 
                 element={
                     <ExamsPage 
-                        exams={exams} 
-                        folders={folders} 
+                        exams={studentExams} 
+                        folders={studentFolders} 
                         onExamComplete={handleExamComplete}
                     />
                 } 

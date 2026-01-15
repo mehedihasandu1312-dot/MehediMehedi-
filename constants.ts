@@ -20,7 +20,10 @@ export const MOCK_USERS: User[] = [
     status: 'ACTIVE',
     joinedDate: '2023-05-15T10:30:00Z',
     lastLogin: '2023-10-26T14:20:00Z',
-    class: '10',
+    class: 'Class 10', // Matched for filtering
+    studentType: 'REGULAR',
+    phone: '01700000000',
+    district: 'Dhaka',
     institute: 'Dhaka College',
     points: 1250,
     rank: 42,
@@ -45,7 +48,7 @@ export const MOCK_USERS: User[] = [
     profileCompleted: true,
     status: 'BLOCKED',
     joinedDate: '2023-08-01T09:00:00Z',
-    class: '11',
+    class: 'Class 11',
     institute: 'Unknown',
     points: 100,
     rank: 150
@@ -53,11 +56,12 @@ export const MOCK_USERS: User[] = [
 ];
 
 export const MOCK_FOLDERS: Folder[] = [
-  { id: 'f1', name: 'Physics - Chapter 1', description: 'Dynamics and Motion' },
-  { id: 'f2', name: 'Chemistry - Organic', description: 'Basic Organic Chemistry' },
-  { id: 'f3', name: 'Math - Calculus', description: 'Limits and Derivatives' },
-  { id: 'exam_f1', name: 'Weekly Live Exams', description: 'Scheduled competitive exams' },
-  { id: 'exam_f2', name: 'Model Tests', description: 'Full syllabus practice' },
+  { id: 'f1', name: 'Physics - Class 10', description: 'Dynamics and Motion', targetClass: 'Class 10' },
+  { id: 'f2', name: 'Chemistry - Class 12', description: 'Basic Organic Chemistry', targetClass: 'Class 12' },
+  { id: 'f3', name: 'Math - HSC', description: 'Calculus', targetClass: 'Class 11' },
+  { id: 'exam_f1', name: 'SSC Prep (Class 10)', description: 'Scheduled competitive exams', targetClass: 'Class 10' },
+  { id: 'exam_f2', name: 'HSC Model Tests', description: 'Full syllabus practice', targetClass: 'Class 12' },
+  { id: 'f_common', name: 'General Knowledge', description: 'For Everyone' }, // No targetClass = Public
 ];
 
 export const MOCK_CONTENT: StudyContent[] = [
@@ -70,7 +74,7 @@ export const MOCK_EXAMS: Exam[] = [
   { 
       id: 'e1', 
       folderId: 'exam_f1',
-      title: 'Physics Live Challenge', 
+      title: 'Physics Live Challenge (SSC)', 
       type: 'LIVE', 
       examFormat: 'MCQ',
       durationMinutes: 10, 
@@ -90,7 +94,7 @@ export const MOCK_EXAMS: Exam[] = [
   { 
       id: 'e2', 
       folderId: 'exam_f2',
-      title: 'General Knowledge Daily', 
+      title: 'Organic Chem Test (HSC)', 
       type: 'GENERAL', 
       examFormat: 'MCQ',
       durationMinutes: 5, 
@@ -99,8 +103,8 @@ export const MOCK_EXAMS: Exam[] = [
       isPublished: true,
       attempts: 2300,
       questionList: [
-          { id: 'gk1', text: 'Capital of Bangladesh?', marks: 5, type: 'MCQ', options: ['Sylhet', 'Chittagong', 'Dhaka', 'Khulna'], correctOption: 2 },
-          { id: 'gk2', text: 'Victory day of Bangladesh?', marks: 5, type: 'MCQ', options: ['21 Feb', '16 Dec', '26 Mar', '14 Apr'], correctOption: 1 },
+          { id: 'gk1', text: 'Benzene is?', marks: 5, type: 'MCQ', options: ['Alkane', 'Aromatic', 'Alkene', 'None'], correctOption: 1 },
+          { id: 'gk2', text: 'Formula of Methane?', marks: 5, type: 'MCQ', options: ['CH3', 'CH4', 'C2H6', 'C2H4'], correctOption: 1 },
       ]
   },
   { 

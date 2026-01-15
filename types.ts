@@ -15,7 +15,11 @@ export interface User {
   joinedDate: string; // ISO Date string
   lastLogin?: string; // ISO Date string
   avatar?: string;
-  class?: string;
+  // Updated fields based on requirement
+  studentType?: 'REGULAR' | 'ADMISSION'; 
+  class?: string; // Class 6-Master's OR Admission Category
+  phone?: string;
+  district?: string;
   institute?: string;
   points?: number;
   rank?: number;
@@ -49,6 +53,7 @@ export interface Folder {
   name: string;
   description: string;
   parentId?: string; // Added for nesting/sub-folders
+  targetClass?: string; // NEW: Filter content by class (e.g., "Class 10", "HSC", "Medical Admission")
 }
 
 export interface Appeal {
@@ -77,6 +82,7 @@ export interface ExamQuestion {
 export interface Exam {
   id: string;
   folderId?: string; // Added Folder Support
+  targetClass?: string; // NEW: Filter exam by class if not in a folder
   title: string;
   type: 'LIVE' | 'GENERAL';
   examFormat: 'MCQ' | 'WRITTEN'; // New Format Field
