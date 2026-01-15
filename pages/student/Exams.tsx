@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge } from '../../components/UI';
 import { Exam, Folder, StudentResult } from '../../types';
-import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen } from 'lucide-react';
+import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen, FileQuestion } from 'lucide-react';
 import ExamLiveInterface from './ExamLiveInterface';
 
 interface ExamsPageProps {
@@ -27,6 +27,20 @@ const getExamStatus = (exam: Exam) => {
     } else {
         return { status: 'ENDED', label: 'Ended', color: 'bg-slate-100 text-slate-600' };
     }
+};
+
+// Helper for deterministic gradient colors
+const getGradientClass = (index: number) => {
+    const gradients = [
+        'bg-gradient-to-br from-rose-600 to-red-700 shadow-rose-200',       // Red
+        'bg-gradient-to-br from-amber-500 to-orange-700 shadow-orange-200', // Orange/Gold
+        'bg-gradient-to-br from-lime-500 to-green-700 shadow-lime-200',    // Green
+        'bg-gradient-to-br from-emerald-500 to-teal-700 shadow-emerald-200', // Teal
+        'bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-200',    // Blue
+        'bg-gradient-to-br from-violet-500 to-purple-700 shadow-purple-200', // Purple
+        'bg-gradient-to-br from-fuchsia-600 to-pink-700 shadow-pink-200',   // Pink
+    ];
+    return gradients[index % gradients.length];
 };
 
 interface ExamCardProps {
@@ -116,44 +130,63 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
   // --- FOLDER VIEW ---
   if (!selectedFolderId) {
       return (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-fade-in pb-10">
               <h1 className="text-2xl font-bold text-slate-800">Exams & Model Tests</h1>
-              <p className="text-slate-500">Select a folder to view available Live and General exams.</p>
+              <p className="text-slate-500">Select a category to view available Live and General exams.</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {examFolders.length === 0 ? (
                       <div className="col-span-full text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-slate-400">
                           <FolderIcon size={40} className="mx-auto mb-2 opacity-20" />
                           <p>No exam folders available.</p>
                       </div>
                   ) : (
-                    examFolders.map(folder => {
+                    examFolders.map((folder, index) => {
                         // Filter exams for this folder AND ensure they are published for students
                         const examCount = exams.filter(e => e.folderId === folder.id && e.isPublished).length;
+                        const hasLive = exams.some(e => e.folderId === folder.id && e.isPublished && e.type === 'LIVE');
+                        
                         return (
-                            <Card 
+                            <div 
                                 key={folder.id} 
-                                className="cursor-pointer hover:border-indigo-400 transition-all hover:shadow-md group bg-white border-slate-200"
+                                onClick={() => setSelectedFolderId(folder.id)}
+                                className={`relative overflow-hidden rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
                             >
-                                <div onClick={() => setSelectedFolderId(folder.id)} className="flex items-center space-x-4">
-                                    <div className="flex-shrink-0">
-                                        {folder.icon ? (
-                                            <img src={folder.icon} alt="icon" className="w-16 h-16 object-contain" />
-                                        ) : (
-                                            <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-500 group-hover:text-white transition-colors text-amber-500">
-                                                <FolderIcon size={32} />
-                                            </div>
-                                        )}
+                                {/* Live Badge */}
+                                {hasLive && (
+                                    <div className="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-bl-xl shadow-sm flex items-center z-20">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 animate-pulse"></div> LIVE
                                     </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors">{folder.name}</h3>
-                                        <p className="text-sm text-slate-500 line-clamp-1">{folder.description || 'Exam Category'}</p>
-                                        <div className="mt-2 flex items-center text-xs font-medium text-slate-400">
-                                            {examCount} Exams Inside <ChevronRight size={14} className="ml-1" />
-                                        </div>
+                                )}
+
+                                {/* Background Decoration */}
+                                <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500">
+                                    {folder.icon ? (
+                                        <img src={folder.icon} className="w-40 h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
+                                    ) : (
+                                        <FolderIcon size={160} fill="currentColor" />
+                                    )}
+                                </div>
+
+                                {/* Content */}
+                                <div className="relative z-10">
+                                    <h3 className="text-2xl font-bold leading-tight mb-2 drop-shadow-sm font-serif tracking-wide">{folder.name}</h3>
+                                    <p className="text-white/90 text-sm font-medium line-clamp-2">{folder.description || 'Practice Exams'}</p>
+                                </div>
+
+                                {/* Footer Info */}
+                                <div className="relative z-10 flex items-center justify-between mt-2">
+                                    <div className="flex items-center space-x-2 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
+                                        <FileQuestion size={14} className="text-white/90" />
+                                        <span>{examCount} Exams</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center text-xs font-bold text-white/80">
+                                        <Calendar size={14} className="mr-1.5" />
+                                        <span>2025</span>
                                     </div>
                                 </div>
-                            </Card>
+                            </div>
                         )
                     })
                   )}
