@@ -1,0 +1,236 @@
+import React, { useState, useEffect } from 'react';
+import { Button, Card, Badge } from './UI';
+import { Folder, MCQQuestion } from '../types';
+import { Plus, Trash2, CheckCircle, AlertCircle, Save } from 'lucide-react';
+
+interface McqContentFormProps {
+  folders: Folder[];
+  fixedFolderId?: string;
+  initialData?: { title: string; folderId: string; questionList?: MCQQuestion[] };
+  onSubmit: (data: { title: string; folderId: string; questions: number; questionList: MCQQuestion[] }) => void;
+}
+
+const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId, initialData, onSubmit }) => {
+  // Basic Info
+  const [title, setTitle] = useState('');
+  const [folderId, setFolderId] = useState(fixedFolderId || '');
+
+  // Question Builder State
+  const [questions, setQuestions] = useState<MCQQuestion[]>([
+    { id: 'q1', questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }
+  ]);
+
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title);
+      setFolderId(initialData.folderId);
+      if (initialData.questionList && initialData.questionList.length > 0) {
+        setQuestions(initialData.questionList);
+      } else {
+         // Fallback if editing legacy data without detailed questions
+         setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+      }
+    } else {
+      setTitle('');
+      setFolderId(fixedFolderId || '');
+      setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+    }
+  }, [initialData, fixedFolderId]);
+
+  // Handlers
+  const addQuestion = () => {
+    setQuestions([
+      ...questions,
+      { 
+        id: `q${Date.now()}`, 
+        questionText: '', 
+        options: ['', '', '', ''], 
+        correctOptionIndex: 0 
+      }
+    ]);
+  };
+
+  const removeQuestion = (index: number) => {
+    if (questions.length === 1) {
+        alert("You must have at least one question.");
+        return;
+    }
+    const newQ = [...questions];
+    newQ.splice(index, 1);
+    setQuestions(newQ);
+  };
+
+  const updateQuestionText = (index: number, text: string) => {
+    const newQ = [...questions];
+    newQ[index].questionText = text;
+    setQuestions(newQ);
+  };
+
+  const updateOptionText = (qIndex: number, optIndex: number, text: string) => {
+    const newQ = [...questions];
+    newQ[qIndex].options[optIndex] = text;
+    setQuestions(newQ);
+  };
+
+  const setCorrectOption = (qIndex: number, optIndex: number) => {
+    const newQ = [...questions];
+    newQ[qIndex].correctOptionIndex = optIndex;
+    setQuestions(newQ);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !folderId) {
+      alert("Please fill in the title and select a folder.");
+      return;
+    }
+
+    // Validation
+    for (let i = 0; i < questions.length; i++) {
+        if (!questions[i].questionText.trim()) {
+            alert(`Question ${i + 1} is empty.`);
+            return;
+        }
+        if (questions[i].options.some(opt => !opt.trim())) {
+            alert(`All 4 options for Question ${i + 1} must be filled.`);
+            return;
+        }
+    }
+
+    onSubmit({
+        title,
+        folderId,
+        questions: questions.length,
+        questionList: questions
+    });
+
+    if (!initialData) {
+        // Reset only if creating new
+        setTitle('');
+        setQuestions([{ id: `q_${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in h-[70vh] flex flex-col">
+      {/* 1. Header Info */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">MCQ Set Title</label>
+            <input 
+            type="text"
+            required
+            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            placeholder="e.g. Physics Chapter 1 Quiz"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            />
+        </div>
+        
+        {!fixedFolderId && (
+            <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Select Folder</label>
+            <select 
+                required
+                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={folderId}
+                onChange={e => setFolderId(e.target.value)}
+            >
+                <option value="">Choose a folder...</option>
+                {folders.map(folder => (
+                <option key={folder.id} value={folder.id}>{folder.name}</option>
+                ))}
+            </select>
+            </div>
+        )}
+      </div>
+
+      <div className="border-t border-slate-200 my-2"></div>
+
+      {/* 2. Questions List (Scrollable) */}
+      <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+        <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-slate-800">Questions ({questions.length})</h3>
+            <Button type="button" variant="outline" size="sm" onClick={addQuestion}>
+                <Plus size={16} className="mr-2" /> Add Question
+            </Button>
+        </div>
+
+        {questions.map((q, qIndex) => (
+            <Card key={q.id} className="relative border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="absolute top-4 right-4">
+                    <button 
+                        type="button" 
+                        onClick={() => removeQuestion(qIndex)}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Delete Question"
+                    >
+                        <Trash2 size={18} />
+                    </button>
+                </div>
+                
+                <div className="mb-4 pr-8">
+                    <label className="block text-xs font-bold text-indigo-600 mb-1">QUESTION {qIndex + 1}</label>
+                    <textarea 
+                        className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                        rows={2}
+                        placeholder="Type the question here..."
+                        value={q.questionText}
+                        onChange={e => updateQuestionText(qIndex, e.target.value)}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {q.options.map((opt, optIndex) => (
+                        <div key={optIndex} className="relative">
+                            <div className="flex items-center mb-1">
+                                <span className={`text-xs font-bold w-6 ${q.correctOptionIndex === optIndex ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {String.fromCharCode(65 + optIndex)}.
+                                </span>
+                                <input 
+                                    type="text"
+                                    className={`w-full p-2 text-sm border rounded-lg focus:outline-none ${
+                                        q.correctOptionIndex === optIndex 
+                                        ? 'border-emerald-400 bg-emerald-50 focus:ring-2 focus:ring-emerald-500' 
+                                        : 'border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                                    }`}
+                                    placeholder={`Option ${String.fromCharCode(65 + optIndex)}`}
+                                    value={opt}
+                                    onChange={e => updateOptionText(qIndex, optIndex, e.target.value)}
+                                />
+                            </div>
+                            <div className="ml-6 flex items-center">
+                                <input 
+                                    type="radio"
+                                    name={`correct-${q.id}`}
+                                    checked={q.correctOptionIndex === optIndex}
+                                    onChange={() => setCorrectOption(qIndex, optIndex)}
+                                    className="mr-1.5 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <span className={`text-[10px] cursor-pointer ${q.correctOptionIndex === optIndex ? 'text-emerald-600 font-bold' : 'text-slate-400'}`} onClick={() => setCorrectOption(qIndex, optIndex)}>
+                                    {q.correctOptionIndex === optIndex ? 'Correct Answer' : 'Mark as Correct'}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Card>
+        ))}
+        
+        <div className="flex justify-center pt-4 pb-8">
+             <Button type="button" variant="outline" onClick={addQuestion} className="w-full border-dashed border-2">
+                <Plus size={16} className="mr-2" /> Add Another Question
+            </Button>
+        </div>
+      </div>
+
+      <div className="pt-4 border-t border-slate-200">
+        <Button type="submit" className="w-full py-3 flex items-center justify-center">
+             <Save size={18} className="mr-2" /> {initialData ? 'Update MCQ Set' : 'Save MCQ Set'}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default McqContentForm;
