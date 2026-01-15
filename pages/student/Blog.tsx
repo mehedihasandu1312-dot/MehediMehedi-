@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Card, Button, Badge, Modal } from '../../components/UI';
+import React, { useState, useMemo } from 'react';
+import { Card, Button, Badge } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, FolderOpen, Eye } from 'lucide-react';
+import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, Newspaper } from 'lucide-react';
 
 interface BlogProps {
     folders: Folder[];
@@ -10,8 +10,28 @@ interface BlogProps {
 }
 
 const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [readingBlog, setReadingBlog] = useState<BlogPost | null>(null);
+
+  // --- NAVIGATION HELPERS ---
+  const currentFolder = folders.find(f => f.id === currentFolderId);
+
+  // Recursive Breadcrumbs
+  const getBreadcrumbs = (folderId: string | null): Folder[] => {
+    if (!folderId) return [];
+    const folder = folders.find(f => f.id === folderId);
+    if (!folder) return [];
+    return [...getBreadcrumbs(folder.parentId || null), folder];
+  };
+
+  const breadcrumbs = useMemo(() => getBreadcrumbs(currentFolderId), [currentFolderId, folders]);
+
+  // Filter Items
+  const displayedFolders = folders.filter(f => 
+    (currentFolderId === null && !f.parentId) || f.parentId === currentFolderId
+  );
+
+  const displayedBlogs = blogs.filter(b => b.folderId === (currentFolderId || 'root_unsupported'));
 
   const handleReadBlog = (blog: BlogPost) => {
       setReadingBlog(blog);
@@ -20,124 +40,17 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
       }
   };
 
-  // VIEW 1: FOLDER LIST
-  if (!selectedFolderId) {
+  const handleNavigateUp = () => {
+      if (currentFolder?.parentId) {
+          setCurrentFolderId(currentFolder.parentId);
+      } else {
+          setCurrentFolderId(null);
+      }
+  };
+
+  // VIEW: BLOG READING MODAL
+  if (readingBlog) {
       return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                <BookOpen className="mr-3 text-indigo-600" size={28} />
-                Educational Blog Categories
-                </h1>
-            </div>
-
-            {folders.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">
-                    <p>No blog categories available yet.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {folders.map(folder => {
-                        const count = blogs.filter(b => b.folderId === folder.id).length;
-                        return (
-                            <Card 
-                                key={folder.id} 
-                                className="cursor-pointer hover:shadow-lg hover:border-indigo-300 transition-all group"
-                            >
-                                <div onClick={() => setSelectedFolderId(folder.id)} className="text-center p-4">
-                                    <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                        <FolderIcon size={32} />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-800 mb-1">{folder.name}</h3>
-                                    <p className="text-sm text-slate-500 mb-3">{folder.description}</p>
-                                    <Badge color="bg-slate-100 text-slate-600">{count} Articles</Badge>
-                                </div>
-                            </Card>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-      );
-  }
-
-  // VIEW 2: BLOG LIST IN FOLDER
-  const currentFolder = folders.find(f => f.id === selectedFolderId);
-  const folderBlogs = blogs.filter(b => b.folderId === selectedFolderId);
-
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center">
-        <Button variant="outline" onClick={() => setSelectedFolderId(null)} className="mr-4 bg-white">
-            <ArrowLeft size={16} />
-        </Button>
-        <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                <FolderOpen className="mr-3 text-indigo-600" size={28} />
-                {currentFolder?.name}
-            </h1>
-            <p className="text-slate-500 text-sm">{folderBlogs.length} articles found</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {folderBlogs.length === 0 ? (
-           <div className="col-span-full text-center py-12 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
-              No blog posts available in this category yet.
-           </div>
-        ) : (
-          folderBlogs.map(blog => (
-            <Card key={blog.id} className="flex flex-col h-full overflow-hidden p-0 hover:shadow-md transition-shadow">
-              <div className="h-48 overflow-hidden bg-slate-200">
-                <img 
-                  src={blog.thumbnail} 
-                  alt={blog.title} 
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              
-              <div className="p-6 flex flex-col flex-1">
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {blog.tags.map(tag => (
-                    <Badge key={tag} color="bg-indigo-50 text-indigo-600">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <h3 className="text-xl font-bold text-slate-800 mb-2 line-clamp-2">
-                  {blog.title}
-                </h3>
-                
-                <p className="text-slate-500 text-sm mb-4 line-clamp-3 flex-1">
-                  {blog.excerpt}
-                </p>
-                
-                <div className="flex items-center justify-between text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center">
-                    <User size={12} className="mr-1" /> {blog.author}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="flex items-center"><Eye size={12} className="mr-1" /> {blog.views || 0}</span>
-                    <span className="flex items-center"><Calendar size={12} className="mr-1" /> {blog.date}</span>
-                  </div>
-                </div>
-                
-                <Button 
-                    variant="outline" 
-                    className="w-full mt-4 flex items-center justify-center group"
-                    onClick={() => handleReadBlog(blog)}
-                >
-                  Read Article <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* BLOG READING MODAL */}
-      {readingBlog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                   {/* Header */}
@@ -186,7 +99,158 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                   </div>
               </div>
           </div>
-      )}
+      );
+  }
+
+  // VIEW: EXPLORER
+  return (
+    <div className="space-y-6 animate-fade-in">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+            <BookOpen className="mr-3 text-indigo-600" size={28} />
+            Educational Blog
+            </h1>
+        </div>
+
+        {/* Breadcrumbs Navigation */}
+        <div className="flex items-center space-x-2 border-b border-slate-100 pb-4 overflow-x-auto">
+            {currentFolderId !== null && (
+                <button 
+                    onClick={handleNavigateUp}
+                    className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 mr-2 transition-colors shrink-0"
+                    title="Go Up"
+                >
+                    <ArrowUp size={16} />
+                </button>
+            )}
+
+            <div className="flex items-center flex-wrap gap-2 text-sm text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-lg w-full shadow-sm">
+                <button 
+                    onClick={() => setCurrentFolderId(null)}
+                    className={`flex items-center hover:text-indigo-600 transition-colors ${currentFolderId === null ? 'font-bold text-indigo-700' : ''}`}
+                >
+                    <Home size={16} className="mr-1" /> Home
+                </button>
+                
+                {breadcrumbs.map((crumb, index) => (
+                    <React.Fragment key={crumb.id}>
+                        <ChevronRight size={14} className="text-slate-400" />
+                        <button 
+                            onClick={() => setCurrentFolderId(crumb.id)}
+                            className={`hover:text-indigo-600 transition-colors ${index === breadcrumbs.length - 1 ? 'font-bold text-indigo-700' : ''}`}
+                        >
+                            {crumb.name}
+                        </button>
+                    </React.Fragment>
+                ))}
+            </div>
+        </div>
+
+        {/* SECTION: FOLDERS */}
+        {displayedFolders.length > 0 && (
+            <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
+                    <FolderIcon size={14} className="mr-1"/> Categories
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {displayedFolders.map(folder => {
+                        // Count sub-items roughly (optional)
+                        const subCount = folders.filter(f => f.parentId === folder.id).length + blogs.filter(b => b.folderId === folder.id).length;
+                        return (
+                            <div 
+                                key={folder.id} 
+                                onClick={() => setCurrentFolderId(folder.id)}
+                                className="group bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-indigo-300 cursor-pointer transition-all flex flex-col items-center text-center"
+                            >
+                                <div className="bg-indigo-50 p-3 rounded-full text-indigo-600 mb-3 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                    <FolderOpen size={24} />
+                                </div>
+                                <h3 className="font-bold text-slate-700 text-sm mb-1">{folder.name}</h3>
+                                <Badge color="bg-slate-100 text-slate-500 text-[10px]">{subCount} Items</Badge>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
+
+        {/* SECTION: BLOGS */}
+        <div>
+            {displayedFolders.length > 0 && displayedBlogs.length > 0 && (
+                <div className="border-t border-slate-100 my-6"></div>
+            )}
+            
+            {(displayedBlogs.length > 0 || currentFolderId !== null) && (
+                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
+                    <Newspaper size={14} className="mr-1"/> Articles
+                </h3>
+            )}
+
+            {displayedBlogs.length === 0 ? (
+                currentFolderId !== null && displayedFolders.length === 0 && (
+                    <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <p>No content available in this folder yet.</p>
+                    </div>
+                )
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayedBlogs.map(blog => (
+                        <Card key={blog.id} className="flex flex-col h-full overflow-hidden p-0 hover:shadow-lg transition-all group">
+                            <div className="h-48 overflow-hidden bg-slate-200 relative">
+                                <img 
+                                    src={blog.thumbnail} 
+                                    alt={blog.title} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm flex items-center">
+                                    <Eye size={10} className="mr-1"/> {blog.views?.toLocaleString() || 0}
+                                </div>
+                            </div>
+                            
+                            <div className="p-5 flex flex-col flex-1">
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {blog.tags.slice(0, 2).map(tag => (
+                                        <Badge key={tag} color="bg-indigo-50 text-indigo-600">#{tag}</Badge>
+                                    ))}
+                                </div>
+
+                                <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                                    {blog.title}
+                                </h3>
+                                
+                                <p className="text-slate-500 text-sm mb-4 line-clamp-3 flex-1">
+                                    {blog.excerpt}
+                                </p>
+                                
+                                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                                    <div className="flex items-center text-xs text-slate-500">
+                                        <User size={12} className="mr-1" /> {blog.author}
+                                    </div>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        className="text-xs group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent transition-all"
+                                        onClick={() => handleReadBlog(blog)}
+                                    >
+                                        Read <ArrowRight size={12} className="ml-1" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
+        </div>
+        
+        {/* Empty Root State */}
+        {currentFolderId === null && displayedFolders.length === 0 && displayedBlogs.length === 0 && (
+             <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">
+                <BookOpen size={48} className="mx-auto mb-4 opacity-20" />
+                <p>Welcome to the Blog! Categories will appear here soon.</p>
+            </div>
+        )}
     </div>
   );
 };

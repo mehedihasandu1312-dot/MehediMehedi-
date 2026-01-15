@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp } from 'lucide-react';
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -29,7 +29,26 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     tags: ''
   });
 
-  // --- Handlers ---
+  // --- NAVIGATION HELPERS ---
+  const currentFolder = folders.find(f => f.id === currentFolderId);
+
+  // Recursive Breadcrumbs
+  const getBreadcrumbs = (folderId: string | null): Folder[] => {
+    if (!folderId) return [];
+    const folder = folders.find(f => f.id === folderId);
+    if (!folder) return [];
+    return [...getBreadcrumbs(folder.parentId || null), folder];
+  };
+
+  const breadcrumbs = useMemo(() => getBreadcrumbs(currentFolderId), [currentFolderId, folders]);
+
+  const displayedFolders = folders.filter(f => 
+    (currentFolderId === null && !f.parentId) || f.parentId === currentFolderId
+  );
+
+  const displayedBlogs = blogs.filter(b => b.folderId === (currentFolderId || 'root_unsupported'));
+
+  // --- HANDLERS ---
 
   const handleCreateFolder = (e: React.FormEvent) => {
       e.preventDefault();
@@ -38,7 +57,8 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       const newFolder: Folder = {
           id: `blog_folder_${Date.now()}`,
           name: newFolderName,
-          description: newFolderDesc
+          description: newFolderDesc,
+          parentId: currentFolderId || undefined // Support nesting
       };
       
       setFolders([...folders, newFolder]);
@@ -49,9 +69,10 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
 
   const handleDeleteFolder = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      const hasBlogs = blogs.some(b => b.folderId === id);
-      if (hasBlogs) {
-          alert("Cannot delete folder. It contains blog posts.");
+      // Check for children folders or blogs
+      const hasChildren = folders.some(f => f.parentId === id) || blogs.some(b => b.folderId === id);
+      if (hasChildren) {
+          alert("Cannot delete folder. It contains sub-folders or blog posts.");
           return;
       }
       if (confirm("Delete this folder?")) {
@@ -62,7 +83,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
   const handleBlogSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentFolderId) {
-        alert("Error: No folder selected.");
+        alert("Error: Please select a folder first.");
         return;
     }
 
@@ -76,7 +97,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       thumbnail: formData.thumbnail || 'https://picsum.photos/400/250',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-      views: 0 // Initialize views to 0
+      views: 0
     };
     setBlogs([newBlog, ...blogs]);
     setFormData({ title: '', author: '', excerpt: '', content: '', thumbnail: '', tags: '' });
@@ -88,6 +109,14 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     if (confirm("Delete this blog post?")) {
       setBlogs(blogs.filter(b => b.id !== id));
     }
+  };
+
+  const handleNavigateUp = () => {
+      if (currentFolder?.parentId) {
+          setCurrentFolderId(currentFolder.parentId);
+      } else {
+          setCurrentFolderId(null);
+      }
   };
 
   // --- VIEWS ---
@@ -106,7 +135,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                   <Card>
                     <form onSubmit={handleBlogSubmit} className="space-y-4">
                         <div className="bg-indigo-50 p-3 rounded text-sm text-indigo-700 font-medium mb-4">
-                            Publishing to: {folders.find(f => f.id === currentFolderId)?.name}
+                            Publishing to: <span className="font-bold">{currentFolder?.name}</span>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
@@ -146,117 +175,125 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       );
   }
 
-  // 2. FOLDER DETAIL VIEW (BLOG LIST)
-  if (currentFolderId) {
-      const currentFolder = folders.find(f => f.id === currentFolderId);
-      const folderBlogs = blogs.filter(b => b.folderId === currentFolderId);
-
-      return (
-          <div className="space-y-6 animate-fade-in pb-10">
-              <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                      <Button variant="outline" className="mr-4 bg-white shadow-sm hover:bg-slate-50" onClick={() => setCurrentFolderId(null)}>
-                          <ArrowLeft size={16} />
-                      </Button>
-                      <div>
-                          <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                              <FolderOpen className="mr-2 text-indigo-500" size={28} />
-                              {currentFolder?.name}
-                          </h1>
-                          <p className="text-sm text-slate-500 ml-9">{folderBlogs.length} Articles</p>
-                      </div>
-                  </div>
+  // 2. EXPLORER VIEW (FOLDERS + BLOGS)
+  return (
+    <div className="space-y-6 animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-slate-800">Blog Management</h1>
+          
+          <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsFolderModalOpen(true)} className="flex items-center">
+                  <FolderPlus size={18} className="mr-2" /> New Folder
+              </Button>
+              {currentFolderId && (
                   <Button onClick={() => setIsCreatingBlog(true)} className="flex items-center">
-                      <Plus size={18} className="mr-2" /> Write Blog
+                      <Plus size={18} className="mr-2" /> Write Article
                   </Button>
-              </div>
-
-              {folderBlogs.length === 0 ? (
-                  <Card className="text-center py-16 text-slate-400 border-2 border-dashed border-slate-200">
-                      <Newspaper size={48} className="mx-auto mb-4 opacity-20" />
-                      <p className="mb-4">No articles in this folder yet.</p>
-                      <Button variant="outline" onClick={() => setIsCreatingBlog(true)}>Write First Article</Button>
-                  </Card>
-              ) : (
-                  <div className="grid gap-6">
-                      {folderBlogs.map(blog => (
-                        <Card key={blog.id} className="flex flex-col md:flex-row gap-4">
-                            <img src={blog.thumbnail} alt={blog.title} className="w-full md:w-32 h-32 object-cover rounded-lg bg-slate-100" />
-                            <div className="flex-1">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-bold text-slate-800 text-lg">{blog.title}</h3>
-                                    <button onClick={() => handleDeleteBlog(blog.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={18} /></button>
-                                </div>
-                                <div className="flex items-center text-xs text-slate-500 mt-1 mb-2 space-x-3">
-                                    <span className="flex items-center"><User size={12} className="mr-1"/> {blog.author}</span>
-                                    <span className="flex items-center"><Calendar size={12} className="mr-1"/> {blog.date}</span>
-                                </div>
-                                <p className="text-sm text-slate-600 line-clamp-2">{blog.excerpt}</p>
-                                <div className="mt-2 flex items-center justify-between">
-                                    <div className="flex gap-2">
-                                        {blog.tags.map(tag => <Badge key={tag} color="bg-indigo-50 text-indigo-600">#{tag}</Badge>)}
-                                    </div>
-                                    <div className="flex items-center text-slate-500 text-sm font-medium bg-slate-100 px-2 py-1 rounded">
-                                        <Eye size={14} className="mr-1.5" /> {blog.views?.toLocaleString() || 0} Views
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                      ))}
-                  </div>
               )}
           </div>
-      );
-  }
-
-  // 3. FOLDER GRID VIEW
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-slate-800">Blog Management</h1>
-          <Button variant="outline" onClick={() => setIsFolderModalOpen(true)} className="flex items-center">
-              <FolderPlus size={18} className="mr-2" /> New Category
-          </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {folders.map(folder => {
-              const blogCount = blogs.filter(b => b.folderId === folder.id).length;
-              return (
-                <div 
-                    key={folder.id} 
-                    onClick={() => setCurrentFolderId(folder.id)}
-                    className="group relative bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-all hover:border-indigo-300 cursor-pointer flex flex-col items-center text-center"
-                >
-                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="text-slate-300 hover:text-red-500">
-                            <Trash2 size={16} />
-                        </button>
-                    </div>
-                    <div className="p-3 bg-indigo-50 rounded-full text-indigo-500 mb-3 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                        <FolderIcon size={32} />
-                    </div>
-                    <h4 className="font-bold text-slate-700 text-lg">{folder.name}</h4>
-                    <p className="text-xs text-slate-400 mt-1 mb-2 line-clamp-1">{folder.description || 'Category'}</p>
-                    <Badge color="bg-slate-100 text-slate-500">{blogCount} Articles</Badge>
+      <Card className="min-h-[500px] flex flex-col">
+          {/* Breadcrumbs Navigation */}
+          <div className="flex items-center space-x-2 border-b border-slate-100 pb-4 mb-4 overflow-x-auto">
+                {currentFolderId !== null && (
+                    <button 
+                        onClick={handleNavigateUp}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 mr-2 transition-colors shrink-0"
+                        title="Go Up"
+                    >
+                        <ArrowUp size={16} />
+                    </button>
+                )}
+
+                <div className="flex items-center flex-wrap gap-2 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg w-full">
+                    <button 
+                        onClick={() => setCurrentFolderId(null)}
+                        className={`flex items-center hover:text-indigo-600 transition-colors ${currentFolderId === null ? 'font-bold text-indigo-700' : ''}`}
+                    >
+                        <Home size={16} className="mr-1" /> Home
+                    </button>
+                    
+                    {breadcrumbs.map((crumb, index) => (
+                        <React.Fragment key={crumb.id}>
+                            <ChevronRight size={14} className="text-slate-400" />
+                            <button 
+                                onClick={() => setCurrentFolderId(crumb.id)}
+                                className={`hover:text-indigo-600 transition-colors ${index === breadcrumbs.length - 1 ? 'font-bold text-indigo-700' : ''}`}
+                            >
+                                {crumb.name}
+                            </button>
+                        </React.Fragment>
+                    ))}
                 </div>
-              );
-          })}
-          
-          <button 
-              onClick={() => setIsFolderModalOpen(true)}
-              className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-indigo-500 hover:border-indigo-300 transition-all"
-          >
-              <Plus size={32} className="mb-2" />
-              <span className="text-sm font-bold">Add Category Folder</span>
-          </button>
-      </div>
+          </div>
+
+          <div className="flex-1 space-y-8">
+              {/* SECTION: FOLDERS */}
+              <div>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
+                      <FolderIcon size={14} className="mr-1"/> Sub-Folders
+                  </h3>
+                  {displayedFolders.length === 0 ? (
+                      <p className="text-sm text-slate-400 italic pl-2">No sub-folders here.</p>
+                  ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          {displayedFolders.map(folder => (
+                              <div 
+                                  key={folder.id} 
+                                  onClick={() => setCurrentFolderId(folder.id)}
+                                  className="group relative bg-amber-50/50 border border-amber-100 rounded-xl p-4 hover:bg-amber-100 hover:border-amber-300 hover:shadow-sm cursor-pointer transition-all flex flex-col items-center text-center"
+                              >
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="text-amber-400 hover:text-red-500 p-1">
+                                          <Trash2 size={14} />
+                                      </button>
+                                  </div>
+                                  <FolderIcon className="text-amber-400 fill-amber-100 mb-2" size={32} />
+                                  <h4 className="font-bold text-slate-700 text-sm truncate w-full">{folder.name}</h4>
+                                  <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{folder.description}</p>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
+
+              {/* SECTION: BLOG POSTS */}
+              <div>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center border-t border-slate-100 pt-4">
+                      <Newspaper size={14} className="mr-1"/> Articles
+                  </h3>
+                  {displayedBlogs.length === 0 ? (
+                      <p className="text-sm text-slate-400 italic pl-2">No articles in this folder.</p>
+                  ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                          {displayedBlogs.map(blog => (
+                              <div key={blog.id} className="flex flex-col md:flex-row gap-4 p-4 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-slate-50 transition-all group">
+                                  <img src={blog.thumbnail} alt={blog.title} className="w-full md:w-32 h-24 object-cover rounded-lg bg-slate-200" />
+                                  <div className="flex-1">
+                                      <div className="flex justify-between items-start">
+                                          <h3 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors">{blog.title}</h3>
+                                          <button onClick={() => handleDeleteBlog(blog.id)} className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18} /></button>
+                                      </div>
+                                      <div className="flex items-center text-xs text-slate-500 mt-1 mb-2 space-x-3">
+                                          <span className="flex items-center"><User size={12} className="mr-1"/> {blog.author}</span>
+                                          <span className="flex items-center"><Calendar size={12} className="mr-1"/> {blog.date}</span>
+                                      </div>
+                                      <p className="text-sm text-slate-600 line-clamp-2">{blog.excerpt}</p>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
+          </div>
+      </Card>
 
       {/* Modal for Folder Creation */}
-      <Modal isOpen={isFolderModalOpen} onClose={() => setIsFolderModalOpen(false)} title="Create Blog Category">
+      <Modal isOpen={isFolderModalOpen} onClose={() => setIsFolderModalOpen(false)} title="Create Blog Folder">
           <form onSubmit={handleCreateFolder} className="space-y-4">
               <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Category Name</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Folder Name</label>
                   <input 
                     type="text" 
                     autoFocus
@@ -277,6 +314,15 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                     onChange={(e) => setNewFolderDesc(e.target.value)}
                   />
               </div>
+              
+              <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded border border-slate-100">
+                {currentFolderId ? (
+                     <>Creating sub-folder inside: <span className="font-bold text-indigo-600">{currentFolder?.name}</span></>
+                ) : (
+                     <>Creating category at: <span className="font-bold text-indigo-600">Root Level</span></>
+                )}
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setIsFolderModalOpen(false)}>Cancel</Button>
                   <Button type="submit">Create Folder</Button>
