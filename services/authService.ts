@@ -17,7 +17,8 @@ export const authService = {
       if (user.status === 'BLOCKED') {
         throw new Error("Your account has been blocked. Please contact the administrator.");
       }
-      localStorage.setItem('currentUser', JSON.stringify(user));
+      // Use sessionStorage to keep sessions separate per tab
+      sessionStorage.setItem('currentUser', JSON.stringify(user));
       return user;
     }
     return null;
@@ -44,7 +45,7 @@ export const authService = {
            throw new Error("This account is blocked.");
         }
 
-        localStorage.setItem('currentUser', JSON.stringify(userData));
+        sessionStorage.setItem('currentUser', JSON.stringify(userData));
         return userData;
       } else {
         // Create NEW User (Only for Students via Google Login usually)
@@ -65,7 +66,7 @@ export const authService = {
         };
 
         await setDoc(userRef, newUser);
-        localStorage.setItem('currentUser', JSON.stringify(newUser));
+        sessionStorage.setItem('currentUser', JSON.stringify(newUser));
         return newUser;
       }
     } catch (error: any) {
@@ -77,23 +78,23 @@ export const authService = {
 
   logout: async () => {
     await signOut(auth);
-    localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentUser');
   },
 
   getCurrentUser: (): User | null => {
-    const stored = localStorage.getItem('currentUser');
+    const stored = sessionStorage.getItem('currentUser');
     return stored ? JSON.parse(stored) : null;
   },
 
   updateProfile: async (updates: Partial<User>): Promise<User> => {
-    const stored = localStorage.getItem('currentUser');
+    const stored = sessionStorage.getItem('currentUser');
     if (!stored) throw new Error("No user");
     
     const user = JSON.parse(stored);
     const updatedUser = { ...user, ...updates, profileCompleted: true };
     
-    // Update Local
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    // Update Session
+    sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
     
     // Update Cloud
     try {
