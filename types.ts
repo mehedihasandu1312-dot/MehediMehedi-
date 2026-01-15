@@ -53,7 +53,9 @@ export interface Folder {
   name: string;
   description: string;
   parentId?: string; // Added for nesting/sub-folders
-  targetClass?: string; // NEW: Filter content by class (e.g., "Class 10", "HSC", "Medical Admission")
+  targetClass?: string; // Filter content by class
+  type?: 'CONTENT' | 'EXAM'; // NEW: Distinguish between Study Material folders and Exam folders
+  icon?: string; // NEW: Custom image/icon for the folder
 }
 
 export interface Appeal {

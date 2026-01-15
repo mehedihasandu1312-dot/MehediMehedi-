@@ -88,13 +88,13 @@ export const MOCK_USERS: User[] = [
 ];
 
 export const MOCK_FOLDERS: Folder[] = [
-  { id: 'f1', name: 'Physics - Class 10', description: 'Dynamics and Motion', targetClass: 'Class 10' },
-  { id: 'f2', name: 'Chemistry - Class 12', description: 'Basic Organic Chemistry', targetClass: 'HSC (Class 12)' },
-  { id: 'f3', name: 'Math - HSC', description: 'Calculus', targetClass: 'HSC (Class 11)' },
-  { id: 'exam_f1', name: 'SSC Prep (Class 10)', description: 'Scheduled competitive exams', targetClass: 'Class 10' },
-  { id: 'exam_f2', name: 'HSC Model Tests', description: 'Full syllabus practice', targetClass: 'HSC (Class 12)' },
-  { id: 'f_job', name: 'BCS Preliminary', description: 'Job Preparation Content', targetClass: 'Job Preparation' },
-  { id: 'f_common', name: 'General Knowledge', description: 'For Everyone' }, // No targetClass = Public
+  { id: 'f1', name: 'Physics - Class 10', description: 'Dynamics and Motion', targetClass: 'Class 10', type: 'CONTENT', icon: 'https://cdn-icons-png.flaticon.com/512/3081/3081530.png' },
+  { id: 'f2', name: 'Chemistry - Class 12', description: 'Basic Organic Chemistry', targetClass: 'HSC (Class 12)', type: 'CONTENT' },
+  { id: 'f3', name: 'Math - HSC', description: 'Calculus', targetClass: 'HSC (Class 11)', type: 'CONTENT' },
+  { id: 'exam_f1', name: 'SSC Prep (Class 10)', description: 'Scheduled competitive exams', targetClass: 'Class 10', type: 'EXAM', icon: 'https://cdn-icons-png.flaticon.com/512/2641/2641457.png' },
+  { id: 'exam_f2', name: 'HSC Model Tests', description: 'Full syllabus practice', targetClass: 'HSC (Class 12)', type: 'EXAM' },
+  { id: 'f_job', name: 'BCS Preliminary', description: 'Job Preparation Content', targetClass: 'Job Preparation', type: 'CONTENT', icon: 'https://cdn-icons-png.flaticon.com/512/3135/3135679.png' },
+  { id: 'f_common', name: 'General Knowledge', description: 'For Everyone', type: 'CONTENT' }, // No targetClass = Public
 ];
 
 export const MOCK_CONTENT: StudyContent[] = [

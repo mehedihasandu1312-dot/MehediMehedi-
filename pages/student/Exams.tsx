@@ -110,6 +110,9 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
       );
   }
 
+  // Filter only EXAM type folders
+  const examFolders = folders.filter(f => f.type === 'EXAM');
+
   // --- FOLDER VIEW ---
   if (!selectedFolderId) {
       return (
@@ -118,14 +121,13 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
               <p className="text-slate-500">Select a folder to view available Live and General exams.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {folders.length === 0 ? (
+                  {examFolders.length === 0 ? (
                       <div className="col-span-full text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-slate-400">
                           <FolderIcon size={40} className="mx-auto mb-2 opacity-20" />
                           <p>No exam folders available.</p>
                       </div>
                   ) : (
-                    folders.map(folder => {
-                        // Show all folders, just like Admin panel
+                    examFolders.map(folder => {
                         // Filter exams for this folder AND ensure they are published for students
                         const examCount = exams.filter(e => e.folderId === folder.id && e.isPublished).length;
                         return (
@@ -134,8 +136,14 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
                                 className="cursor-pointer hover:border-indigo-400 transition-all hover:shadow-md group bg-white border-slate-200"
                             >
                                 <div onClick={() => setSelectedFolderId(folder.id)} className="flex items-center space-x-4">
-                                    <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-500 group-hover:text-white transition-colors text-amber-500">
-                                        <FolderIcon size={32} />
+                                    <div className="flex-shrink-0">
+                                        {folder.icon ? (
+                                            <img src={folder.icon} alt="icon" className="w-16 h-16 object-contain" />
+                                        ) : (
+                                            <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-500 group-hover:text-white transition-colors text-amber-500">
+                                                <FolderIcon size={32} />
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex-1">
                                         <h3 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors">{folder.name}</h3>
@@ -185,7 +193,12 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
               </Button>
               <div>
                   <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                      <FolderIcon className="mr-2 text-amber-500" /> {currentFolder?.name}
+                      {currentFolder?.icon ? (
+                          <img src={currentFolder.icon} alt="icon" className="w-8 h-8 mr-2 object-contain" />
+                      ) : (
+                          <FolderIcon className="mr-2 text-amber-500" />
+                      )}
+                      {currentFolder?.name}
                   </h1>
                   <p className="text-slate-500 text-sm">Choose an exam to participate</p>
               </div>

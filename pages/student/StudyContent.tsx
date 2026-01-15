@@ -77,13 +77,22 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     }
   };
 
+  // Filter folders for CONTENT type only
+  const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
+
   const FolderList = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {folders.map(folder => (
+      {displayFolders.map(folder => (
         <Card key={folder.id} className="cursor-pointer hover:border-indigo-400 transition-all hover:shadow-md group bg-white border-slate-200">
           <div onClick={() => setSelectedFolder(folder)} className="flex items-start space-x-4">
-            <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-              <FolderIcon size={28} />
+            <div className="flex-shrink-0">
+               {folder.icon ? (
+                   <img src={folder.icon} alt="icon" className="w-12 h-12 object-contain" />
+               ) : (
+                   <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                       <FolderIcon size={28} />
+                   </div>
+               )}
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-lg">{folder.name}</h3>
@@ -249,7 +258,11 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           <button onClick={() => setSelectedFolder(null)} className="text-slate-500 hover:text-indigo-600 font-medium transition-colors">All Folders</button>
           <span className="text-slate-300">/</span>
           <span className="font-bold text-indigo-700 flex items-center">
-            <FolderIcon size={16} className="mr-2" />
+            {selectedFolder?.icon ? (
+                <img src={selectedFolder.icon} alt="icon" className="w-5 h-5 mr-2 object-contain" />
+            ) : (
+                <FolderIcon size={16} className="mr-2" />
+            )}
             {selectedFolder?.name}
           </span>
         </div>

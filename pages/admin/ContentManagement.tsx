@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import WrittenContentForm from '../../components/WrittenContentForm';
 import McqContentForm from '../../components/McqContentForm';
@@ -21,7 +21,10 @@ import {
     FolderOpen,
     ArrowUp,
     Edit,
-    Target
+    Target,
+    Image as ImageIcon,
+    X,
+    Upload
 } from 'lucide-react';
 
 // Custom Large Modal for Content Editing
@@ -58,15 +61,22 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [contentTypeToAdd, setContentTypeToAdd] = useState<ContentType>(ContentType.WRITTEN);
   const [editingContent, setEditingContent] = useState<StudyContent | null>(null);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   
   // Form Data
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
   const [newFolderTargetClass, setNewFolderTargetClass] = useState('');
+  const [newFolderIcon, setNewFolderIcon] = useState('');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- DASHBOARD STATISTICS ---
   const stats = useMemo(() => {
-    const totalFolders = folders.length;
+    // Filter only CONTENT folders
+    const contentFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
+    
+    const totalFolders = contentFolders.length;
     const totalFiles = contents.filter(c => !c.isDeleted).length;
     const writtenCount = contents.filter(c => !c.isDeleted && c.type === ContentType.WRITTEN).length;
     const mcqCount = contents.filter(c => !c.isDeleted && c.type === ContentType.MCQ).length;
@@ -90,8 +100,10 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   const breadcrumbs = useMemo(() => getBreadcrumbs(currentFolderId), [currentFolderId, folders]);
 
   // Filter items for current view
+  // IMPORTANT: Filter by type 'CONTENT' (or undefined for backward compatibility)
   const displayedFolders = folders.filter(f => 
-    (currentFolderId === null && !f.parentId) || f.parentId === currentFolderId
+    ((currentFolderId === null && !f.parentId) || f.parentId === currentFolderId) &&
+    (!f.type || f.type === 'CONTENT')
   );
   
   const displayedContents = contents.filter(c => 
@@ -101,23 +113,72 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
 
   // --- HANDLERS ---
 
-  const handleCreateFolder = (e: React.FormEvent) => {
+  const openCreateFolderModal = () => {
+      setEditingFolder(null);
+      setNewFolderName('');
+      setNewFolderDesc('');
+      setNewFolderTargetClass('');
+      setNewFolderIcon('');
+      setIsFolderModalOpen(true);
+  };
+
+  const openEditFolderModal = (folder: Folder) => {
+      setEditingFolder(folder);
+      setNewFolderName(folder.name);
+      setNewFolderDesc(folder.description);
+      setNewFolderTargetClass(folder.targetClass || '');
+      setNewFolderIcon(folder.icon || '');
+      setIsFolderModalOpen(true);
+  };
+
+  const handleFolderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName) return;
 
-    const newFolder: Folder = {
-      id: `folder_${Date.now()}`,
-      name: newFolderName,
-      description: newFolderDesc,
-      parentId: currentFolderId || undefined,
-      targetClass: newFolderTargetClass || undefined // Optional target class
-    };
+    if (editingFolder) {
+        // Update
+        setFolders(prev => prev.map(f => f.id === editingFolder.id ? {
+            ...f,
+            name: newFolderName,
+            description: newFolderDesc,
+            targetClass: newFolderTargetClass || undefined,
+            icon: newFolderIcon || undefined
+        } : f));
+        alert("Folder updated successfully!");
+    } else {
+        // Create
+        const newFolder: Folder = {
+            id: `folder_${Date.now()}`,
+            name: newFolderName,
+            description: newFolderDesc,
+            parentId: currentFolderId || undefined,
+            targetClass: newFolderTargetClass || undefined,
+            type: 'CONTENT', // Hardcoded for this page
+            icon: newFolderIcon || undefined
+        };
+        setFolders([...folders, newFolder]);
+        alert("Folder created successfully!");
+    }
 
-    setFolders([...folders, newFolder]);
     setNewFolderName('');
     setNewFolderDesc('');
     setNewFolderTargetClass('');
+    setNewFolderIcon('');
+    setEditingFolder(null);
     setIsFolderModalOpen(false);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setNewFolderIcon(event.target.result as string);
+              }
+          };
+          reader.readAsDataURL(file);
+      }
   };
 
   const handleSaveContent = (data: any) => {
@@ -297,7 +358,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 <Button 
                     variant="outline" 
                     className="flex items-center text-sm"
-                    onClick={() => setIsFolderModalOpen(true)}
+                    onClick={openCreateFolderModal}
                 >
                     <FolderPlus size={16} className="mr-2" /> New Folder
                 </Button>
@@ -319,7 +380,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         <FolderPlus size={48} className="text-slate-300" />
                     </div>
                     <p>Root directory is empty.</p>
-                    <Button variant="outline" className="mt-4" onClick={() => setIsFolderModalOpen(true)}>Create First Folder</Button>
+                    <Button variant="outline" className="mt-4" onClick={openCreateFolderModal}>Create First Folder</Button>
                  </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -328,11 +389,17 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         <div 
                             key={folder.id}
                             onDoubleClick={() => setCurrentFolderId(folder.id)}
-                            className="group p-4 bg-amber-50/50 border border-amber-100 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all relative select-none flex flex-col h-32"
+                            className="group p-4 bg-amber-50/50 border border-amber-100 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all relative select-none flex flex-col h-36"
                         >
                             <div className="flex justify-between items-start mb-2">
-                                <div className="p-2 bg-amber-200 text-amber-700 rounded-lg">
-                                    <FolderIcon size={20} />
+                                <div className="relative">
+                                    {folder.icon ? (
+                                        <img src={folder.icon} alt="icon" className="w-10 h-10 object-contain" />
+                                    ) : (
+                                        <div className="p-2 bg-amber-200 text-amber-700 rounded-lg">
+                                            <FolderIcon size={20} />
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex space-x-1">
                                      <button 
@@ -341,6 +408,13 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                         title="Open Folder"
                                     >
                                         <FolderOpen size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => openEditFolderModal(folder)}
+                                        className="text-indigo-400 hover:text-indigo-600 p-1 hover:bg-white/50 rounded"
+                                        title="Rename/Edit Folder"
+                                    >
+                                        <Edit size={16} />
                                     </button>
                                     <button 
                                         onClick={(e) => handleDeleteFolder(e, folder.id)}
@@ -366,7 +440,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     {displayedContents.map(content => (
                         <div 
                             key={content.id}
-                            className={`group p-4 border rounded-xl hover:shadow-md cursor-default transition-all relative h-32 flex flex-col ${
+                            className={`group p-4 border rounded-xl hover:shadow-md cursor-default transition-all relative h-36 flex flex-col ${
                                 content.type === ContentType.WRITTEN 
                                 ? 'bg-blue-50/50 border-blue-100 hover:bg-blue-100 hover:border-blue-300' 
                                 : 'bg-purple-50/50 border-purple-100 hover:bg-purple-100 hover:border-purple-300'
@@ -414,7 +488,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
                             <p>This folder is empty.</p>
                             <div className="flex justify-center gap-3 mt-4">
-                                <Button variant="outline" size="sm" onClick={() => setIsFolderModalOpen(true)}>
+                                <Button variant="outline" size="sm" onClick={openCreateFolderModal}>
                                     <FolderPlus size={14} className="mr-2"/> Add Sub-folder
                                 </Button>
                                 <Button variant="outline" size="sm" onClick={() => setIsContentModalOpen(true)}>
@@ -430,9 +504,9 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
 
       {/* --- MODALS --- */}
 
-      {/* Create Folder Modal */}
-      <Modal isOpen={isFolderModalOpen} onClose={() => setIsFolderModalOpen(false)} title="Create New Folder">
-        <form onSubmit={handleCreateFolder} className="space-y-4">
+      {/* Create/Edit Folder Modal */}
+      <Modal isOpen={isFolderModalOpen} onClose={() => setIsFolderModalOpen(false)} title={editingFolder ? "Edit Folder" : "Create New Folder"}>
+        <form onSubmit={handleFolderSubmit} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Folder Name</label>
                 <input 
@@ -475,20 +549,53 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         </optgroup>
                     </select>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                    * If selected, only students of this class will see this folder. Leave empty for everyone.
-                </p>
+            </div>
+
+            {/* Folder Icon Upload */}
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Folder Icon/Image (Optional)</label>
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleImageUpload} 
+                    accept="image/*"
+                />
+                <div className="flex items-center gap-3">
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center"
+                    >
+                        <Upload size={14} className="mr-2" /> Upload Icon
+                    </Button>
+                    
+                    {newFolderIcon && (
+                        <div className="relative group border border-slate-200 rounded p-1">
+                            <img src={newFolderIcon} alt="Preview" className="w-10 h-10 object-contain" />
+                            <button 
+                                type="button" 
+                                onClick={() => setNewFolderIcon('')}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600"
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
             
             <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded border border-slate-100">
                 {currentFolderId ? (
                      <>Creating sub-folder inside: <span className="font-bold text-indigo-600">{currentFolder?.name}</span></>
                 ) : (
-                     <>Creating folder at: <span className="font-bold text-indigo-600">Root Directory</span></>
+                     <>Creating folder at: <span className="font-bold text-indigo-600">Content Root</span></>
                 )}
             </div>
 
-            <Button type="submit" className="w-full">Create Folder</Button>
+            <Button type="submit" className="w-full">{editingFolder ? "Update Folder" : "Create Folder"}</Button>
         </form>
       </Modal>
 
@@ -527,10 +634,10 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 )}
             </div>
 
-            {/* Forms */}
+            {/* Forms - Pass filtered folders (CONTENT Type) */}
             {contentTypeToAdd === ContentType.WRITTEN ? (
                 <WrittenContentForm 
-                    folders={folders} 
+                    folders={folders.filter(f => !f.type || f.type === 'CONTENT')} 
                     fixedFolderId={editingContent ? editingContent.folderId : (currentFolderId || '')} 
                     initialData={editingContent && editingContent.type === ContentType.WRITTEN ? {
                         title: editingContent.title,
@@ -541,7 +648,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 />
             ) : (
                 <McqContentForm 
-                    folders={folders}
+                    folders={folders.filter(f => !f.type || f.type === 'CONTENT')}
                     fixedFolderId={editingContent ? editingContent.folderId : (currentFolderId || '')}
                     initialData={editingContent && editingContent.type === ContentType.MCQ ? {
                         title: editingContent.title,

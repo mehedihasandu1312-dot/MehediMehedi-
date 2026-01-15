@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import ExamCreationForm from '../../components/ExamCreationForm';
 import { Exam, Folder } from '../../types';
 import { 
     Plus, Trash2, Clock, Calendar, FileQuestion, 
     Eye, EyeOff, Folder as FolderIcon, Users, FolderPlus, 
-    FolderOpen, ArrowLeft 
+    FolderOpen, ArrowLeft, Edit, Upload, X 
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -21,9 +21,13 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   
-  // Folder Creation State
+  // Folder Creation/Edit State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderIcon, setNewFolderIcon] = useState('');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
@@ -54,19 +58,62 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
     alert("Exam created successfully! You can publish it when ready.");
   };
 
-  const handleCreateFolder = (e: React.FormEvent) => {
+  const openCreateFolderModal = () => {
+      setEditingFolder(null);
+      setNewFolderName('');
+      setNewFolderIcon('');
+      setIsFolderModalOpen(true);
+  };
+
+  const openEditFolderModal = (folder: Folder) => {
+      setEditingFolder(folder);
+      setNewFolderName(folder.name);
+      setNewFolderIcon(folder.icon || '');
+      setIsFolderModalOpen(true);
+  };
+
+  const handleFolderSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (!newFolderName.trim()) return;
       
-      const newFolder: Folder = {
-          id: `exam_folder_${Date.now()}`,
-          name: newFolderName,
-          description: 'Exam Category'
-      };
+      if (editingFolder) {
+          // Update
+          setFolders(prev => prev.map(f => f.id === editingFolder.id ? {
+              ...f,
+              name: newFolderName,
+              icon: newFolderIcon || undefined
+          } : f));
+          alert("Folder updated!");
+      } else {
+          // Create
+          const newFolder: Folder = {
+              id: `exam_folder_${Date.now()}`,
+              name: newFolderName,
+              description: 'Exam Category',
+              type: 'EXAM',
+              icon: newFolderIcon || undefined
+          };
+          setFolders([...folders, newFolder]);
+          alert("Folder created!");
+      }
       
-      setFolders([...folders, newFolder]);
       setNewFolderName('');
+      setNewFolderIcon('');
+      setEditingFolder(null);
       setIsFolderModalOpen(false);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setNewFolderIcon(event.target.result as string);
+              }
+          };
+          reader.readAsDataURL(file);
+      }
   };
 
   const handleDeleteFolder = (e: React.MouseEvent, id: string) => {
@@ -91,6 +138,9 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
     }
   };
 
+  // Filter for EXAM type folders only
+  const examFolders = folders.filter(f => f.type === 'EXAM');
+
   // --- VIEW LOGIC ---
 
   // 1. Creation View
@@ -106,7 +156,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               <Card>
                   <ExamCreationForm 
                     onSubmit={handleExamSubmit} 
-                    folders={folders}
+                    folders={examFolders}
                     fixedFolderId={currentFolderId || undefined}
                   />
               </Card>
@@ -128,7 +178,11 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                       </Button>
                       <div>
                           <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                              <FolderOpen className="mr-2 text-amber-500" size={28} />
+                              {currentFolder?.icon ? (
+                                  <img src={currentFolder.icon} className="w-8 h-8 mr-2 object-contain" alt="icon" />
+                              ) : (
+                                  <FolderOpen className="mr-2 text-amber-500" size={28} />
+                              )}
                               {currentFolder?.name}
                           </h1>
                           <p className="text-sm text-slate-500 ml-9">{folderExams.length} Exams in this folder</p>
@@ -203,7 +257,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               <p className="text-slate-500 text-sm">Select a folder to manage or set exams.</p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
-              <Button variant="outline" onClick={() => setIsFolderModalOpen(true)} className="flex items-center">
+              <Button variant="outline" onClick={openCreateFolderModal} className="flex items-center">
                   <FolderPlus size={18} className="mr-2" /> New Folder
               </Button>
           </div>
@@ -251,30 +305,48 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               <FolderIcon size={20} className="mr-2 text-amber-500" /> Exam Folders
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {folders.map(folder => {
+              {examFolders.map(folder => {
                   const examCount = exams.filter(e => e.folderId === folder.id).length;
                   return (
                     <div 
                         key={folder.id} 
-                        onClick={() => setCurrentFolderId(folder.id)}
-                        className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-amber-300 cursor-pointer"
+                        onDoubleClick={() => setCurrentFolderId(folder.id)}
+                        className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-amber-300 cursor-pointer select-none"
                     >
                         <div className="flex justify-between items-start mb-2">
-                            <FolderIcon className="text-amber-400 fill-amber-50" size={28} />
-                            <button 
-                                onClick={(e) => handleDeleteFolder(e, folder.id)} 
-                                className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            {folder.icon ? (
+                                <img src={folder.icon} alt="icon" className="w-10 h-10 object-contain mb-2" />
+                            ) : (
+                                <FolderIcon className="text-amber-400 fill-amber-50 mb-2" size={32} />
+                            )}
+                            <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); openEditFolderModal(folder); }}
+                                    className="text-indigo-400 hover:text-indigo-600 p-1"
+                                    title="Edit"
+                                >
+                                    <Edit size={14} />
+                                </button>
+                                <button 
+                                    onClick={(e) => handleDeleteFolder(e, folder.id)} 
+                                    className="text-slate-300 hover:text-red-500 p-1"
+                                    title="Delete"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
                         </div>
                         <h4 className="font-bold text-slate-700 text-sm truncate" title={folder.name}>{folder.name}</h4>
                         <p className="text-xs text-slate-400 mt-1">{examCount} Exams</p>
+                        <button 
+                            onClick={() => setCurrentFolderId(folder.id)}
+                            className="absolute inset-0 w-full h-full z-0"
+                        />
                     </div>
                   );
               })}
               <button 
-                  onClick={() => setIsFolderModalOpen(true)}
+                  onClick={openCreateFolderModal}
                   className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-indigo-500 hover:border-indigo-300 transition-all"
               >
                   <Plus size={24} className="mb-1" />
@@ -283,9 +355,9 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
           </div>
       </div>
 
-      {/* Modal for Folder Creation */}
-      <Modal isOpen={isFolderModalOpen} onClose={() => setIsFolderModalOpen(false)} title="Create Exam Folder">
-          <form onSubmit={handleCreateFolder}>
+      {/* Modal for Folder Creation/Edit */}
+      <Modal isOpen={isFolderModalOpen} onClose={() => setIsFolderModalOpen(false)} title={editingFolder ? "Edit Exam Folder" : "Create Exam Folder"}>
+          <form onSubmit={handleFolderSubmit}>
               <div className="mb-4">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Folder Name</label>
                   <input 
@@ -298,9 +370,46 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                     onChange={(e) => setNewFolderName(e.target.value)}
                   />
               </div>
+
+              {/* Folder Icon Upload */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Folder Icon (Optional)</label>
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleImageUpload} 
+                    accept="image/*"
+                />
+                <div className="flex items-center gap-3">
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center"
+                    >
+                        <Upload size={14} className="mr-2" /> Upload Icon
+                    </Button>
+                    
+                    {newFolderIcon && (
+                        <div className="relative group border border-slate-200 rounded p-1">
+                            <img src={newFolderIcon} alt="Preview" className="w-10 h-10 object-contain" />
+                            <button 
+                                type="button" 
+                                onClick={() => setNewFolderIcon('')}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600"
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsFolderModalOpen(false)}>Cancel</Button>
-                  <Button type="submit">Create Folder</Button>
+                  <Button type="submit">{editingFolder ? "Update Folder" : "Create Folder"}</Button>
               </div>
           </form>
       </Modal>
