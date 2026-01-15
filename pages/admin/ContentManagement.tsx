@@ -383,7 +383,8 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     <Button variant="outline" className="mt-4" onClick={openCreateFolderModal}>Create First Folder</Button>
                  </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                // UPDATED GRID: grid-cols-2 on mobile
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {/* Folders */}
                     {displayedFolders.map(folder => (
                         <div 

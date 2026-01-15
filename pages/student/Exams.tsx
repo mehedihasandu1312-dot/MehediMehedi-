@@ -134,7 +134,8 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
               <h1 className="text-2xl font-bold text-slate-800">Exams & Model Tests</h1>
               <p className="text-slate-500">Select a category to view available Live and General exams.</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {/* UPDATED GRID: grid-cols-2 on mobile */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                   {examFolders.length === 0 ? (
                       <div className="col-span-full text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-slate-400">
                           <FolderIcon size={40} className="mx-auto mb-2 opacity-20" />
@@ -150,39 +151,39 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
                             <div 
                                 key={folder.id} 
                                 onClick={() => setSelectedFolderId(folder.id)}
-                                className={`relative overflow-hidden rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
+                                className={`relative overflow-hidden rounded-2xl p-4 md:p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-40 md:h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
                             >
                                 {/* Live Badge */}
                                 {hasLive && (
-                                    <div className="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-bl-xl shadow-sm flex items-center z-20">
+                                    <div className="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-xl shadow-sm flex items-center z-20">
                                         <div className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 animate-pulse"></div> LIVE
                                     </div>
                                 )}
 
-                                {/* Background Decoration */}
-                                <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500">
+                                {/* Background Decoration - Adjusted for mobile */}
+                                <div className="absolute -right-4 -bottom-4 md:-right-6 md:-bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
                                     {folder.icon ? (
-                                        <img src={folder.icon} className="w-40 h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
+                                        <img src={folder.icon} className="w-24 h-24 md:w-40 md:h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
                                     ) : (
-                                        <FolderIcon size={160} fill="currentColor" />
+                                        <FolderIcon className="w-24 h-24 md:w-40 md:h-40" fill="currentColor" />
                                     )}
                                 </div>
 
                                 {/* Content */}
                                 <div className="relative z-10">
-                                    <h3 className="text-2xl font-bold leading-tight mb-2 drop-shadow-sm font-serif tracking-wide">{folder.name}</h3>
-                                    <p className="text-white/90 text-sm font-medium line-clamp-2">{folder.description || 'Practice Exams'}</p>
+                                    <h3 className="text-lg md:text-2xl font-bold leading-tight mb-1 md:mb-2 drop-shadow-sm font-serif tracking-wide line-clamp-2">{folder.name}</h3>
+                                    <p className="text-white/90 text-xs md:text-sm font-medium line-clamp-1 md:line-clamp-2">{folder.description || 'Practice Exams'}</p>
                                 </div>
 
                                 {/* Footer Info */}
                                 <div className="relative z-10 flex items-center justify-between mt-2">
-                                    <div className="flex items-center space-x-2 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
-                                        <FileQuestion size={14} className="text-white/90" />
-                                        <span>{examCount} Exams</span>
+                                    <div className="flex items-center space-x-1 md:space-x-2 bg-black/20 backdrop-blur-md px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
+                                        <FileQuestion size={12} className="text-white/90" />
+                                        <span>{examCount}</span>
                                     </div>
                                     
-                                    <div className="flex items-center text-xs font-bold text-white/80">
-                                        <Calendar size={14} className="mr-1.5" />
+                                    <div className="flex items-center text-[10px] md:text-xs font-bold text-white/80">
+                                        <Calendar size={12} className="mr-1" />
                                         <span>2025</span>
                                     </div>
                                 </div>

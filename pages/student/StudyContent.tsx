@@ -95,7 +95,8 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
 
   const FolderList = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    // UPDATED GRID: grid-cols-2 on mobile
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
       {displayFolders.map((folder, index) => {
         const itemCount = contents.filter(c => c.folderId === folder.id).length;
         
@@ -103,36 +104,36 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
             <div 
                 key={folder.id}
                 onClick={() => setSelectedFolder(folder)}
-                className={`relative overflow-hidden rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
+                className={`relative overflow-hidden rounded-2xl p-4 md:p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-40 md:h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
             >
                 {/* Background Decoration */}
-                <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500">
+                <div className="absolute -right-4 -bottom-4 md:-right-6 md:-bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
                     {folder.icon ? (
-                        <img src={folder.icon} className="w-40 h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
+                        <img src={folder.icon} className="w-24 h-24 md:w-40 md:h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
                     ) : (
-                        <FolderIcon size={160} fill="currentColor" />
+                        <FolderIcon className="w-24 h-24 md:w-40 md:h-40" fill="currentColor" />
                     )}
                 </div>
 
                 {/* Content */}
                 <div className="relative z-10">
-                    <h3 className="text-2xl font-bold leading-tight mb-2 drop-shadow-sm font-serif tracking-wide line-clamp-2">
+                    <h3 className="text-base md:text-2xl font-bold leading-tight mb-1 md:mb-2 drop-shadow-sm font-serif tracking-wide line-clamp-2">
                         {folder.name}
                     </h3>
-                    <p className="text-white/90 text-sm font-medium line-clamp-2">
+                    <p className="text-white/90 text-xs md:text-sm font-medium line-clamp-1 md:line-clamp-2">
                         {folder.description || 'Lecture Notes & Materials'}
                     </p>
                 </div>
 
                 {/* Footer Info */}
                 <div className="relative z-10 flex items-center justify-between mt-2">
-                    <div className="flex items-center space-x-2 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
-                        <FileText size={14} className="text-white/90" />
-                        <span>{itemCount} Documents</span>
+                    <div className="flex items-center space-x-1 md:space-x-2 bg-black/20 backdrop-blur-md px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
+                        <FileText size={12} className="text-white/90" />
+                        <span>{itemCount}</span>
                     </div>
                     
                     <span className="flex items-center text-xs font-bold bg-white/20 p-1.5 rounded-full hover:bg-white/30 transition-colors group-hover:translate-x-1 duration-300">
-                        <ArrowLeft className="rotate-180" size={16} />
+                        <ArrowLeft className="rotate-180" size={14} />
                     </span>
                 </div>
             </div>
