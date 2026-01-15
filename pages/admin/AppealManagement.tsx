@@ -1,14 +1,27 @@
-import React, { useMemo } from 'react';
-import { Card, Button, Badge } from '../../components/UI';
+import React, { useMemo, useState } from 'react';
+import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp } from 'lucide-react';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
     setAppeals: React.Dispatch<React.SetStateAction<Appeal[]>>;
 }
 
+const CANNED_RESPONSES = [
+    "Thank you for reporting. We have fixed the issue.",
+    "The content is correct. Please check your textbook reference.",
+    "We have noted this and will update it in the next maintenance cycle.",
+    "Image added as requested. Thanks!",
+    "Question format has been corrected."
+];
+
 const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
+    const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'REPLIED'>('ALL');
+    
+    // Modal State
+    const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
+    const [replyText, setReplyText] = useState('');
 
     // Calculate Dashboard Metrics
     const stats = useMemo(() => {
@@ -19,18 +32,33 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
         return { total, pending, replied, rate };
     }, [appeals]);
 
-    const handleReply = (id: string) => {
-        const replyText = prompt("Enter your reply to the student:");
-        if (replyText) {
-            setAppeals(prev => prev.map(a => 
-                a.id === id ? { ...a, status: 'REPLIED', reply: replyText } : a
-            ));
-        }
+    // Filter Logic
+    const filteredAppeals = appeals.filter(a => {
+        if (filter === 'ALL') return true;
+        return a.status === filter;
+    });
+
+    const openReplyModal = (appeal: Appeal) => {
+        setSelectedAppeal(appeal);
+        setReplyText('');
+    };
+
+    const handleSendReply = () => {
+        if (!selectedAppeal || !replyText.trim()) return;
+
+        setAppeals(prev => prev.map(a => 
+            a.id === selectedAppeal.id ? { ...a, status: 'REPLIED', reply: replyText } : a
+        ));
+
+        alert("Reply sent successfully!");
+        setSelectedAppeal(null);
     };
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <h1 className="text-2xl font-bold text-slate-800">Appeal Management</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-slate-800">Smart Appeal Center</h1>
+            </div>
             
             {/* 1. Monitoring Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -72,58 +100,162 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                 </Card>
             </div>
 
-            {/* 2. Appeal List */}
-            <div>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-slate-800">Student Appeals</h2>
-                    <span className="text-sm text-slate-500">Showing {appeals.length} records</span>
+            {/* 2. Filter & List */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center">
+                        Student Appeals
+                        <span className="ml-2 text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                            {filteredAppeals.length}
+                        </span>
+                    </h2>
+                    
+                    <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setFilter('ALL')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${filter === 'ALL' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            All
+                        </button>
+                        <button 
+                            onClick={() => setFilter('PENDING')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${filter === 'PENDING' ? 'bg-white shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Pending
+                        </button>
+                        <button 
+                            onClick={() => setFilter('REPLIED')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${filter === 'REPLIED' ? 'bg-white shadow text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Resolved
+                        </button>
+                    </div>
                 </div>
                 
-                <div className="grid gap-4">
-                    {appeals.length === 0 ? (
-                        <Card className="text-center py-12 text-slate-400">
+                <div className="divide-y divide-slate-100">
+                    {filteredAppeals.length === 0 ? (
+                        <div className="text-center py-12 text-slate-400">
                             <CheckCircle size={40} className="mx-auto mb-2 opacity-20" />
-                            All caught up! No appeals found.
-                        </Card>
+                            No appeals found matching filter.
+                        </div>
                     ) : (
-                        appeals.map(appeal => (
-                            <Card key={appeal.id} className={`transition-all hover:shadow-md ${appeal.status === 'PENDING' ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500'}`}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className="font-bold text-slate-800">{appeal.contentTitle}</h3>
-                                        <p className="text-sm text-slate-500">Reported by: <span className="font-medium text-slate-700">{appeal.studentName}</span> • {appeal.timestamp}</p>
-                                    </div>
-                                    <Badge color={appeal.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}>
-                                        {appeal.status}
-                                    </Badge>
-                                </div>
-                                
-                                <div className="bg-slate-50 p-3 rounded-lg text-slate-700 text-sm mb-4 border border-slate-100">
-                                    "{appeal.text}"
-                                </div>
-
-                                {appeal.reply && (
-                                    <div className="bg-emerald-50 p-3 rounded-lg text-emerald-800 text-sm mb-4 flex items-start border border-emerald-100">
-                                        <CheckCircle size={16} className="mr-2 mt-0.5 shrink-0" />
+                        filteredAppeals.map(appeal => (
+                            <div key={appeal.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col md:flex-row gap-4">
+                                {/* Left: Info */}
+                                <div className="flex-1">
+                                    <div className="flex items-start justify-between mb-2">
                                         <div>
-                                            <span className="font-bold">Admin Reply:</span> {appeal.reply}
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-slate-800 text-sm">{appeal.contentTitle}</h3>
+                                                {appeal.status === 'PENDING' && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                By <span className="font-medium text-indigo-600">{appeal.studentName}</span> • {appeal.timestamp}
+                                            </p>
                                         </div>
+                                        <Badge color={appeal.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}>
+                                            {appeal.status}
+                                        </Badge>
                                     </div>
-                                )}
+                                    
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm text-slate-700 mb-2">
+                                        "{appeal.text}"
+                                    </div>
 
-                                {appeal.status === 'PENDING' && (
-                                    <div className="flex justify-end pt-2 border-t border-slate-100">
-                                        <Button onClick={() => handleReply(appeal.id)} className="flex items-center text-sm h-9">
-                                            <MessageSquare size={16} className="mr-2" />
-                                            Reply to Student
+                                    {/* Thumbnail Preview */}
+                                    {appeal.image && (
+                                        <div className="mb-2">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Attachment</span>
+                                            <img src={appeal.image} alt="Ref" className="h-16 w-auto rounded border border-slate-200 cursor-pointer hover:opacity-80" onClick={() => openReplyModal(appeal)}/>
+                                        </div>
+                                    )}
+
+                                    {appeal.reply && (
+                                        <div className="flex items-start text-xs text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-100 mt-2">
+                                            <CheckCircle size={14} className="mr-2 mt-0.5 shrink-0" />
+                                            <div><span className="font-bold">You Replied:</span> {appeal.reply}</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right: Action */}
+                                <div className="flex items-center md:items-start md:border-l md:border-slate-100 md:pl-4">
+                                    {appeal.status === 'PENDING' ? (
+                                        <Button onClick={() => openReplyModal(appeal)} size="sm" className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700">
+                                            <MessageSquare size={16} className="mr-2" /> Resolve
                                         </Button>
-                                    </div>
-                                )}
-                            </Card>
+                                    ) : (
+                                        <Button variant="outline" size="sm" onClick={() => openReplyModal(appeal)} className="w-full md:w-auto text-slate-400">
+                                            Edit Reply
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                         ))
                     )}
                 </div>
             </div>
+
+            {/* SMART REPLY MODAL */}
+            <Modal isOpen={!!selectedAppeal} onClose={() => setSelectedAppeal(null)} title="Resolve Appeal">
+                {selectedAppeal && (
+                    <div className="flex flex-col h-[70vh] md:h-auto">
+                        <div className="flex-1 overflow-y-auto mb-4">
+                            {/* Student Context */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded">STUDENT REPORT</span>
+                                    <span className="text-xs text-slate-400">{selectedAppeal.timestamp}</span>
+                                </div>
+                                <h3 className="font-bold text-slate-800 mb-1">{selectedAppeal.contentTitle}</h3>
+                                <p className="text-sm text-slate-700 mb-3">{selectedAppeal.text}</p>
+                                
+                                {selectedAppeal.image && (
+                                    <div className="relative group">
+                                        <img src={selectedAppeal.image} alt="Evidence" className="w-full rounded-lg border border-slate-200 max-h-60 object-contain bg-black/5" />
+                                        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Attachment</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Smart Reply Section */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-sm font-bold text-slate-700">Your Reply</label>
+                                    <span className="text-xs text-indigo-600 font-medium">Smart Suggestions</span>
+                                </div>
+                                
+                                {/* Canned Responses */}
+                                <div className="flex flex-wrap gap-2">
+                                    {CANNED_RESPONSES.map((resp, idx) => (
+                                        <button 
+                                            key={idx}
+                                            onClick={() => setReplyText(resp)}
+                                            className="text-xs bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-full hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-left"
+                                        >
+                                            {resp}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <textarea 
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[100px] text-sm"
+                                    placeholder="Type a custom reply here..."
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                            <Button variant="outline" onClick={() => setSelectedAppeal(null)}>Cancel</Button>
+                            <Button onClick={handleSendReply} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
+                                <Send size={16} className="mr-2" /> Mark Resolved
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

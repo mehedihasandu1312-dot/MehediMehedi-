@@ -11,6 +11,7 @@ import Blog from './pages/student/Blog';
 import SocialPost from './pages/student/SocialPost';
 import Leaderboard from './pages/student/Leaderboard';
 import ProfileSettings from './pages/student/ProfileSettings';
+import StudentAppeals from './pages/student/StudentAppeals'; // Imported
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AppealManagement from './pages/admin/AppealManagement';
 import ContentManagement from './pages/admin/ContentManagement';
@@ -241,7 +242,10 @@ const App: React.FC = () => {
                  element={<Leaderboard users={users} currentUser={user} />} 
               />
               <Route path="/student/profile" element={<ProfileSettings />} />
-              <Route path="/student/appeals" element={<div className="text-center py-10 text-slate-400">Appeals History (Coming Soon)</div>} />
+              <Route 
+                path="/student/appeals" 
+                element={<StudentAppeals appeals={appeals} studentName={user.name} />} 
+              />
             </>
           )}
 

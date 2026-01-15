@@ -138,8 +138,35 @@ export const MOCK_SUBMISSIONS: ExamSubmission[] = [
 ];
 
 export const MOCK_APPEALS: Appeal[] = [
-  { id: 'a1', contentId: 'c1', contentTitle: 'Newton\'s Laws Notes', studentName: 'Karim Ullah', text: 'There is a typo in the second law formula.', status: 'PENDING', timestamp: '2h ago' },
-  { id: 'a2', contentId: 'c3', contentTitle: 'Hydrocarbons Summary', studentName: 'Rahim Ahmed', text: 'The diagram for Benzene is missing.', status: 'REPLIED', reply: 'Thanks, fixed it.', timestamp: '1d ago' },
+  { 
+    id: 'a1', 
+    contentId: 'c1', 
+    contentTitle: 'Newton\'s Laws Notes', 
+    studentName: 'Rahim Ahmed', 
+    text: 'There is a typo in the second law formula. It should be F=ma, not F=m/a.', 
+    image: 'https://picsum.photos/600/400?random=50',
+    status: 'PENDING', 
+    timestamp: '2h ago' 
+  },
+  { 
+    id: 'a2', 
+    contentId: 'c3', 
+    contentTitle: 'Hydrocarbons Summary', 
+    studentName: 'Rahim Ahmed', 
+    text: 'The diagram for Benzene is missing in the PDF view.', 
+    status: 'REPLIED', 
+    reply: 'Thanks for reporting. We have updated the file. Please refresh.', 
+    timestamp: '1d ago' 
+  },
+  { 
+    id: 'a3', 
+    contentId: 'c2', 
+    contentTitle: 'Motion Practice MCQ', 
+    studentName: 'Karim Ullah', 
+    text: 'Question 5 has two correct options (A and C).', 
+    status: 'PENDING', 
+    timestamp: '5h ago' 
+  },
 ];
 
 export const MOCK_NOTICES: Notice[] = [

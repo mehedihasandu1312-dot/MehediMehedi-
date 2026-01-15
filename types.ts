@@ -57,6 +57,7 @@ export interface Appeal {
   contentTitle: string;
   studentName: string;
   text: string;
+  image?: string; // Optional screenshot/image URL
   status: 'PENDING' | 'REPLIED';
   reply?: string;
   timestamp: string;
