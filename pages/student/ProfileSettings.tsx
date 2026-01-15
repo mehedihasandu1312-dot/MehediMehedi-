@@ -2,27 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button } from '../../components/UI';
 import { User } from '../../types';
 import { authService } from '../../services/authService';
-import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, GraduationCap } from 'lucide-react';
-
-const CLASSES_REGULAR = [
-    "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", 
-    "Class 11", "Class 12", 
-    "Honours 1st Year", "Honours 2nd Year", "Honours 3rd Year", "Honours 4th Year", 
-    "Masters"
-];
-
-const CLASSES_ADMISSION = [
-    "University Admission (A Unit)", 
-    "University Admission (B Unit)", 
-    "University Admission (C Unit)", 
-    "Medical Admission", 
-    "Engineering Admission"
-];
-
-const DISTRICTS = [
-    "Dhaka", "Chattogram", "Rajshahi", "Khulna", "Barishal", 
-    "Sylhet", "Rangpur", "Mymensingh", "Comilla", "Narayanganj"
-];
+import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin } from 'lucide-react';
+import { ALL_DISTRICTS, EDUCATION_LEVELS } from '../../constants';
 
 const ProfileSettings: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -116,7 +97,7 @@ const ProfileSettings: React.FC = () => {
                     <p className="text-slate-500 text-sm mb-2">{user.role}</p>
                     <div className="flex justify-center gap-2 mb-4">
                         <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">
-                            {studentType === 'REGULAR' ? 'Regular Student' : 'Admission Candidate'}
+                            {studentType === 'REGULAR' ? 'Regular/Job Prep' : 'Admission Candidate'}
                         </span>
                     </div>
                     <div className="text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">
@@ -137,7 +118,7 @@ const ProfileSettings: React.FC = () => {
                             onClick={() => { setStudentType('REGULAR'); setFormData({...formData, class: ''}); }}
                             className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${studentType === 'REGULAR' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}
                         >
-                            Regular
+                            Regular / Job Prep
                         </button>
                         <button
                             type="button"
@@ -151,7 +132,7 @@ const ProfileSettings: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">
-                                {studentType === 'REGULAR' ? 'Current Class' : 'Admission Category'}
+                                {studentType === 'REGULAR' ? 'Current Class / Sector' : 'Admission Category'}
                             </label>
                             <div className="relative">
                                 <BookOpen size={18} className="absolute left-3 top-3 text-slate-400" />
@@ -162,8 +143,8 @@ const ProfileSettings: React.FC = () => {
                                 >
                                     <option value="">Select Option</option>
                                     {studentType === 'REGULAR' 
-                                        ? CLASSES_REGULAR.map(c => <option key={c} value={c}>{c}</option>)
-                                        : CLASSES_ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
+                                        ? EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)
+                                        : EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
                                     }
                                 </select>
                             </div>
@@ -235,7 +216,7 @@ const ProfileSettings: React.FC = () => {
                                     onChange={e => setFormData({...formData, district: e.target.value})}
                                 >
                                     <option value="">Select District</option>
-                                    {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                    {ALL_DISTRICTS.sort().map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                             </div>
                         </div>

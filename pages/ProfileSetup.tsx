@@ -3,26 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { Card, Button } from '../components/UI';
 import { User, School, MapPin, Phone, BookOpen, GraduationCap } from 'lucide-react';
-
-const CLASSES_REGULAR = [
-    "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", 
-    "Class 11", "Class 12", 
-    "Honours 1st Year", "Honours 2nd Year", "Honours 3rd Year", "Honours 4th Year", 
-    "Masters"
-];
-
-const CLASSES_ADMISSION = [
-    "University Admission (A Unit)", 
-    "University Admission (B Unit)", 
-    "University Admission (C Unit)", 
-    "Medical Admission", 
-    "Engineering Admission"
-];
-
-const DISTRICTS = [
-    "Dhaka", "Chattogram", "Rajshahi", "Khulna", "Barishal", 
-    "Sylhet", "Rangpur", "Mymensingh", "Comilla", "Narayanganj"
-];
+import { ALL_DISTRICTS, EDUCATION_LEVELS } from '../constants';
 
 const ProfileSetup: React.FC = () => {
   const navigate = useNavigate();
@@ -70,7 +51,7 @@ const ProfileSetup: React.FC = () => {
                     }`}
                   >
                       <School size={20} className="mb-1" />
-                      Regular Student
+                      Regular / Job Prep
                   </button>
                   <button
                     type="button"
@@ -90,7 +71,7 @@ const ProfileSetup: React.FC = () => {
           {/* Class / Category Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-                {studentType === 'REGULAR' ? 'Select Class / Year' : 'Select Admission Category'}
+                {studentType === 'REGULAR' ? 'Select Class / Job Sector' : 'Select Admission Category'}
             </label>
             <div className="relative">
                 <BookOpen size={18} className="absolute left-3 top-3 text-slate-400" />
@@ -102,8 +83,8 @@ const ProfileSetup: React.FC = () => {
                 >
                 <option value="">Select Option</option>
                 {studentType === 'REGULAR' 
-                    ? CLASSES_REGULAR.map(c => <option key={c} value={c}>{c}</option>)
-                    : CLASSES_ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
+                    ? EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)
+                    : EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
                 }
                 </select>
             </div>
@@ -153,7 +134,7 @@ const ProfileSetup: React.FC = () => {
                         onChange={(e) => setFormData({...formData, district: e.target.value})}
                     >
                         <option value="">Select District</option>
-                        {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        {ALL_DISTRICTS.sort().map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                 </div>
               </div>

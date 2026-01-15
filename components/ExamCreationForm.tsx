@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Badge } from './UI';
 import { Exam, ExamQuestion, Folder } from '../types';
-import { Plus, Trash2, CheckCircle, Save, FileText, List, AlertOctagon, Image as ImageIcon, Type, Bold, Divide } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Save, FileText, List, AlertOctagon, Image as ImageIcon, Type, Bold, Divide, Target } from 'lucide-react';
+import { EDUCATION_LEVELS } from '../constants';
 
 interface ExamCreationFormProps {
   onSubmit: (data: Omit<Exam, 'id'>) => void;
@@ -14,6 +15,7 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
   const [basicInfo, setBasicInfo] = useState({
     title: '',
     folderId: fixedFolderId || '',
+    targetClass: '',
     type: 'GENERAL' as 'LIVE' | 'GENERAL',
     examFormat: 'MCQ' as 'MCQ' | 'WRITTEN',
     durationMinutes: 30,
@@ -129,6 +131,7 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
     onSubmit({
       title: basicInfo.title,
       folderId: basicInfo.folderId,
+      targetClass: basicInfo.targetClass || undefined,
       type: basicInfo.type,
       examFormat: basicInfo.examFormat,
       durationMinutes: basicInfo.durationMinutes,
@@ -176,6 +179,27 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
                           {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                       </select>
                   )}
+              </div>
+
+              {/* Target Class Selection */}
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Target Audience (Class)</label>
+                  <div className="relative">
+                      <Target size={16} className="absolute left-3 top-3 text-slate-400" />
+                      <select 
+                          className="w-full pl-9 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                          value={basicInfo.targetClass}
+                          onChange={e => setBasicInfo({...basicInfo, targetClass: e.target.value})}
+                      >
+                          <option value="">-- Same as Folder / Public --</option>
+                          <optgroup label="Regular & Job Prep">
+                              {EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                          <optgroup label="Admission">
+                              {EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                      </select>
+                  </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

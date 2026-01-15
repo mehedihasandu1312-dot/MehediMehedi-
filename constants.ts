@@ -1,5 +1,37 @@
 import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission } from './types';
 
+// --- DATA CONSTANTS ---
+
+export const ALL_DISTRICTS = [
+    "Bagerhat", "Bandarban", "Barguna", "Barishal", "Bhola", "Bogura", "Brahmanbaria", "Chandpur", 
+    "Chattogram", "Chuadanga", "Comilla", "Cox's Bazar", "Dhaka", "Dinajpur", "Faridpur", "Feni", 
+    "Gaibandha", "Gazipur", "Gopalganj", "Habiganj", "Jamalpur", "Jashore", "Jhalokathi", "Jhenaidah", 
+    "Joypurhat", "Khagrachari", "Khulna", "Kishoreganj", "Kurigram", "Kushtia", "Lakshmipur", "Lalmonirhat", 
+    "Madaripur", "Magura", "Manikganj", "Meherpur", "Moulvibazar", "Munshiganj", "Mymensingh", "Naogaon", 
+    "Narail", "Narayanganj", "Narsingdi", "Natore", "Netrokona", "Nilphamari", "Noakhali", "Pabna", 
+    "Panchagarh", "Patuakhali", "Pirojpur", "Rajbari", "Rajshahi", "Rangamati", "Rangpur", "Satkhira", 
+    "Shariatpur", "Sherpur", "Sirajganj", "Sunamganj", "Sylhet", "Tangail", "Thakurgaon"
+];
+
+export const EDUCATION_LEVELS = {
+    REGULAR: [
+        "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", 
+        "HSC (Class 11)", "HSC (Class 12)", 
+        "Honours 1st Year", "Honours 2nd Year", "Honours 3rd Year", "Honours 4th Year", 
+        "Masters",
+        "Job Preparation" // Added as requested
+    ],
+    ADMISSION: [
+        "University Admission (A Unit)", 
+        "University Admission (B Unit)", 
+        "University Admission (C Unit)", 
+        "Medical Admission", 
+        "Engineering Admission"
+    ]
+};
+
+// --- MOCK DATA ---
+
 export const MOCK_USERS: User[] = [
   {
     id: 'admin1',
@@ -57,10 +89,11 @@ export const MOCK_USERS: User[] = [
 
 export const MOCK_FOLDERS: Folder[] = [
   { id: 'f1', name: 'Physics - Class 10', description: 'Dynamics and Motion', targetClass: 'Class 10' },
-  { id: 'f2', name: 'Chemistry - Class 12', description: 'Basic Organic Chemistry', targetClass: 'Class 12' },
-  { id: 'f3', name: 'Math - HSC', description: 'Calculus', targetClass: 'Class 11' },
+  { id: 'f2', name: 'Chemistry - Class 12', description: 'Basic Organic Chemistry', targetClass: 'HSC (Class 12)' },
+  { id: 'f3', name: 'Math - HSC', description: 'Calculus', targetClass: 'HSC (Class 11)' },
   { id: 'exam_f1', name: 'SSC Prep (Class 10)', description: 'Scheduled competitive exams', targetClass: 'Class 10' },
-  { id: 'exam_f2', name: 'HSC Model Tests', description: 'Full syllabus practice', targetClass: 'Class 12' },
+  { id: 'exam_f2', name: 'HSC Model Tests', description: 'Full syllabus practice', targetClass: 'HSC (Class 12)' },
+  { id: 'f_job', name: 'BCS Preliminary', description: 'Job Preparation Content', targetClass: 'Job Preparation' },
   { id: 'f_common', name: 'General Knowledge', description: 'For Everyone' }, // No targetClass = Public
 ];
 

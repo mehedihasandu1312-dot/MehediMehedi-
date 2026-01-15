@@ -3,6 +3,7 @@ import { Card, Button, Modal, Badge } from '../../components/UI';
 import WrittenContentForm from '../../components/WrittenContentForm';
 import McqContentForm from '../../components/McqContentForm';
 import { StudyContent, ContentType, Folder } from '../../types';
+import { EDUCATION_LEVELS } from '../../constants';
 import { 
     Plus, 
     FileText, 
@@ -19,7 +20,8 @@ import {
     Search,
     FolderOpen,
     ArrowUp,
-    Edit
+    Edit,
+    Target
 } from 'lucide-react';
 
 // Custom Large Modal for Content Editing
@@ -60,6 +62,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   // Form Data
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
+  const [newFolderTargetClass, setNewFolderTargetClass] = useState('');
 
   // --- DASHBOARD STATISTICS ---
   const stats = useMemo(() => {
@@ -106,12 +109,14 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
       id: `folder_${Date.now()}`,
       name: newFolderName,
       description: newFolderDesc,
-      parentId: currentFolderId || undefined
+      parentId: currentFolderId || undefined,
+      targetClass: newFolderTargetClass || undefined // Optional target class
     };
 
     setFolders([...folders, newFolder]);
     setNewFolderName('');
     setNewFolderDesc('');
+    setNewFolderTargetClass('');
     setIsFolderModalOpen(false);
   };
 
@@ -350,8 +355,9 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                 <h4 className="font-bold text-slate-800 truncate" title={folder.name}>{folder.name}</h4>
                                 <p className="text-xs text-slate-500 truncate">{folder.description || 'No description'}</p>
                             </div>
-                            <div className="text-[10px] text-amber-700 font-medium uppercase tracking-wide mt-1">
-                                Folder
+                            <div className="text-[10px] text-amber-700 font-medium uppercase tracking-wide mt-1 flex justify-between">
+                                <span>Folder</span>
+                                {folder.targetClass && <span className="text-indigo-600 bg-white px-1 rounded">{folder.targetClass}</span>}
                             </div>
                         </div>
                     ))}
@@ -448,6 +454,30 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     value={newFolderDesc}
                     onChange={e => setNewFolderDesc(e.target.value)}
                 />
+            </div>
+
+            {/* Target Class Selection */}
+            <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Target Class / Group</label>
+                <div className="relative">
+                    <Target size={16} className="absolute left-3 top-3 text-slate-400" />
+                    <select 
+                        className="w-full pl-9 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                        value={newFolderTargetClass}
+                        onChange={e => setNewFolderTargetClass(e.target.value)}
+                    >
+                        <option value="">-- All Classes / Public --</option>
+                        <optgroup label="Regular & Job Prep">
+                            {EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                        </optgroup>
+                        <optgroup label="Admission">
+                            {EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                        </optgroup>
+                    </select>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                    * If selected, only students of this class will see this folder. Leave empty for everyone.
+                </p>
             </div>
             
             <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded border border-slate-100">
