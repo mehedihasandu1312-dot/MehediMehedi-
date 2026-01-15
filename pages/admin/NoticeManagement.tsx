@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, Button, Badge } from '../../components/UI';
 import { Notice } from '../../types';
-import { Plus, Trash2, Calendar } from 'lucide-react';
+import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload } from 'lucide-react';
 
 interface Props {
   notices: Notice[];
@@ -12,8 +12,11 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
+    image: '',
     priority: 'LOW' as 'HIGH' | 'MEDIUM' | 'LOW'
   });
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,12 +24,26 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
       id: `notice_${Date.now()}`,
       title: formData.title,
       content: formData.content,
+      image: formData.image || undefined,
       priority: formData.priority,
       date: new Date().toISOString()
     };
     setNotices([newNotice, ...notices]);
-    setFormData({ title: '', content: '', priority: 'LOW' });
+    setFormData({ title: '', content: '', image: '', priority: 'LOW' });
     alert("Notice posted successfully!");
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setFormData(prev => ({ ...prev, image: event.target?.result as string }));
+              }
+          };
+          reader.readAsDataURL(file);
+      }
   };
 
   const handleDelete = (id: string) => {
@@ -58,6 +75,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
                 <input required type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
                   value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Notice Headline" />
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
                 <select className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -67,11 +85,49 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
                   <option value="HIGH">High - Critical</option>
                 </select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Content</label>
                 <textarea required className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" rows={4}
                   value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Details..." />
               </div>
+
+              {/* Image Upload Section */}
+              <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Attachment (Optional)</label>
+                  <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      onChange={handleImageUpload} 
+                      accept="image/*"
+                  />
+                  <div className="flex flex-col gap-2">
+                      <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center justify-center w-full"
+                      >
+                          <Upload size={16} className="mr-2" /> Upload Image
+                      </Button>
+                      
+                      {formData.image && (
+                          <div className="relative group rounded-lg overflow-hidden border border-slate-200">
+                              <img src={formData.image} alt="Preview" className="w-full h-32 object-cover" />
+                              <button 
+                                  type="button" 
+                                  onClick={() => setFormData(prev => ({...prev, image: ''}))}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
+                              >
+                                  <X size={14} />
+                              </button>
+                          </div>
+                      )}
+                  </div>
+              </div>
+
               <Button type="submit" className="w-full">Post Notice</Button>
             </form>
           </Card>
@@ -92,7 +148,17 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
                <p className="text-xs text-slate-400 mb-3 flex items-center">
                  <Calendar size={12} className="mr-1" /> {new Date(notice.date).toLocaleDateString()}
                </p>
-               <p className="text-slate-600 text-sm">{notice.content}</p>
+               <p className="text-slate-600 text-sm mb-2">{notice.content}</p>
+               
+               {/* Image Preview in Admin List */}
+               {notice.image && (
+                   <div className="mt-2 relative inline-block">
+                       <div className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center">
+                           <ImageIcon size={12} className="mr-1" /> Attached Image
+                       </div>
+                       <img src={notice.image} alt="Notice Attachment" className="h-20 w-auto rounded border border-slate-200" />
+                   </div>
+               )}
             </Card>
           ))}
         </div>

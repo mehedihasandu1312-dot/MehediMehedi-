@@ -130,6 +130,7 @@ export interface Notice {
   title: string;
   date: string;
   content: string;
+  image?: string; // Added image support for notices
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Badge } from '../../components/UI';
 import { Notice as NoticeType } from '../../types';
-import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon } from 'lucide-react';
 
 interface Props {
     notices?: NoticeType[];
@@ -62,9 +62,12 @@ const Notice: React.FC<Props> = ({ notices = [] }) => {
                                         {new Date(notice.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-500 line-clamp-2 mb-2 leading-relaxed">
-                                    {notice.content}
-                                </p>
+                                <div className="flex items-center text-xs text-slate-500 mb-2">
+                                    <p className="line-clamp-2 leading-relaxed flex-1 mr-2">
+                                        {notice.content}
+                                    </p>
+                                    {notice.image && <ImageIcon size={14} className="text-indigo-400 shrink-0" />}
+                                </div>
                                 <div className="flex items-center justify-between mt-2">
                                     <Badge color={getPriorityColor(notice.priority)}>
                                         {notice.priority}
@@ -101,16 +104,27 @@ const Notice: React.FC<Props> = ({ notices = [] }) => {
 
                       {/* Detail Body */}
                       <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
-                          <div className="max-w-2xl mx-auto">
+                          <div className="max-w-3xl mx-auto">
                               <div className="mb-6">
                                   <Badge color={getPriorityColor(selectedNotice.priority)}>
                                       {selectedNotice.priority} PRIORITY
                                   </Badge>
                               </div>
                               
-                              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-8 font-serif leading-tight">
+                              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-6 font-serif leading-tight">
                                   {selectedNotice.title}
                               </h2>
+
+                              {/* Notice Image Display */}
+                              {selectedNotice.image && (
+                                  <div className="mb-8 rounded-xl overflow-hidden border border-slate-100 shadow-sm">
+                                      <img 
+                                        src={selectedNotice.image} 
+                                        alt={selectedNotice.title} 
+                                        className="w-full h-auto max-h-[400px] object-contain bg-slate-50"
+                                      />
+                                  </div>
+                              )}
 
                               <div className="prose prose-lg prose-slate max-w-none text-slate-600 leading-loose whitespace-pre-wrap font-sans">
                                   {selectedNotice.content}
