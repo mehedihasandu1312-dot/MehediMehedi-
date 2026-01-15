@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
-import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag } from 'lucide-react';
+import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X } from 'lucide-react';
 
 interface StudyContentPageProps {
     folders: Folder[];
     contents: StudyContent[];
+    onAppealSubmit?: (data: { contentId: string; contentTitle: string; text: string; image?: string }) => void;
 }
 
-const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents }) => {
+const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, onAppealSubmit }) => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [selectedContent, setSelectedContent] = useState<StudyContent | null>(null);
   
@@ -16,6 +17,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents }
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [appealTarget, setAppealTarget] = useState<{ id: string, title: string } | null>(null);
   const [appealText, setAppealText] = useState('');
+  const [appealImage, setAppealImage] = useState<string>(''); // Base64 string for image
 
   // --- HELPER: Generate Dummy Questions if none exist (For Demo Purposes) ---
   const getDisplayQuestions = (content: StudyContent): MCQQuestion[] => {
@@ -39,14 +41,40 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents }
   const openAppealModal = (id: string, title: string) => {
     setAppealTarget({ id, title });
     setAppealText('');
+    setAppealImage('');
     setIsAppealModalOpen(true);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setAppealImage(event.target.result as string);
+              }
+          };
+          reader.readAsDataURL(file);
+      }
   };
 
   const handleAppealSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert(`Appeal submitted for: ${appealTarget?.title}\nIssue: ${appealText}`);
-    setIsAppealModalOpen(false);
-    setAppealTarget(null);
+    if (appealTarget && onAppealSubmit) {
+        onAppealSubmit({
+            contentId: appealTarget.id,
+            contentTitle: appealTarget.title,
+            text: appealText,
+            image: appealImage || undefined
+        });
+        setIsAppealModalOpen(false);
+        setAppealTarget(null);
+    } else {
+        // Fallback if no handler passed
+        alert(`Appeal submitted for: ${appealTarget?.title}\nIssue: ${appealText}`);
+        setIsAppealModalOpen(false);
+        setAppealTarget(null);
+    }
   };
 
   const FolderList = () => (
@@ -294,8 +322,20 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents }
             onChange={(e) => setAppealText(e.target.value)}
           />
           <div className="mb-4">
-             <label className="block text-sm font-medium text-slate-700 mb-1">Attach Image (Optional)</label>
-             <input type="file" className="text-sm text-slate-500" />
+             <label className="block text-sm font-medium text-slate-700 mb-1">Attach Screenshot (Optional)</label>
+             <input type="file" className="text-sm text-slate-500" onChange={handleImageUpload} accept="image/*" />
+             {appealImage && (
+                 <div className="mt-2 relative inline-block">
+                     <img src={appealImage} alt="preview" className="h-20 rounded border" />
+                     <button 
+                        type="button" 
+                        onClick={() => setAppealImage('')}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"
+                     >
+                         <X size={12} />
+                     </button>
+                 </div>
+             )}
           </div>
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={() => setIsAppealModalOpen(false)}>Cancel</Button>

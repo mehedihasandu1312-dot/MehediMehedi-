@@ -177,6 +177,25 @@ const App: React.FC = () => {
       ));
   };
 
+  // --- Handle New Appeal Submission ---
+  const handleAddAppeal = (appealData: { contentId: string; contentTitle: string; text: string; image?: string }) => {
+      if (!user) return;
+      
+      const newAppeal: Appeal = {
+          id: `appeal_${Date.now()}`,
+          contentId: appealData.contentId,
+          contentTitle: appealData.contentTitle,
+          studentName: user.name,
+          text: appealData.text,
+          image: appealData.image, // Supports Image now
+          status: 'PENDING',
+          timestamp: 'Just now'
+      };
+
+      setAppeals(prev => [newAppeal, ...prev]);
+      alert("Appeal submitted successfully! Admin will review it shortly.");
+  };
+
   if (authLoading || (user && globalLoading)) {
       return (
           <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
@@ -221,7 +240,13 @@ const App: React.FC = () => {
               <Route path="/student/social" element={<SocialPost posts={socialPosts} setPosts={setSocialPosts} />} />
               <Route 
                 path="/student/content" 
-                element={<StudyContentPage folders={folders} contents={contents} />} 
+                element={
+                    <StudyContentPage 
+                        folders={folders} 
+                        contents={contents} 
+                        onAppealSubmit={handleAddAppeal} // Passed the handler
+                    />
+                } 
               />
               <Route 
                 path="/student/exams" 
