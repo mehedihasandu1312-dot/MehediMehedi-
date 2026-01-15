@@ -9,6 +9,7 @@ import ExamsPage from './pages/student/Exams';
 import Notice from './pages/student/Notice';
 import Blog from './pages/student/Blog';
 import SocialPost from './pages/student/SocialPost';
+import Leaderboard from './pages/student/Leaderboard';
 import ProfileSettings from './pages/student/ProfileSettings';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AppealManagement from './pages/admin/AppealManagement';
@@ -235,9 +236,12 @@ const App: React.FC = () => {
                 path="/student/blog" 
                 element={<Blog folders={blogFolders} blogs={blogs} onViewBlog={handleBlogView} />} 
               />
+              <Route 
+                 path="/student/leaderboard" 
+                 element={<Leaderboard users={users} currentUser={user} />} 
+              />
               <Route path="/student/profile" element={<ProfileSettings />} />
               <Route path="/student/appeals" element={<div className="text-center py-10 text-slate-400">Appeals History (Coming Soon)</div>} />
-              <Route path="/student/leaderboard" element={<div className="text-center py-10 text-slate-400">Leaderboard (Coming Soon)</div>} />
             </>
           )}
 
