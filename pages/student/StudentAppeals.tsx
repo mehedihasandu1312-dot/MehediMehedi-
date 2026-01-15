@@ -137,68 +137,80 @@ const StudentAppeals: React.FC<Props> = ({ appeals, studentName }) => {
             {/* DETAIL MODAL */}
             <Modal isOpen={!!selectedAppeal} onClose={() => setSelectedAppeal(null)} title="Appeal Details">
                 {selectedAppeal && (
-                    <div className="space-y-6">
-                        {/* Original Report */}
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center">
-                                <AlertCircle size={14} className="mr-1" /> Your Report
-                            </h4>
-                            <p className="font-bold text-indigo-700 mb-1">{selectedAppeal.contentTitle}</p>
-                            <p className="text-sm text-slate-700 leading-relaxed mb-4">{selectedAppeal.text}</p>
-                            
-                            {selectedAppeal.image && (
-                                <div className="mt-3">
-                                    <p className="text-xs text-slate-400 mb-1">Attached Screenshot:</p>
-                                    <a href={selectedAppeal.image} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg border border-slate-200">
-                                        <img 
-                                            src={selectedAppeal.image} 
-                                            alt="Evidence" 
-                                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform" 
-                                        />
-                                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">Click to View Full</span>
-                                        </div>
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Status Section */}
-                        <div className="flex items-center justify-between border-t border-b border-slate-100 py-4">
-                            <span className="text-sm text-slate-500">Current Status:</span>
-                            <Badge color={selectedAppeal.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}>
-                                {selectedAppeal.status === 'PENDING' ? 'Processing...' : 'Resolved'}
-                            </Badge>
-                        </div>
-
-                        {/* Admin Reply */}
-                        {selectedAppeal.reply || selectedAppeal.replyImage ? (
-                            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                                <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2 flex items-center">
-                                    <CheckCircle size={14} className="mr-1" /> Admin Response
+                    <div className="flex flex-col h-[75vh]">
+                        {/* Scrollable Content Area */}
+                        <div className="flex-1 overflow-y-auto pr-2 pb-4">
+                            {/* Original Report */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center">
+                                    <AlertCircle size={14} className="mr-1" /> Your Report
                                 </h4>
-                                {selectedAppeal.reply && (
-                                    <p className="text-sm text-emerald-900 leading-relaxed mb-3">
-                                        {selectedAppeal.reply}
-                                    </p>
-                                )}
-                                {selectedAppeal.replyImage && (
-                                    <div>
-                                        <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Attached Solution:</p>
-                                        <a href={selectedAppeal.replyImage} target="_blank" rel="noreferrer" className="block">
-                                            <img src={selectedAppeal.replyImage} alt="Admin Reply" className="max-h-48 rounded border border-emerald-200 shadow-sm" />
+                                <p className="font-bold text-indigo-700 mb-1">{selectedAppeal.contentTitle}</p>
+                                <p className="text-sm text-slate-700 leading-relaxed mb-4">{selectedAppeal.text}</p>
+                                
+                                {selectedAppeal.image && (
+                                    <div className="mt-3">
+                                        <p className="text-xs text-slate-400 mb-1">Attached Screenshot:</p>
+                                        <a href={selectedAppeal.image} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg border border-slate-200">
+                                            <img 
+                                                src={selectedAppeal.image} 
+                                                alt="Evidence" 
+                                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform" 
+                                            />
+                                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">Click to View Full</span>
+                                            </div>
                                         </a>
                                     </div>
                                 )}
                             </div>
-                        ) : (
-                            <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg">
-                                <Clock size={24} className="mx-auto mb-2 opacity-30" />
-                                <p className="text-sm">Admin has not replied yet.</p>
-                            </div>
-                        )}
 
-                        <Button variant="outline" className="w-full" onClick={() => setSelectedAppeal(null)}>Close</Button>
+                            {/* Status Section */}
+                            <div className="flex items-center justify-between border-t border-b border-slate-100 py-4 my-4">
+                                <span className="text-sm text-slate-500">Current Status:</span>
+                                <Badge color={selectedAppeal.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}>
+                                    {selectedAppeal.status === 'PENDING' ? 'Processing...' : 'Resolved'}
+                                </Badge>
+                            </div>
+
+                            {/* Admin Reply */}
+                            {selectedAppeal.reply || selectedAppeal.replyImage ? (
+                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                    <h4 className="text-xs font-bold text-emerald-600 uppercase mb-2 flex items-center">
+                                        <CheckCircle size={14} className="mr-1" /> Admin Response
+                                    </h4>
+                                    {selectedAppeal.reply && (
+                                        <p className="text-sm text-emerald-900 leading-relaxed mb-3">
+                                            {selectedAppeal.reply}
+                                        </p>
+                                    )}
+                                    {selectedAppeal.replyImage && (
+                                        <div>
+                                            <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Attached Solution:</p>
+                                            <a href={selectedAppeal.replyImage} target="_blank" rel="noreferrer" className="block">
+                                                <img src={selectedAppeal.replyImage} alt="Admin Reply" className="max-h-48 rounded border border-emerald-200 shadow-sm" />
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-6 text-slate-400 bg-slate-50 rounded-lg">
+                                    <Clock size={24} className="mx-auto mb-2 opacity-30" />
+                                    <p className="text-sm">Admin has not replied yet.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Fixed Footer with Close Button */}
+                        <div className="pt-4 border-t border-slate-100 bg-white shrink-0">
+                            <Button 
+                                variant="primary" 
+                                className="w-full bg-slate-800 hover:bg-slate-900 text-white" 
+                                onClick={() => setSelectedAppeal(null)}
+                            >
+                                Close
+                            </Button>
+                        </div>
                     </div>
                 )}
             </Modal>
