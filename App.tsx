@@ -26,8 +26,18 @@ import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
+// Helper to clean data (convert undefined to null) before saving
+const cleanData = (obj: any): any => {
+    if (Array.isArray(obj)) return obj.map(cleanData);
+    if (obj && typeof obj === 'object') {
+        return Object.fromEntries(
+            Object.entries(obj).map(([k, v]) => [k, v === undefined ? null : cleanData(v)])
+        );
+    }
+    return obj;
+};
+
 // --- CUSTOM HOOK: FIRESTORE REAL-TIME SYNC ---
-// This hook listens to a collection and also handles updates (add/edit/delete) locally to trigger remote writes.
 function useFirestoreCollection<T extends { id: string }>(
     collectionName: string, 
     initialMockData: T[]
@@ -63,7 +73,7 @@ function useFirestoreCollection<T extends { id: string }>(
             const batch = writeBatch(db);
             initialMockData.forEach(item => {
                 const ref = doc(db, collectionName, item.id);
-                batch.set(ref, item);
+                batch.set(ref, cleanData(item));
             });
             await batch.commit();
         }
@@ -84,25 +94,30 @@ function useFirestoreCollection<T extends { id: string }>(
       // Instead, we identify diffs and write to Firestore.
       
       const sync = async () => {
-          // Identify Additions & Updates
-          for (const item of newState) {
-              const oldItem = data.find(i => i.id === item.id);
-              // If new or changed
-              if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(item)) {
-                  await setDoc(doc(db, collectionName, item.id), item);
+          try {
+              // Identify Additions & Updates
+              for (const item of newState) {
+                  const oldItem = data.find(i => i.id === item.id);
+                  // If new or changed
+                  if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(item)) {
+                      await setDoc(doc(db, collectionName, item.id), cleanData(item));
+                  }
               }
-          }
-          // Identify Deletions
-          for (const item of data) {
-              if (!newState.find(i => i.id === item.id)) {
-                  await deleteDoc(doc(db, collectionName, item.id));
+              // Identify Deletions
+              for (const item of data) {
+                  if (!newState.find(i => i.id === item.id)) {
+                      await deleteDoc(doc(db, collectionName, item.id));
+                  }
               }
+          } catch (err: any) {
+              console.error("Sync Error:", err);
+              alert(`Error saving data to cloud: ${err.message}. Please check your connection or try again.`);
           }
       };
       
-      sync().catch(err => console.error("Sync Error:", err));
+      sync();
       
-      // Optimistic update for UI responsiveness (optional, but smoother)
+      // Optimistic update for UI responsiveness
       setData(newState);
   };
 

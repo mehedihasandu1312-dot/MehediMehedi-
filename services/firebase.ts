@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,7 +18,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// Initialize Firestore with settings to ignore undefined properties
+const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true
+});
+
 const googleProvider = new GoogleAuthProvider();
 
 export { app, analytics, auth, db, googleProvider };
