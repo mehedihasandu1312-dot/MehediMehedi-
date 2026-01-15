@@ -26,9 +26,10 @@ import { authService } from '../services/authService';
 interface LayoutProps {
   user: User;
   setUser: (user: User | null) => void;
+  children?: React.ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, setUser }) => {
+const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,7 +158,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser }) => {
 
         <div className="flex-1 overflow-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto">
-            <Outlet />
+            {children || <Outlet />}
           </div>
         </div>
       </main>

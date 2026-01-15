@@ -37,10 +37,6 @@ export const authService = {
       if (userSnap.exists()) {
         const userData = userSnap.data() as User;
         
-        // Security check: If trying to login as Student but account is Admin (or vice versa)
-        // For simplicity in this app, we allow the login but warn if roles mismatch, 
-        // OR we just update local storage with the cloud data.
-        
         if (userData.status === 'BLOCKED') {
            throw new Error("This account is blocked.");
         }
@@ -48,10 +44,7 @@ export const authService = {
         sessionStorage.setItem('currentUser', JSON.stringify(userData));
         return userData;
       } else {
-        // Create NEW User (Only for Students via Google Login usually)
-        // If an Admin tries to login via Google and doesn't exist, we can default them to Student 
-        // or reject. Here we create a new user based on the requested role.
-        
+        // Create NEW User
         const newUser: User = {
           id: fbUser.uid,
           name: fbUser.displayName || 'New Student',
@@ -71,7 +64,6 @@ export const authService = {
       }
     } catch (error: any) {
       console.error("Google Login Error:", error);
-      // IMPORTANT: Throw original error so UI can check error.code (e.g. auth/unauthorized-domain)
       throw error;
     }
   },

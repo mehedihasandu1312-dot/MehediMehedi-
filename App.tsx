@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -38,7 +38,7 @@ const cleanData = (obj: any): any => {
     return obj;
 };
 
-// --- CUSTOM HOOK: FIRESTORE REAL-TIME SYNC ---
+// --- CUSTOM HOOK: FIRESTORE REAL-TIME SYNC (Modular) ---
 function useFirestoreCollection<T extends { id: string }>(
     collectionName: string, 
     initialMockData: T[]
