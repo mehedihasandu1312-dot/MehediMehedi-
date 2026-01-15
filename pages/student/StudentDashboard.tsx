@@ -7,13 +7,9 @@ import {
 import { User, Exam, StudentResult } from '../../types';
 import { 
   Trophy, 
-  Flame, 
   TrendingUp, 
   Target, 
-  AlertTriangle, 
-  CheckCircle2, 
   LogOut,
-  Zap,
   BarChart2,
   FileCheck,
   AlertOctagon,
@@ -24,15 +20,13 @@ import {
   Users,
   GitCompare,
   UserPlus,
-  MessageCircle,
   X,
   Award,
   Share2,
   Download,
   Star,
-  Check,
+  CheckCircle2,
   XCircle,
-  MinusCircle,
   Percent
 } from 'lucide-react';
 
@@ -43,43 +37,7 @@ interface Props {
   results: StudentResult[]; // Receive real-time results
 }
 
-// --- MOCK DATA FOR CHARTS ---
-const mockPerformanceHistory = [
-  { day: 'Mon', score: 65 },
-  { day: 'Tue', score: 72 },
-  { day: 'Wed', score: 68 },
-  { day: 'Thu', score: 85 },
-  { day: 'Fri', score: 78 },
-  { day: 'Sat', score: 92 },
-  { day: 'Sun', score: 88 },
-];
-
-const activity24h = [
-  { time: 'Morning', sessions: 2 },
-  { time: 'Afternoon', sessions: 1 },
-  { time: 'Evening', sessions: 4 },
-  { time: 'Night', sessions: 0 },
-];
-
-const activityMonthly = [
-    { week: 'W1', hours: 12 },
-    { week: 'W2', hours: 18 },
-    { week: 'W3', hours: 14 },
-    { week: 'W4', hours: 22 },
-];
-
-// 2. Comparison Data Setup
-interface ComparisonStats {
-  av: number;
-  totalExams: number;
-  rank: number;
-  score: number;
-  xp: number;
-  negative: number;
-  accuracy: number;
-}
-
-// 3. Mock Friends / Peers with Stats
+// 3. Mock Friends (Kept for Social Feature Visualization, but User starts at 0)
 const INITIAL_FRIENDS = [
   { 
     id: 'fr1', 
@@ -103,17 +61,15 @@ const SUGGESTED_PEERS = [
   { id: 'p3', name: 'Rafiq Islam', avatar: 'https://ui-avatars.com/api/?name=Rafiq+Islam&background=random', mutual: 1 },
 ];
 
-const insights = {
-  strength: { topic: "Organic Chemistry", metric: "94% Accuracy", reason: "Consistent performance" },
-  weakness: { topic: "Vector Physics", metric: "High Negative Marks", reason: "Accuracy below 40%" },
-  streak: 5,
-  percentile: 12, // Top 12%
-};
-
-const recommendations = [
-  { id: 1, title: "Reduce Negative Marks", sub: "Your avg negative is high. Try to skip unsure questions.", type: "URGENT" },
-  { id: 2, title: "Maintain Streak", sub: "Complete 1 Daily Quiz to hit 6-day streak.", type: "GOAL" }
-];
+interface ComparisonStats {
+  av: number;
+  totalExams: number;
+  rank: number;
+  score: number;
+  xp: number;
+  negative: number;
+  accuracy: number;
+}
 
 const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) => {
   
@@ -130,7 +86,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
 
   // --- STATS CALCULATION LOGIC ---
   const myStats: ComparisonStats = useMemo(() => {
-      // Defaults
+      // Defaults - Start with ZEROs
       if (results.length === 0) {
           return { av: 0, totalExams: 0, rank: 0, score: 0, xp: user.points || 0, negative: 0, accuracy: 0 };
       }
@@ -146,22 +102,16 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
       // Avg Negative per Exam
       const avgNegative = totalNegative / totalExams;
 
-      // Approximate Accuracy: (Obtained Score + Negative Lost) / Total Marks
-      // This estimates "Correct Answer Marks" vs "Total Marks"
-      // In a real app, we would count 'correctAnswersCount' vs 'attemptedQuestionsCount'
       const estimatedCorrectScore = results.reduce((sum, r) => sum + (r.score + r.negativeDeduction), 0);
       const accuracy = totalMaxMarks > 0 ? (estimatedCorrectScore / totalMaxMarks) * 100 : 0;
 
       // --- COMPOSITE RANKING ALGORITHM ---
-      // Formula: (AvgScore * 0.4) + (Accuracy * 0.3) + (XP_Factor) - (Negative_Penalty)
-      const xpFactor = Math.min((user.points || 0), 5000) / 100; // Cap XP impact
-      const negativePenalty = avgNegative * 5; // Heavy penalty for negative marks
+      const xpFactor = Math.min((user.points || 0), 5000) / 100;
+      const negativePenalty = avgNegative * 5; 
       
       const compositeScore = (avgScore * 0.4) + (accuracy * 0.3) + xpFactor - negativePenalty;
       
-      // Simulate Global Rank based on Composite Score (Higher Score = Lower Rank Number)
-      // Assuming a "perfect" composite is around 100-120.
-      // Base rank 500, subtract score * 4. Min rank 1.
+      // Rank calculation only if user has activity
       const calculatedRank = Math.max(1, 500 - Math.floor(compositeScore * 4));
 
       return {
@@ -175,9 +125,19 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
       };
   }, [results, user]);
 
-  // Weekly Rank Logic (Simulated as a subset of Global)
-  const weeklyRank = Math.max(1, Math.floor(myStats.rank / 5) + (results.length > 0 ? 0 : 50));
-  const isTopTen = weeklyRank <= 10;
+  // Weekly Rank Logic
+  const weeklyRank = myStats.totalExams > 0 ? Math.max(1, Math.floor(myStats.rank / 5)) : 0;
+  const isTopTen = weeklyRank > 0 && weeklyRank <= 10;
+
+  // --- CHART DATA GENERATION (DYNAMIC) ---
+  const performanceHistory = useMemo(() => {
+      if (results.length === 0) return [];
+      // Take last 7 exams
+      return results.slice(0, 7).reverse().map(r => ({
+          date: new Date(r.date).toLocaleDateString(undefined, { weekday: 'short' }),
+          score: ((r.score / r.totalMarks) * 100).toFixed(0)
+      }));
+  }, [results]);
 
   // --- ACTIONS ---
   const handleConnect = (peerId: string) => {
@@ -216,7 +176,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
     alert("Certificate shared successfully to your social feed! 🚀");
   };
 
-  // --- CHART DATA CALCULATION ---
+  // --- RADAR DATA ---
   const radarData = useMemo(() => {
     const friend = friends.find(f => f.id === comparisonTarget);
     const fStats = friend ? friend.stats : null;
@@ -234,7 +194,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
         { label: 'Accuracy', key: 'accuracy' as keyof ComparisonStats, max: 100 },
         { label: 'Score', key: 'score' as keyof ComparisonStats, max: 4000 },
         { label: 'XP', key: 'xp' as keyof ComparisonStats, max: 2000 },
-        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 20, inverse: true }, // Inverse: Less is better
+        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 20, inverse: true },
     ];
 
     return metrics.map(m => ({
@@ -284,7 +244,9 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
       <div className="flex flex-col md:flex-row md:items-center justify-between">
         <div>
            <h1 className="text-2xl font-bold text-slate-800">Hello, {user.name.split(' ')[0]} 👋</h1>
-           <p className="text-slate-500 text-sm mt-1">Here is your academic performance overview.</p>
+           <p className="text-slate-500 text-sm mt-1">
+               {myStats.totalExams === 0 ? "Start taking exams to unlock your stats!" : "Here is your academic performance overview."}
+           </p>
         </div>
         
         <div className="mt-4 md:mt-0">
@@ -303,16 +265,21 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center">
           <div className="mb-6 md:mb-0">
             <div className="flex items-center space-x-2 mb-2">
-              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm border border-white/10">
-                🚀 Top {insights.percentile}% Performer
-              </span>
-              <span className="bg-emerald-500/80 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm">
-                Active Student
-              </span>
+              {myStats.totalExams > 0 ? (
+                  <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm border border-white/10">
+                    🚀 Active Student
+                  </span>
+              ) : (
+                  <span className="bg-amber-400/80 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm text-indigo-900">
+                    Newcomer
+                  </span>
+              )}
             </div>
-            <h2 className="text-3xl font-bold mb-1">{user.points} XP</h2>
+            <h2 className="text-3xl font-bold mb-1">{user.points || 0} XP</h2>
             <p className="text-indigo-100 text-sm max-w-lg mt-2 opacity-90">
-              Rank calculated via: Avg Marks, Accuracy, XP & Negative Penalties.
+              {myStats.totalExams > 0 
+                ? "Rank calculated via: Avg Marks, Accuracy, XP & Negative Penalties."
+                : "Complete your first exam to earn XP and get a Global Rank."}
             </p>
           </div>
 
@@ -320,15 +287,15 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
             {/* Global Rank */}
             <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10 text-center min-w-[100px]">
                 <div className="flex justify-center mb-1"><Trophy className="text-yellow-300" size={24} /></div>
-                <div className="text-2xl font-bold">#{myStats.rank}</div>
-                <div className="text-xs text-indigo-200">Global Rank</div>
+                <div className="text-2xl font-bold">{myStats.rank > 0 ? `#${myStats.rank}` : '-'}</div>
+                <div className="text-xs text-indigo-200">{myStats.rank > 0 ? "Global Rank" : "Unranked"}</div>
             </div>
 
-            {/* Weekly Rank (NEW with Certificate) */}
+            {/* Weekly Rank */}
             <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10 text-center min-w-[100px] relative group">
                 <div className="flex justify-center mb-1"><TrendingUp className="text-emerald-300" size={24} /></div>
-                <div className="text-2xl font-bold">#{weeklyRank}</div>
-                <div className="text-xs text-indigo-200">Weekly Rank</div>
+                <div className="text-2xl font-bold">{weeklyRank > 0 ? `#${weeklyRank}` : '-'}</div>
+                <div className="text-xs text-indigo-200">{weeklyRank > 0 ? "Weekly Rank" : "Unranked"}</div>
 
                 {isTopTen && (
                    <div className="absolute -bottom-2 -right-2">
@@ -485,7 +452,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
           </div>
       </div>
 
-      {/* SECTION 3: KEY PERFORMANCE INDICATORS (UPDATED) */}
+      {/* SECTION 3: KEY PERFORMANCE INDICATORS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Total Exams */}
         <Card className="flex flex-col justify-center border-l-4 border-l-indigo-500">
@@ -494,7 +461,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
              <span className="text-slate-500 text-sm font-medium">Total Exams Taken</span>
            </div>
            <h3 className="text-2xl font-bold text-slate-800">{myStats.totalExams}</h3>
-           <p className="text-xs text-slate-400">Lifetime submissions</p>
         </Card>
 
         {/* 2. Average Marks */}
@@ -504,27 +470,24 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
              <span className="text-slate-500 text-sm font-medium">Avg. Marks</span>
            </div>
            <h3 className="text-2xl font-bold text-slate-800">{myStats.av}%</h3>
-           <p className="text-xs text-emerald-600 font-medium">Based on history</p>
         </Card>
 
-        {/* 3. Average Negative (NEW) */}
+        {/* 3. Average Negative */}
         <Card className="flex flex-col justify-center border-l-4 border-l-red-500">
            <div className="flex items-center space-x-3 mb-1">
              <div className="p-2 bg-red-100 rounded-lg text-red-600"><AlertOctagon size={20} /></div>
              <span className="text-slate-500 text-sm font-medium">Avg. Negative</span>
            </div>
            <h3 className="text-2xl font-bold text-slate-800">-{myStats.negative}</h3>
-           <p className="text-xs text-red-500 font-medium">Marks lost per exam</p>
         </Card>
 
-        {/* 4. Accuracy (NEW) */}
+        {/* 4. Accuracy */}
         <Card className="flex flex-col justify-center border-l-4 border-l-purple-500">
            <div className="flex items-center space-x-3 mb-1">
              <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Percent size={20} /></div>
              <span className="text-slate-500 text-sm font-medium">Accuracy Rate</span>
            </div>
            <h3 className="text-2xl font-bold text-slate-800">{myStats.accuracy}%</h3>
-           <p className="text-xs text-purple-600 font-medium">Correct vs Total</p>
         </Card>
       </div>
 
@@ -538,27 +501,34 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                         <h3 className="font-bold text-slate-800 flex items-center">
                             <BarChart2 size={18} className="mr-2 text-indigo-600" /> Performance Trend
                         </h3>
-                        <p className="text-xs text-slate-400">Last 7 Days Accuracy</p>
+                        <p className="text-xs text-slate-400">Last 7 Exams Accuracy</p>
                     </div>
                 </div>
-                <div className="flex-1 w-full min-h-0">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                        <AreaChart data={mockPerformanceHistory}>
-                            <defs>
-                                <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: 'none', color: '#fff' }}
-                                itemStyle={{ color: '#fff' }}
-                            />
-                            <Area type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                <div className="flex-1 w-full min-h-0 flex items-center justify-center">
+                    {performanceHistory.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                            <AreaChart data={performanceHistory}>
+                                <defs>
+                                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: 'none', color: '#fff' }}
+                                    itemStyle={{ color: '#fff' }}
+                                />
+                                <Area type="monotone" dataKey="score" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="text-center text-slate-400">
+                            <BarChart2 size={48} className="mx-auto mb-2 opacity-20" />
+                            <p className="text-sm">No exam data available for chart.</p>
+                        </div>
+                    )}
                 </div>
             </Card>
         </div>
@@ -567,7 +537,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
         <div className="space-y-6">
              <Card className="bg-indigo-50 border-indigo-100">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center">
-                    <Calendar size={18} className="mr-2 text-indigo-600" /> Weekly Summary
+                    <Calendar size={18} className="mr-2 text-indigo-600" /> Lifetime Summary
                 </h3>
                 <div className="space-y-4">
                     <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
@@ -575,12 +545,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                             <FileCheck size={16} className="mr-2 text-indigo-400" /> Exams
                         </div>
                         <span className="font-bold text-slate-800">{results.length}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-                        <div className="flex items-center text-slate-600">
-                            <Clock size={16} className="mr-2 text-indigo-400" /> Study Time
-                        </div>
-                        <span className="font-bold text-slate-800">14.5h</span>
                     </div>
                     <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
                         <div className="flex items-center text-slate-600">
@@ -593,22 +557,36 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
 
             <div>
                 <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center">
-                    <Target className="mr-2 text-indigo-600" size={20}/> Next Steps
+                    <Target className="mr-2 text-indigo-600" size={20}/> Recommendations
                 </h3>
-                <div className="space-y-3">
-                    {recommendations.map(item => (
-                        <div key={item.id} className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+                {myStats.totalExams > 0 ? (
+                    <div className="space-y-3">
+                         {myStats.negative > 2 && (
+                            <div className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-shadow">
+                                <div className="flex items-start space-x-3">
+                                    <div className="mt-1.5 w-2 h-2 rounded-full shrink-0 bg-red-500"></div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-slate-700">Reduce Negative Marks</h4>
+                                        <p className="text-xs text-slate-500 mt-1">Your avg negative is high. Skip unsure questions.</p>
+                                    </div>
+                                </div>
+                            </div>
+                         )}
+                         <div className="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-shadow">
                             <div className="flex items-start space-x-3">
-                                <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${item.type === 'URGENT' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                                <div className="mt-1.5 w-2 h-2 rounded-full shrink-0 bg-blue-500"></div>
                                 <div>
-                                    <h4 className="font-bold text-sm text-slate-700">{item.title}</h4>
-                                    <p className="text-xs text-slate-500 mt-1">{item.sub}</p>
-                                    <Button variant="outline" className="text-[10px] h-6 px-2 mt-2">Start Now</Button>
+                                    <h4 className="font-bold text-sm text-slate-700">Consistency is Key</h4>
+                                    <p className="text-xs text-slate-500 mt-1">Try to take at least 1 exam every day.</p>
                                 </div>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    </div>
+                ) : (
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-center text-slate-500 text-sm">
+                        Complete exams to get personalized recommendations.
+                    </div>
+                )}
             </div>
         </div>
 
@@ -724,7 +702,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
       {/* CERTIFICATE MODAL */}
       <Modal isOpen={showCertificate} onClose={() => setShowCertificate(false)} title=" ">
         <div className="text-center p-2 relative">
-             {/* Decorative Background for Certificate Look */}
              <div className="absolute inset-0 border-[8px] border-double border-amber-200 rounded-lg pointer-events-none m-1"></div>
              
              <div className="bg-[#fdfbf7] p-8 rounded shadow-inner border border-amber-100">
@@ -762,7 +739,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                  </div>
              </div>
              
-             {/* Action Buttons */}
              <div className="mt-6 flex gap-3 justify-center">
                  <Button className="flex items-center bg-[#1877F2] hover:bg-[#166fe5]" onClick={handleShareCertificate}>
                      <Share2 size={16} className="mr-2" /> Share on Social

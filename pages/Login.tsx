@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRole, User } from '../types';
 import { authService } from '../services/authService';
-import { ShieldCheck, Loader2, AlertTriangle, Copy, UserCheck } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertTriangle, Copy } from 'lucide-react';
 
 interface LoginProps {
   setUser: (user: User) => void;
@@ -30,24 +30,6 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
     }
   };
 
-  // Mock Student Login (For Testing/Demo when Firebase fails)
-  const handleDemoStudentLogin = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      // Uses the mock student from constants.ts
-      const user = await authService.login('student@edumaster.com', UserRole.STUDENT);
-      if (user) {
-        setUser(user);
-        navigate('/student/dashboard');
-      }
-    } catch (error: any) {
-      setErrorMsg({ title: "Demo Login Failed", detail: error.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Google Student Login
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -70,7 +52,6 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
       console.error("Full Login Error:", error);
       
       // Handle Specific Firebase Domain Error
-      // Check both code and message to be safe
       if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized-domain')) {
           const currentDomain = window.location.hostname;
           setErrorMsg({
@@ -152,25 +133,13 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
             </div>
           </button>
 
-          {/* Demo Student Option (New) */}
-          <button
-            onClick={handleDemoStudentLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center p-3 rounded-xl border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
-          >
-             <div className="flex items-center text-sm font-medium text-slate-500 group-hover:text-indigo-600">
-                <UserCheck size={16} className="mr-2" />
-                Login as Demo Student (No Setup Required)
-             </div>
-          </button>
-
           <div className="relative flex py-2 items-center">
              <div className="flex-grow border-t border-slate-200"></div>
              <span className="flex-shrink-0 mx-4 text-slate-400 text-xs uppercase">Admin Access</span>
              <div className="flex-grow border-t border-slate-200"></div>
           </div>
 
-          {/* Admin Login (Kept as Demo/Mock for now) */}
+          {/* Admin Login */}
           <button
             onClick={handleAdminLogin}
             disabled={loading}
