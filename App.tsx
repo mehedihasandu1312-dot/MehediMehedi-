@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import ProfileSetup from './pages/ProfileSetup';
+import AdminSetup from './pages/AdminSetup'; // Imported Setup Page
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudyContentPage from './pages/student/StudyContent';
 import ExamsPage from './pages/student/Exams';
@@ -11,7 +12,7 @@ import Blog from './pages/student/Blog';
 import SocialPost from './pages/student/SocialPost';
 import Leaderboard from './pages/student/Leaderboard';
 import ProfileSettings from './pages/student/ProfileSettings';
-import StudentAppeals from './pages/student/StudentAppeals'; // Imported
+import StudentAppeals from './pages/student/StudentAppeals';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AppealManagement from './pages/admin/AppealManagement';
 import ContentManagement from './pages/admin/ContentManagement';
@@ -248,6 +249,9 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/login" element={<Login setUser={setUser} />} />
         
+        {/* --- HIDDEN ADMIN SETUP ROUTE --- */}
+        <Route path="/setup-admin" element={<AdminSetup />} />
+
         <Route 
             path="/complete-profile" 
             element={
