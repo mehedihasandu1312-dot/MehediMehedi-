@@ -269,7 +269,9 @@ const App: React.FC = () => {
                         user={user} 
                         onLogout={handleLogout} 
                         exams={studentExams} 
-                        results={studentResults.filter(r => r.score >= 0)} 
+                        results={studentResults} // Pass ALL results, Dashboard will filter
+                        allUsers={users}
+                        setAllUsers={setUsers}
                     />
                 } 
               />

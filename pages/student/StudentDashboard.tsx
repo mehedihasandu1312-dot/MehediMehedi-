@@ -27,39 +27,20 @@ import {
   Star,
   CheckCircle2,
   XCircle,
-  Percent
+  Percent,
+  Search,
+  Check,
+  Mail
 } from 'lucide-react';
 
 interface Props {
   user: User;
   onLogout?: () => void;
-  exams: Exam[]; // Receive real-time exams
-  results: StudentResult[]; // Receive real-time results
+  exams: Exam[]; 
+  results: StudentResult[]; // Contains ALL results
+  allUsers: User[];
+  setAllUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
-
-// 3. Mock Friends (Kept for Social Feature Visualization, but User starts at 0)
-const INITIAL_FRIENDS = [
-  { 
-    id: 'fr1', 
-    name: 'Karim Ullah', 
-    avatar: 'https://ui-avatars.com/api/?name=Karim+Ullah&background=random', 
-    online: true, 
-    stats: { av: 65, totalExams: 30, rank: 120, score: 2100, xp: 900, negative: 20, accuracy: 60 }
-  },
-  { 
-    id: 'fr2', 
-    name: 'Sarah J.', 
-    avatar: 'https://ui-avatars.com/api/?name=Sarah+J&background=random', 
-    online: false, 
-    stats: { av: 88, totalExams: 45, rank: 12, score: 3800, xp: 1600, negative: 15, accuracy: 85 }
-  },
-];
-
-const SUGGESTED_PEERS = [
-  { id: 'p1', name: 'Tanvir Ahmed', avatar: 'https://ui-avatars.com/api/?name=Tanvir+Ahmed&background=random', mutual: 3 },
-  { id: 'p2', name: 'Nusrat Parvin', avatar: 'https://ui-avatars.com/api/?name=Nusrat+Parvin&background=random', mutual: 5 },
-  { id: 'p3', name: 'Rafiq Islam', avatar: 'https://ui-avatars.com/api/?name=Rafiq+Islam&background=random', mutual: 1 },
-];
 
 interface ComparisonStats {
   av: number;
@@ -71,12 +52,13 @@ interface ComparisonStats {
   accuracy: number;
 }
 
-const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) => {
+const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, allUsers, setAllUsers }) => {
   
-  // --- STATE FOR COMPARISON ---
-  const [comparisonTarget, setComparisonTarget] = useState<string>(INITIAL_FRIENDS.length > 0 ? INITIAL_FRIENDS[0].id : '');
-  const [friends, setFriends] = useState(INITIAL_FRIENDS);
-  const [suggestions, setSuggestions] = useState(SUGGESTED_PEERS);
+  // --- STATE FOR FRIENDS ---
+  const [comparisonTarget, setComparisonTarget] = useState<string>('');
+  const [searchEmail, setSearchEmail] = useState('');
+  const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
+  const [foundUser, setFoundUser] = useState<User | null>(null);
   
   // --- CERTIFICATE STATE ---
   const [showCertificate, setShowCertificate] = useState(false);
@@ -84,106 +66,177 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
   // --- EXAM PREVIEW STATE ---
   const [selectedResult, setSelectedResult] = useState<StudentResult | null>(null);
 
-  // --- STATS CALCULATION LOGIC ---
-  const myStats: ComparisonStats = useMemo(() => {
-      // Defaults - Start with ZEROs
-      if (results.length === 0) {
-          return { av: 0, totalExams: 0, rank: 0, score: 0, xp: user.points || 0, negative: 0, accuracy: 0 };
+  // --- HELPER: CALCULATE STATS ---
+  const calculateStats = (targetUser: User): ComparisonStats => {
+      // Filter results for this specific user
+      const userResults = results.filter(r => r.studentId === targetUser.id);
+
+      if (userResults.length === 0) {
+          return { av: 0, totalExams: 0, rank: 0, score: 0, xp: targetUser.points || 0, negative: 0, accuracy: 0 };
       }
 
-      const totalExams = results.length;
-      const totalScore = results.reduce((sum, r) => sum + r.score, 0);
-      const totalMaxMarks = results.reduce((sum, r) => sum + r.totalMarks, 0);
-      const totalNegative = results.reduce((sum, r) => sum + r.negativeDeduction, 0);
+      const totalExams = userResults.length;
+      const totalScore = userResults.reduce((sum, r) => sum + r.score, 0);
+      const totalMaxMarks = userResults.reduce((sum, r) => sum + r.totalMarks, 0);
+      const totalNegative = userResults.reduce((sum, r) => sum + r.negativeDeduction, 0);
       
-      // Avg Score Percentage
       const avgScore = totalMaxMarks > 0 ? (totalScore / totalMaxMarks) * 100 : 0;
-      
-      // Avg Negative per Exam
       const avgNegative = totalNegative / totalExams;
 
-      const estimatedCorrectScore = results.reduce((sum, r) => sum + (r.score + r.negativeDeduction), 0);
+      const estimatedCorrectScore = userResults.reduce((sum, r) => sum + (r.score + r.negativeDeduction), 0);
       const accuracy = totalMaxMarks > 0 ? (estimatedCorrectScore / totalMaxMarks) * 100 : 0;
 
-      // --- COMPOSITE RANKING ALGORITHM ---
-      const xpFactor = Math.min((user.points || 0), 5000) / 100;
-      const negativePenalty = avgNegative * 5; 
-      
-      const compositeScore = (avgScore * 0.4) + (accuracy * 0.3) + xpFactor - negativePenalty;
-      
-      // Rank calculation only if user has activity
-      const calculatedRank = Math.max(1, 500 - Math.floor(compositeScore * 4));
+      // Simple Rank: Higher XP = Lower Rank Number
+      // Find rank in allUsers array sorted by points
+      const sortedUsers = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0));
+      const rank = sortedUsers.findIndex(u => u.id === targetUser.id) + 1;
 
       return {
           av: Math.round(avgScore),
           totalExams: totalExams,
-          rank: calculatedRank,
+          rank: rank,
           score: Math.round(totalScore),
-          xp: user.points || 0,
+          xp: targetUser.points || 0,
           negative: parseFloat(avgNegative.toFixed(2)),
           accuracy: Math.round(accuracy)
       };
-  }, [results, user]);
+  };
+
+  const myStats = useMemo(() => calculateStats(user), [results, user, allUsers]);
 
   // Weekly Rank Logic
   const weeklyRank = myStats.totalExams > 0 ? Math.max(1, Math.floor(myStats.rank / 5)) : 0;
   const isTopTen = weeklyRank > 0 && weeklyRank <= 10;
 
-  // --- CHART DATA GENERATION (DYNAMIC) ---
+  // --- CHART DATA GENERATION (FIXED DATE) ---
   const performanceHistory = useMemo(() => {
-      if (results.length === 0) return [];
-      // Take last 7 exams
-      return results.slice(0, 7).reverse().map(r => ({
-          date: new Date(r.date).toLocaleDateString(undefined, { weekday: 'short' }),
-          score: ((r.score / r.totalMarks) * 100).toFixed(0)
+      // 1. Get MY results
+      const myResults = results.filter(r => r.studentId === user.id);
+      
+      if (myResults.length === 0) return [];
+      
+      // 2. Sort Chronologically
+      const sorted = [...myResults].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // 3. Take Last 7
+      return sorted.slice(-7).map(r => {
+          const d = new Date(r.date);
+          const dayName = isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString(undefined, { weekday: 'short' });
+          return {
+              date: dayName,
+              score: r.totalMarks > 0 ? ((r.score / r.totalMarks) * 100).toFixed(0) : 0
+          };
+      });
+  }, [results, user]);
+
+  // --- FRIEND LOGIC ---
+  const myFriends = useMemo(() => {
+      return allUsers.filter(u => user.friends?.includes(u.id));
+  }, [allUsers, user.friends]);
+
+  const incomingRequests = useMemo(() => {
+      return allUsers.filter(u => user.friendRequests?.includes(u.id));
+  }, [allUsers, user.friendRequests]);
+
+  const handleSearchFriend = (e: React.FormEvent) => {
+      e.preventDefault();
+      const found = allUsers.find(u => u.email.toLowerCase() === searchEmail.toLowerCase() && u.id !== user.id);
+      setFoundUser(found || null);
+      if (!found) alert("No user found with this email.");
+  };
+
+  const sendFriendRequest = () => {
+      if (!foundUser) return;
+      if (user.friends?.includes(foundUser.id)) {
+          alert("Already friends!");
+          return;
+      }
+      if (foundUser.friendRequests?.includes(user.id)) {
+          alert("Request already sent.");
+          return;
+      }
+
+      // Update Found User to include My ID in their requests
+      const updatedFoundUser = {
+          ...foundUser,
+          friendRequests: [...(foundUser.friendRequests || []), user.id]
+      };
+
+      setAllUsers(prev => prev.map(u => u.id === foundUser.id ? updatedFoundUser : u));
+      alert("Friend request sent!");
+      setFoundUser(null);
+      setSearchEmail('');
+      setIsAddFriendModalOpen(false);
+  };
+
+  const handleAcceptRequest = (requesterId: string) => {
+      // 1. Add Requester to My Friends
+      // 2. Add Me to Requester's Friends
+      // 3. Remove Requester from My Requests
+      
+      const meUpdated = {
+          ...user,
+          friends: [...(user.friends || []), requesterId],
+          friendRequests: (user.friendRequests || []).filter(id => id !== requesterId)
+      };
+
+      const requester = allUsers.find(u => u.id === requesterId);
+      if (!requester) return;
+
+      const requesterUpdated = {
+          ...requester,
+          friends: [...(requester.friends || []), user.id]
+      };
+
+      setAllUsers(prev => prev.map(u => {
+          if (u.id === user.id) return meUpdated;
+          if (u.id === requesterId) return requesterUpdated;
+          return u;
       }));
-  }, [results]);
+  };
 
-  // --- ACTIONS ---
-  const handleConnect = (peerId: string) => {
-    const peer = suggestions.find(p => p.id === peerId);
-    if (!peer) return;
-
-    setSuggestions(suggestions.filter(p => p.id !== peerId));
-    
-    const randomStats: ComparisonStats = {
-        av: Math.floor(Math.random() * 40) + 50,
-        totalExams: Math.floor(Math.random() * 30) + 10,
-        rank: Math.floor(Math.random() * 200) + 1,
-        score: Math.floor(Math.random() * 3000) + 500,
-        xp: Math.floor(Math.random() * 1500) + 200,
-        negative: Math.floor(Math.random() * 10),
-        accuracy: Math.floor(Math.random() * 40) + 50
-    };
-
-    const newFriend = { ...peer, stats: randomStats, online: true };
-    setFriends([...friends, newFriend]);
-    
-    if (!comparisonTarget) {
-        setComparisonTarget(newFriend.id);
-    }
+  const handleDeclineRequest = (requesterId: string) => {
+      const meUpdated = {
+          ...user,
+          friendRequests: (user.friendRequests || []).filter(id => id !== requesterId)
+      };
+      setAllUsers(prev => prev.map(u => u.id === user.id ? meUpdated : u));
   };
 
   const handleRemoveFriend = (friendId: string) => {
-      const newFriends = friends.filter(f => f.id !== friendId);
-      setFriends(newFriends);
-      if (comparisonTarget === friendId) {
-          setComparisonTarget(newFriends.length > 0 ? newFriends[0].id : '');
-      }
-  };
+      if (!confirm("Remove this friend?")) return;
 
-  const handleShareCertificate = () => {
-    alert("Certificate shared successfully to your social feed! 🚀");
+      const meUpdated = {
+          ...user,
+          friends: (user.friends || []).filter(id => id !== friendId)
+      };
+
+      const friend = allUsers.find(u => u.id === friendId);
+      let friendUpdated = friend;
+      if (friend) {
+          friendUpdated = {
+              ...friend,
+              friends: (friend.friends || []).filter(id => id !== user.id)
+          };
+      }
+
+      setAllUsers(prev => prev.map(u => {
+          if (u.id === user.id) return meUpdated;
+          if (u.id === friendId) return friendUpdated!;
+          return u;
+      }));
+      
+      if (comparisonTarget === friendId) setComparisonTarget('');
   };
 
   // --- RADAR DATA ---
   const radarData = useMemo(() => {
-    const friend = friends.find(f => f.id === comparisonTarget);
-    const fStats = friend ? friend.stats : null;
+    const friend = myFriends.find(f => f.id === comparisonTarget);
+    const fStats = friend ? calculateStats(friend) : null;
 
     const normalize = (val: number, max: number, inverse = false) => {
         if (inverse) {
-             return Math.max(0, (200 - val) / 200 * 100);
+             return Math.max(0, (20 - val) / 20 * 100);
         }
         return Math.min(100, (val / max) * 100);
     };
@@ -192,9 +245,8 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
         { label: 'Avg %', key: 'av' as keyof ComparisonStats, max: 100 },
         { label: 'Exams', key: 'totalExams' as keyof ComparisonStats, max: 50 },
         { label: 'Accuracy', key: 'accuracy' as keyof ComparisonStats, max: 100 },
-        { label: 'Score', key: 'score' as keyof ComparisonStats, max: 4000 },
         { label: 'XP', key: 'xp' as keyof ComparisonStats, max: 2000 },
-        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 20, inverse: true },
+        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 5, inverse: true },
     ];
 
     return metrics.map(m => ({
@@ -206,9 +258,9 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
         fullMark: 100
     }));
 
-  }, [comparisonTarget, friends, myStats]);
+  }, [comparisonTarget, myFriends, myStats, allUsers, results]);
 
-  const comparisonFriendName = friends.find(f => f.id === comparisonTarget)?.name || 'Friend';
+  const comparisonFriendName = myFriends.find(f => f.id === comparisonTarget)?.name || 'Friend';
 
   const CustomRadarTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
@@ -328,10 +380,10 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                         className="text-xs border border-slate-300 rounded-lg p-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={comparisonTarget}
                         onChange={(e) => setComparisonTarget(e.target.value)}
-                        disabled={friends.length === 0}
+                        disabled={myFriends.length === 0}
                       >
-                          {friends.length === 0 && <option>No Friends Added</option>}
-                          {friends.map(f => (
+                          {myFriends.length === 0 && <option>No Friends Added</option>}
+                          {myFriends.map(f => (
                               <option key={f.id} value={f.id}>vs {f.name}</option>
                           ))}
                       </select>
@@ -372,82 +424,83 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
           </Card>
 
           <div className="flex flex-col gap-4">
-              <Card className="flex-1">
-                  <h3 className="font-bold text-slate-800 flex items-center mb-4">
-                      <Users size={18} className="mr-2 text-indigo-600" /> My Study Circle
-                  </h3>
+              <Card className="flex-1 relative">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-800 flex items-center">
+                          <Users size={18} className="mr-2 text-indigo-600" /> My Study Circle
+                      </h3>
+                      <Button size="sm" variant="outline" className="text-xs h-7 px-2" onClick={() => setIsAddFriendModalOpen(true)}>
+                          <UserPlus size={14} className="mr-1" /> Add Friend
+                      </Button>
+                  </div>
                   
-                  {friends.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                          <Users size={32} className="mx-auto mb-2 opacity-20" />
-                          <p className="text-sm">Add friends to compare stats!</p>
-                      </div>
-                  ) : (
-                      <div className="space-y-3">
-                          {friends.map(friend => (
-                              <div 
-                                key={friend.id} 
-                                className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
-                                    comparisonTarget === friend.id 
-                                    ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-300' 
-                                    : 'bg-white border-slate-100 hover:border-indigo-200 hover:shadow-sm'
-                                }`}
-                                onClick={() => setComparisonTarget(friend.id)}
-                              >
-                                  <div className="flex items-center space-x-3">
-                                      <div className="relative">
-                                          <img src={friend.avatar} alt={friend.name} className="w-10 h-10 rounded-full" />
-                                          {friend.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>}
+                  {/* Friend Requests List */}
+                  {incomingRequests.length > 0 && (
+                      <div className="mb-4 bg-amber-50 rounded-lg p-3 border border-amber-100">
+                          <h4 className="text-xs font-bold text-amber-700 uppercase mb-2">Pending Requests</h4>
+                          <div className="space-y-2">
+                              {incomingRequests.map(req => (
+                                  <div key={req.id} className="flex items-center justify-between bg-white p-2 rounded shadow-sm">
+                                      <div className="flex items-center gap-2">
+                                          <img src={req.avatar} className="w-6 h-6 rounded-full" />
+                                          <span className="text-xs font-bold">{req.name}</span>
                                       </div>
-                                      <div>
-                                          <p className="text-sm font-bold text-slate-800">{friend.name}</p>
-                                          <p className="text-xs text-slate-500">Rank: #{friend.stats.rank} • {friend.stats.xp} XP</p>
+                                      <div className="flex gap-1">
+                                          <button onClick={() => handleAcceptRequest(req.id)} className="p-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200"><Check size={12} /></button>
+                                          <button onClick={() => handleDeclineRequest(req.id)} className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200"><X size={12} /></button>
                                       </div>
                                   </div>
-                                  <div className="flex space-x-1">
-                                      <button className="p-1.5 text-slate-400 hover:text-indigo-600 rounded bg-slate-50 hover:bg-white" title="Compare">
-                                          <GitCompare size={16} />
-                                      </button>
-                                      <button 
-                                        className="p-1.5 text-slate-300 hover:text-red-500 rounded hover:bg-red-50" 
-                                        title="Remove"
-                                        onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.id); }}
-                                      >
-                                          <X size={16} />
-                                      </button>
-                                  </div>
-                              </div>
-                          ))}
+                              ))}
+                          </div>
                       </div>
                   )}
-              </Card>
 
-              <Card>
-                  <h3 className="font-bold text-slate-800 flex items-center mb-3 text-sm">
-                      <UserPlus size={16} className="mr-2 text-emerald-600" /> Suggested Peers
-                  </h3>
-                  <div className="space-y-3">
-                      {suggestions.map(peer => (
-                          <div key={peer.id} className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                  <img src={peer.avatar} alt={peer.name} className="w-8 h-8 rounded-full opacity-80" />
-                                  <div>
-                                      <p className="text-xs font-bold text-slate-700">{peer.name}</p>
-                                      <p className="text-xs text-slate-400">{peer.mutual} mutual friends</p>
-                                  </div>
-                              </div>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="text-xs h-7 px-2"
-                                onClick={() => handleConnect(peer.id)}
-                              >
-                                  Connect
-                              </Button>
-                          </div>
-                      ))}
-                      {suggestions.length === 0 && <p className="text-xs text-slate-400 text-center py-2">No new suggestions.</p>}
-                  </div>
+                  {myFriends.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                          <Users size={32} className="mx-auto mb-2 opacity-20" />
+                          <p className="text-sm">No friends added yet.</p>
+                          <Button size="sm" variant="outline" className="mt-2" onClick={() => setIsAddFriendModalOpen(true)}>Find Peers</Button>
+                      </div>
+                  ) : (
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                          {myFriends.map(friend => {
+                              const fStats = calculateStats(friend);
+                              return (
+                                <div 
+                                    key={friend.id} 
+                                    className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
+                                        comparisonTarget === friend.id 
+                                        ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-300' 
+                                        : 'bg-white border-slate-100 hover:border-indigo-200 hover:shadow-sm'
+                                    }`}
+                                    onClick={() => setComparisonTarget(friend.id)}
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <div className="relative">
+                                            <img src={friend.avatar} alt={friend.name} className="w-10 h-10 rounded-full" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800">{friend.name}</p>
+                                            <p className="text-xs text-slate-500">Rank: #{fStats.rank} • {fStats.xp} XP</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex space-x-1">
+                                        <button className="p-1.5 text-slate-400 hover:text-indigo-600 rounded bg-slate-50 hover:bg-white" title="Compare">
+                                            <GitCompare size={16} />
+                                        </button>
+                                        <button 
+                                            className="p-1.5 text-slate-300 hover:text-red-500 rounded hover:bg-red-50" 
+                                            title="Remove"
+                                            onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.id); }}
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                              );
+                          })}
+                      </div>
+                  )}
               </Card>
           </div>
       </div>
@@ -544,7 +597,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                         <div className="flex items-center text-slate-600">
                             <FileCheck size={16} className="mr-2 text-indigo-400" /> Exams
                         </div>
-                        <span className="font-bold text-slate-800">{results.length}</span>
+                        <span className="font-bold text-slate-800">{results.filter(r => r.studentId === user.id).length}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
                         <div className="flex items-center text-slate-600">
@@ -598,10 +651,10 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
             <h3 className="text-lg font-bold text-slate-800 flex items-center">
                 <History size={20} className="mr-2 text-slate-500" /> Recent Exam History
             </h3>
-            {results.length === 0 && <span className="text-xs text-slate-400">No exams taken yet</span>}
+            {results.filter(r => r.studentId === user.id).length === 0 && <span className="text-xs text-slate-400">No exams taken yet</span>}
         </div>
         
-        {results.length === 0 ? (
+        {results.filter(r => r.studentId === user.id).length === 0 ? (
             <div className="text-center py-10 bg-slate-50 rounded border-2 border-dashed border-slate-200 text-slate-400">
                 <FileCheck size={48} className="mx-auto mb-2 opacity-20" />
                 <p>You haven't participated in any exams yet.</p>
@@ -621,10 +674,10 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                         </tr>
                     </thead>
                     <tbody className="text-sm">
-                        {results.map(res => (
+                        {results.filter(r => r.studentId === user.id).slice(0,10).map(res => (
                             <tr key={res.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                 <td className="py-3 pl-2 font-medium text-slate-700">{res.examTitle}</td>
-                                <td className="py-3 text-slate-500">{res.date}</td>
+                                <td className="py-3 text-slate-500">{new Date(res.date).toLocaleDateString()}</td>
                                 <td className="py-3">
                                     <span className="font-bold text-slate-800">{res.score.toFixed(2)}</span>
                                     <span className="text-slate-400 text-xs">/{res.totalMarks}</span>
@@ -654,6 +707,38 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
         )}
       </Card>
 
+      {/* MODAL: ADD FRIEND */}
+      <Modal isOpen={isAddFriendModalOpen} onClose={() => { setIsAddFriendModalOpen(false); setFoundUser(null); setSearchEmail(''); }} title="Connect with Friends">
+          <form onSubmit={handleSearchFriend} className="space-y-4">
+              <p className="text-sm text-slate-500">Enter the email address of your friend to send a connection request.</p>
+              <div className="relative">
+                  <Mail size={18} className="absolute left-3 top-3 text-slate-400" />
+                  <input 
+                    type="email" 
+                    required 
+                    placeholder="student@example.com"
+                    className="w-full pl-10 p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                  />
+              </div>
+              <Button type="submit" className="w-full">Search</Button>
+          </form>
+
+          {foundUser && (
+              <div className="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-between animate-fade-in">
+                  <div className="flex items-center gap-3">
+                      <img src={foundUser.avatar} className="w-10 h-10 rounded-full bg-white" />
+                      <div>
+                          <p className="font-bold text-slate-800 text-sm">{foundUser.name}</p>
+                          <p className="text-xs text-slate-500">{foundUser.institute || 'Student'}</p>
+                      </div>
+                  </div>
+                  <Button size="sm" onClick={sendFriendRequest}>Send Request</Button>
+              </div>
+          )}
+      </Modal>
+
       {/* EXAM PREVIEW MODAL */}
       <Modal isOpen={!!selectedResult} onClose={() => setSelectedResult(null)} title="Exam Result Breakdown">
          {selectedResult && (
@@ -661,7 +746,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
                  {/* Summary Header */}
                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 text-center">
                      <h2 className="text-xl font-bold text-slate-800 mb-1">{selectedResult.examTitle}</h2>
-                     <p className="text-sm text-slate-500 mb-4">{selectedResult.date}</p>
+                     <p className="text-sm text-slate-500 mb-4">{new Date(selectedResult.date).toLocaleDateString()}</p>
                      
                      <div className="flex justify-center items-end space-x-2">
                          <span className="text-5xl font-bold text-indigo-600">{selectedResult.score.toFixed(2)}</span>
@@ -740,7 +825,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results }) =
              </div>
              
              <div className="mt-6 flex gap-3 justify-center">
-                 <Button className="flex items-center bg-[#1877F2] hover:bg-[#166fe5]" onClick={handleShareCertificate}>
+                 <Button className="flex items-center bg-[#1877F2] hover:bg-[#166fe5]" onClick={() => alert('Shared!')}>
                      <Share2 size={16} className="mr-2" /> Share on Social
                  </Button>
                  <Button variant="outline" className="flex items-center">

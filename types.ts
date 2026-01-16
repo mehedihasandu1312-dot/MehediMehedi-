@@ -23,6 +23,9 @@ export interface User {
   institute?: string;
   points?: number;
   rank?: number;
+  // Social Fields
+  friends?: string[]; // Array of User IDs
+  friendRequests?: string[]; // Array of User IDs who sent request
 }
 
 export enum ContentType {
@@ -116,12 +119,13 @@ export interface ExamSubmission {
 // New Interface for tracking student results in dashboard
 export interface StudentResult {
     id: string;
+    studentId: string; // Added to track WHOSE result this is
     examId: string;
     examTitle: string;
     score: number;
     totalMarks: number;
     negativeDeduction: number;
-    date: string;
+    date: string; // ISO String
     status: 'PASSED' | 'MERIT' | 'FAILED';
 }
 

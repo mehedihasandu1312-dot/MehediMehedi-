@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Exam, StudentResult } from '../../types';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Clock, CheckCircle, Upload, X, AlertOctagon, Image as ImageIcon, AlertTriangle, HelpCircle, Check, ArrowLeft, PlayCircle } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 interface ExamLiveInterfaceProps {
     exam: Exam;
@@ -140,15 +141,17 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         // Notify parent App about the result
         const percentage = (finalScore / exam.totalMarks) * 100;
         const resultStatus = percentage >= 80 ? 'MERIT' : percentage >= 40 ? 'PASSED' : 'FAILED';
+        const currentUser = authService.getCurrentUser();
 
         onComplete({
             id: `res_${Date.now()}`,
+            studentId: currentUser?.id || 'unknown',
             examId: exam.id,
             examTitle: exam.title,
             score: finalScore,
             totalMarks: exam.totalMarks,
             negativeDeduction: neg,
-            date: new Date().toLocaleDateString(),
+            date: new Date().toISOString(), // FIXED: Use ISO String for consistent parsing
             status: resultStatus
         });
     };
