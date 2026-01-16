@@ -5,6 +5,7 @@ import { db, firebaseConfig } from '../../services/firebase';
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from 'firebase/firestore';
+import { MASTER_ADMIN_EMAIL } from '../../constants'; // IMPORT THIS
 import { 
     Search, 
     Ban, 
@@ -57,9 +58,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [newAdminName, setNewAdminName] = useState('');
   const [adminCreationLoading, setAdminCreationLoading] = useState(false);
 
-  // --- PERMISSION CHECK ---
-  // Only Super Admin can see other admins. Regular admins can only see students.
-  const isSuperAdmin = currentUser?.isSuperAdmin === true;
+  // --- PERMISSION CHECK (Robust) ---
+  // You are super admin if flag is true OR your email matches the master email
+  const isSuperAdmin = currentUser?.isSuperAdmin === true || currentUser?.email === MASTER_ADMIN_EMAIL;
 
   // --- Statistics Calculation ---
   const stats = useMemo(() => {
@@ -114,10 +115,10 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         return;
     }
 
-    // Security Rule: Cannot block a Super Admin (even by another Super Admin, usually)
+    // Security Rule: Cannot block a Super Admin or the Master Email
     const targetUser = users.find(u => u.id === id);
-    if (targetUser?.isSuperAdmin) {
-        alert("Action Restricted: Main Super Admin cannot be blocked.");
+    if (targetUser?.isSuperAdmin || targetUser?.email === MASTER_ADMIN_EMAIL) {
+        alert("Action Restricted: Master/Super Admin cannot be blocked.");
         return;
     }
 
@@ -356,7 +357,8 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                         <p className="font-bold text-slate-800 text-sm flex items-center">
                                             {user.name}
                                             {user.role === UserRole.ADMIN && <ShieldCheck size={14} className="ml-1 text-emerald-500" />}
-                                            {user.isSuperAdmin && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">MASTER</span>}
+                                            {/* Show Master tag if email matches, or if flag is present */}
+                                            {(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">MASTER</span>}
                                         </p>
                                         <p className="text-xs text-slate-500">{user.email || 'No Email'}</p>
                                     </div>
@@ -411,8 +413,8 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                     )}
 
                                     {/* BLOCK/UNBLOCK */}
-                                    {/* Disable for Super Admins to prevent accidental lockouts */}
-                                    {!user.isSuperAdmin && (
+                                    {/* Disable if target is Super Admin or Master Email */}
+                                    {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
                                         <Button 
                                             variant="outline" 
                                             className={`p-1.5 h-auto border-slate-200 ${

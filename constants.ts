@@ -1,5 +1,9 @@
 import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog } from './types';
 
+// --- CONFIGURATION ---
+// IMPORTANT: Replace this with your actual Firebase Admin Email
+export const MASTER_ADMIN_EMAIL = "admin@edumaster.com"; 
+
 // --- DATA CONSTANTS ---
 
 export const ALL_DISTRICTS = [
@@ -38,6 +42,7 @@ export const MOCK_USERS: User[] = [
     name: 'Super Admin',
     email: 'admin@edumaster.com',
     role: UserRole.ADMIN,
+    isSuperAdmin: true,
     profileCompleted: true,
     status: 'ACTIVE',
     joinedDate: '2023-01-01T00:00:00Z',

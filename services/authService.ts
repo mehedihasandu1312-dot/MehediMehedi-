@@ -1,5 +1,5 @@
 import { User, UserRole } from '../types';
-import { MOCK_USERS } from '../constants';
+import { MOCK_USERS, MASTER_ADMIN_EMAIL } from '../constants';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -20,6 +20,13 @@ export const authService = {
             // FIX: Manually merge the Document ID with the data
             const userData = { id: userSnap.id, ...userSnap.data() } as User;
             
+            // --- AUTO SUPER ADMIN FIX ---
+            // If the email matches the hardcoded master email, grant super admin even if DB misses it
+            if (userData.email === MASTER_ADMIN_EMAIL) {
+                userData.isSuperAdmin = true;
+                userData.role = UserRole.ADMIN; // Ensure they are admin
+            }
+
             // SECURITY CHECK: Verify Role
             if (userData.role !== UserRole.ADMIN) {
                 await signOut(auth); // Log them out immediately
@@ -62,6 +69,12 @@ export const authService = {
       if (userSnap.exists()) {
         const userData = { id: userSnap.id, ...userSnap.data() } as User;
         
+        // --- AUTO SUPER ADMIN FIX ---
+        if (userData.email === MASTER_ADMIN_EMAIL) {
+            userData.isSuperAdmin = true;
+            userData.role = UserRole.ADMIN;
+        }
+
         if (userData.status === 'BLOCKED') {
            throw new Error("This account is blocked.");
         }
@@ -82,6 +95,12 @@ export const authService = {
           points: 0,
           rank: 0
         };
+
+        // If new user is Master Admin by email, auto-promote
+        if (newUser.email === MASTER_ADMIN_EMAIL) {
+            newUser.role = UserRole.ADMIN;
+            newUser.isSuperAdmin = true;
+        }
 
         await setDoc(userRef, newUser);
         sessionStorage.setItem('currentUser', JSON.stringify(newUser));
