@@ -34,6 +34,7 @@ export interface User {
   rank?: number;
   // Admin Management
   warnings?: string[]; // Array of warning messages sent by Super Admin
+  banReason?: string; // Reason for blocking the user (Visible to user)
   // Social Fields
   friends?: string[]; // Array of User IDs
   friendRequests?: string[]; // Array of User IDs who sent request

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { SocialPost as SocialPostType } from '../../types';
 import { authService } from '../../services/authService';
@@ -14,7 +14,9 @@ import {
   Globe,
   X,
   Flag,
-  AlertOctagon
+  AlertOctagon,
+  Ban,
+  Lock
 } from 'lucide-react';
 
 // Extended type to handle local comments and reach for this component
@@ -48,6 +50,7 @@ interface Props {
 }
 
 const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
+  // Sync current user state to check for blocks in real-time if updated in session
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
   
   // File Input Ref
@@ -112,8 +115,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
       if (post.id === id) {
         const isLiked = !post.isLiked;
         const likeChange = isLiked ? 1 : -1;
-        // Algorithm boost on like
-        // We handle logic, but store generic SocialPostType which might ignore 'reach' if not extended
         
         return {
           ...post,
@@ -196,98 +197,121 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in pb-20">
       
-      {/* 1. NEW POST COMPOSER */}
-      <Card className="p-4 shadow-sm border-slate-200">
-        <div className="flex space-x-3 mb-4">
-          <img 
-            src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
-            alt="Profile" 
-            className="w-10 h-10 rounded-full bg-slate-200"
-          />
-          <div className="flex-1">
-             <div className="flex items-center gap-2 mb-2">
-                 <span className="font-bold text-slate-700 text-sm">{currentUser?.name.split(' ')[0]}</span>
-                 {selectedFeeling && (
-                     <span className="text-sm text-slate-500 flex items-center bg-indigo-50 px-2 py-0.5 rounded-full">
-                         is feeling {selectedFeeling.icon} {selectedFeeling.label}
-                         <button onClick={() => setSelectedFeeling(null)} className="ml-2 hover:text-red-500"><X size={12}/></button>
-                     </span>
+      {/* 1. CHECK STATUS: IF BLOCKED SHOW ALERT, ELSE SHOW COMPOSER */}
+      {currentUser?.status === 'BLOCKED' ? (
+          <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg shadow-sm">
+              <div className="flex items-start">
+                  <Ban size={32} className="text-red-600 mr-4 mt-1" />
+                  <div>
+                      <h3 className="text-lg font-bold text-red-800">Account Restricted</h3>
+                      <p className="text-sm text-red-700 mt-1">
+                          You have been blocked from posting or commenting by the administrator.
+                      </p>
+                      {currentUser.banReason && (
+                          <div className="mt-3 bg-red-100 p-3 rounded-lg border border-red-200">
+                              <p className="text-xs font-bold text-red-800 uppercase mb-1">Reason for Punishment:</p>
+                              <p className="text-sm text-red-900 italic">"{currentUser.banReason}"</p>
+                          </div>
+                      )}
+                      <p className="text-xs text-red-600 mt-3">
+                          You can still view posts and study materials. Please contact support if you believe this is a mistake.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      ) : (
+          <Card className="p-4 shadow-sm border-slate-200">
+            <div className="flex space-x-3 mb-4">
+              <img 
+                src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
+                alt="Profile" 
+                className="w-10 h-10 rounded-full bg-slate-200"
+              />
+              <div className="flex-1">
+                 <div className="flex items-center gap-2 mb-2">
+                     <span className="font-bold text-slate-700 text-sm">{currentUser?.name.split(' ')[0]}</span>
+                     {selectedFeeling && (
+                         <span className="text-sm text-slate-500 flex items-center bg-indigo-50 px-2 py-0.5 rounded-full">
+                             is feeling {selectedFeeling.icon} {selectedFeeling.label}
+                             <button onClick={() => setSelectedFeeling(null)} className="ml-2 hover:text-red-500"><X size={12}/></button>
+                         </span>
+                     )}
+                 </div>
+                 <textarea
+                    className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-indigo-100 resize-none text-slate-700 placeholder:text-slate-400"
+                    placeholder={`What's on your mind?`}
+                    rows={2}
+                    value={newPostText}
+                    onChange={(e) => setNewPostText(e.target.value)}
+                 />
+                 
+                 {/* Image Preview Area */}
+                 {newPostImage && (
+                   <div className="mt-3 relative animate-fade-in group inline-block">
+                      <img 
+                        src={newPostImage} 
+                        alt="Preview" 
+                        className="w-full h-auto max-h-80 object-cover rounded-lg border border-slate-200" 
+                      />
+                      <button 
+                        onClick={() => setNewPostImage('')}
+                        className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full transition-colors backdrop-blur-sm"
+                      >
+                         <X size={16} />
+                      </button>
+                   </div>
                  )}
-             </div>
-             <textarea
-                className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-indigo-100 resize-none text-slate-700 placeholder:text-slate-400"
-                placeholder={`What's on your mind?`}
-                rows={2}
-                value={newPostText}
-                onChange={(e) => setNewPostText(e.target.value)}
-             />
-             
-             {/* Image Preview Area */}
-             {newPostImage && (
-               <div className="mt-3 relative animate-fade-in group inline-block">
-                  <img 
-                    src={newPostImage} 
-                    alt="Preview" 
-                    className="w-full h-auto max-h-80 object-cover rounded-lg border border-slate-200" 
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100 relative">
+               <div className="flex space-x-2">
+                  <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
                   />
                   <button 
-                    onClick={() => setNewPostImage('')}
-                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full transition-colors backdrop-blur-sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors text-slate-500 hover:bg-slate-50"
                   >
-                     <X size={16} />
+                      <ImageIcon size={18} className="text-emerald-500" />
+                      <span>Photo</span>
                   </button>
+                  <div className="relative">
+                      <button 
+                        onClick={() => setShowFeelingPicker(!showFeelingPicker)}
+                        className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${showFeelingPicker ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50'}`}
+                      >
+                          <Smile size={18} className="text-amber-500" />
+                          <span>Feeling</span>
+                      </button>
+                      
+                      {/* Feeling Picker Dropdown */}
+                      {showFeelingPicker && (
+                          <div className="absolute top-10 left-0 bg-white shadow-xl border border-slate-100 rounded-xl p-2 z-20 w-48 grid grid-cols-2 gap-1 animate-fade-in">
+                              {FEELINGS.map(f => (
+                                  <button 
+                                    key={f.label}
+                                    onClick={() => { setSelectedFeeling(f); setShowFeelingPicker(false); }}
+                                    className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded-lg text-xs text-slate-700"
+                                  >
+                                      <span>{f.icon}</span>
+                                      <span>{f.label}</span>
+                                  </button>
+                              ))}
+                          </div>
+                      )}
+                  </div>
                </div>
-             )}
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center pt-2 border-t border-slate-100 relative">
-           <div className="flex space-x-2">
-              <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  className="hidden" 
-                  accept="image/*"
-                  onChange={handleImageUpload}
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors text-slate-500 hover:bg-slate-50"
-              >
-                  <ImageIcon size={18} className="text-emerald-500" />
-                  <span>Photo</span>
-              </button>
-              <div className="relative">
-                  <button 
-                    onClick={() => setShowFeelingPicker(!showFeelingPicker)}
-                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${showFeelingPicker ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50'}`}
-                  >
-                      <Smile size={18} className="text-amber-500" />
-                      <span>Feeling</span>
-                  </button>
-                  
-                  {/* Feeling Picker Dropdown */}
-                  {showFeelingPicker && (
-                      <div className="absolute top-10 left-0 bg-white shadow-xl border border-slate-100 rounded-xl p-2 z-20 w-48 grid grid-cols-2 gap-1 animate-fade-in">
-                          {FEELINGS.map(f => (
-                              <button 
-                                key={f.label}
-                                onClick={() => { setSelectedFeeling(f); setShowFeelingPicker(false); }}
-                                className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded-lg text-xs text-slate-700"
-                              >
-                                  <span>{f.icon}</span>
-                                  <span>{f.label}</span>
-                              </button>
-                          ))}
-                      </div>
-                  )}
-              </div>
-           </div>
-           <Button size="sm" onClick={handleCreatePost} disabled={!newPostText.trim() && !newPostImage}>
-              Post
-           </Button>
-        </div>
-      </Card>
+               <Button size="sm" onClick={handleCreatePost} disabled={!newPostText.trim() && !newPostImage}>
+                  Post
+               </Button>
+            </div>
+          </Card>
+      )}
 
       {/* 2. FEED */}
       {posts.map(post => {
@@ -378,7 +402,7 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
               {/* Action Buttons */}
               <div className="px-2 py-1 flex items-center justify-between">
                   <button 
-                      onClick={() => handleLike(post.id)}
+                      onClick={() => currentUser?.status !== 'BLOCKED' ? handleLike(post.id) : alert("Restricted: You are banned.")}
                       className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-medium transition-colors ${
                           post.isLiked 
                           ? 'text-indigo-600 bg-indigo-50' 
@@ -413,27 +437,33 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                        ))}
                     </div>
 
-                    {/* Add Comment Input */}
-                    <div className="flex items-center space-x-2">
-                        <img src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} className="w-8 h-8 rounded-full" />
-                        <div className="flex-1 relative">
-                            <input 
-                              type="text" 
-                              className="w-full pl-3 pr-10 py-2 rounded-full border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm"
-                              placeholder="Write a comment..."
-                              value={commentText}
-                              onChange={(e) => setCommentText(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
-                            />
-                            <button 
-                              onClick={() => handleAddComment(post.id)}
-                              className="absolute right-1 top-1 p-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
-                              disabled={!commentText.trim()}
-                            >
-                               <Send size={12} />
-                            </button>
+                    {/* Add Comment Input (Disabled if blocked) */}
+                    {currentUser?.status === 'BLOCKED' ? (
+                        <div className="text-center text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 flex items-center justify-center">
+                            <Lock size={12} className="mr-1" /> Commenting disabled due to account restriction.
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex items-center space-x-2">
+                            <img src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} className="w-8 h-8 rounded-full" />
+                            <div className="flex-1 relative">
+                                <input 
+                                type="text" 
+                                className="w-full pl-3 pr-10 py-2 rounded-full border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm"
+                                placeholder="Write a comment..."
+                                value={commentText}
+                                onChange={(e) => setCommentText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
+                                />
+                                <button 
+                                onClick={() => handleAddComment(post.id)}
+                                className="absolute right-1 top-1 p-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
+                                disabled={!commentText.trim()}
+                                >
+                                <Send size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
               )}
           </Card>

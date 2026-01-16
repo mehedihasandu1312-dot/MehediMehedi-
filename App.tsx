@@ -383,7 +383,9 @@ const App: React.FC = () => {
                         posts={socialPosts} 
                         setPosts={setSocialPosts} 
                         reports={socialReports} 
-                        setReports={setSocialReports} 
+                        setReports={setSocialReports}
+                        users={users}
+                        setUsers={setUsers} 
                     />
                 } 
               />
