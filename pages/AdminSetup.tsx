@@ -3,12 +3,17 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Card, Button } from '../components/UI';
-import { ShieldCheck, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { ShieldCheck, CheckCircle, AlertTriangle, Loader2, Key } from 'lucide-react';
 import { UserRole } from '../types';
+
+// --- SECURITY CONFIGURATION ---
+// রিয়েল অ্যাপে এই কি (Key) কাউকে বলা যাবে না।
+const MASTER_SECURITY_KEY = "PRO_ADMIN_2025"; 
 
 const AdminSetup: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [masterKey, setMasterKey] = useState(''); // New State for Security Key
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
@@ -17,15 +22,25 @@ const AdminSetup: React.FC = () => {
     setLoading(true);
     setStatus(null);
 
+    // --- SECURITY CHECK ---
+    if (masterKey !== MASTER_SECURITY_KEY) {
+        setStatus({
+            type: 'error',
+            msg: "Access Denied: Invalid Master Security Key!"
+        });
+        setLoading(false);
+        return;
+    }
+
     try {
       // 1. Create Authentication User
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Prepare Admin Data Object (Automatically adds all required fields)
+      // 2. Prepare Admin Data Object
       const adminData = {
         email: user.email,
-        role: UserRole.ADMIN, // Crucial: Sets role to ADMIN
+        role: UserRole.ADMIN,
         name: 'Super Admin',
         status: 'ACTIVE',
         profileCompleted: true,
@@ -35,7 +50,7 @@ const AdminSetup: React.FC = () => {
         avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=0D9488&color=fff`
       };
 
-      // 3. Write to Firestore using the Auth UID as the Document ID
+      // 3. Write to Firestore
       await setDoc(doc(db, "users", user.uid), adminData);
 
       setStatus({
@@ -46,6 +61,7 @@ const AdminSetup: React.FC = () => {
       // Clear form
       setEmail('');
       setPassword('');
+      setMasterKey('');
 
     } catch (error: any) {
       console.error("Setup Error:", error);
@@ -65,8 +81,8 @@ const AdminSetup: React.FC = () => {
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShieldCheck size={32} className="text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Admin Generator</h1>
-          <p className="text-slate-500 text-sm">Create a master admin account automatically.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Secure Admin Setup</h1>
+          <p className="text-slate-500 text-sm">Protected by Master Key</p>
         </div>
 
         {status && (
@@ -77,8 +93,26 @@ const AdminSetup: React.FC = () => {
         )}
 
         <form onSubmit={handleCreateAdmin} className="space-y-4">
+          
+          {/* Security Key Input */}
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Master Security Key</label>
+              <div className="relative">
+                  <Key size={16} className="absolute left-3 top-3 text-slate-400" />
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full pl-9 p-2 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="Enter Security Code"
+                    value={masterKey}
+                    onChange={e => setMasterKey(e.target.value)}
+                  />
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Required to authorize creation.</p>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Admin Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">New Admin Email</label>
             <input 
               type="email" 
               required
@@ -89,7 +123,7 @@ const AdminSetup: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
             <input 
               type="password" 
               required
@@ -101,12 +135,8 @@ const AdminSetup: React.FC = () => {
             />
           </div>
 
-          <div className="bg-amber-50 p-3 rounded text-xs text-amber-800 border border-amber-200">
-            <strong>Warning:</strong> This page is for initial setup only. Please remove the route from <code>App.tsx</code> after creating your admin account for security.
-          </div>
-
           <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 py-3" disabled={loading}>
-            {loading ? <Loader2 className="animate-spin mx-auto" /> : "Create Admin Account"}
+            {loading ? <Loader2 className="animate-spin mx-auto" /> : "Authorize & Create Admin"}
           </Button>
         </form>
       </Card>
