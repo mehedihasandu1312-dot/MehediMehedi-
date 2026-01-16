@@ -32,7 +32,7 @@ import {
     Hash,
     Briefcase,
     Calendar,
-    TriangleAlert,
+    AlertTriangle,
     Send
 } from 'lucide-react';
 
@@ -424,7 +424,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                             </span>
                                             {user.warnings && user.warnings.length > 0 && (
                                                 <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded text-[10px] border border-amber-100 flex items-center">
-                                                    <TriangleAlert size={10} className="mr-1" /> {user.warnings.length} Warnings
+                                                    <AlertTriangle size={10} className="mr-1" /> {user.warnings.length} Warnings
                                                 </span>
                                             )}
                                         </div>
@@ -474,7 +474,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                                     onClick={() => openWarningModal(user.id)}
                                                     title="Issue Warning"
                                                 >
-                                                    <TriangleAlert size={16} />
+                                                    <AlertTriangle size={16} />
                                                 </Button>
                                             )}
                                         </>
@@ -675,7 +675,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
               {users.find(u => u.id === viewLogsAdminId)?.warnings?.length ? (
                   <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
-                          <TriangleAlert size={14} className="mr-1"/> Warnings Issued
+                          <AlertTriangle size={14} className="mr-1"/> Warnings Issued
                       </h4>
                       <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
                           {users.find(u => u.id === viewLogsAdminId)?.warnings?.map((w, idx) => (
@@ -716,7 +716,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       <Modal isOpen={warningModalOpen} onClose={() => setWarningModalOpen(false)} title="Issue Warning to Admin">
           <div className="space-y-4">
               <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 text-sm flex items-start">
-                  <TriangleAlert size={16} className="mr-2 mt-0.5 shrink-0" />
+                  <AlertTriangle size={16} className="mr-2 mt-0.5 shrink-0" />
                   <p>
                       You are issuing a warning to this administrator. This will be recorded in their profile.
                   </p>
