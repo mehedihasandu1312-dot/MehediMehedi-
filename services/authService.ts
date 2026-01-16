@@ -1,30 +1,54 @@
 import { User, UserRole } from '../types';
 import { MOCK_USERS } from '../constants';
 import { auth, db, googleProvider } from './firebase';
-import { signInWithPopup, signOut } from "firebase/auth";
+import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-// Simulated delay for mock admin login
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const authService = {
-  // Existing mock login for Admin (keeps Admin easy to access for demo)
-  login: async (email: string, role: UserRole): Promise<User | null> => {
-    await delay(800);
-    const user = MOCK_USERS.find(u => u.email === email && u.role === role);
-    
-    if (user) {
-      if (user.status === 'BLOCKED') {
-        throw new Error("Your account has been blocked. Please contact the administrator.");
-      }
-      // Use sessionStorage to keep sessions separate per tab
-      sessionStorage.setItem('currentUser', JSON.stringify(user));
-      return user;
+  // --- REAL ADMIN LOGIN (EMAIL/PASSWORD) ---
+  loginAdmin: async (email: string, password: string): Promise<User> => {
+    try {
+        // 1. Authenticate with Firebase Auth
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        const fbUser = result.user;
+
+        // 2. Fetch User Data from Firestore to verify ROLE
+        const userRef = doc(db, "users", fbUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+            const userData = userSnap.data() as User;
+            
+            // SECURITY CHECK: Verify Role
+            if (userData.role !== UserRole.ADMIN) {
+                await signOut(auth); // Log them out immediately
+                throw new Error("Access Denied: You do not have Admin privileges.");
+            }
+
+            if (userData.status === 'BLOCKED') {
+                await signOut(auth);
+                throw new Error("Account Blocked. Contact support.");
+            }
+
+            sessionStorage.setItem('currentUser', JSON.stringify(userData));
+            return userData;
+        } else {
+            // Edge case: Auth exists but no DB record. Treat as unauthorized.
+            await signOut(auth);
+            throw new Error("User record not found in database.");
+        }
+    } catch (error: any) {
+        console.error("Admin Login Error:", error);
+        // Clean up error messages
+        let msg = error.message;
+        if (error.code === 'auth/invalid-credential') msg = "Invalid Email or Password.";
+        if (error.code === 'auth/user-not-found') msg = "No admin account found with this email.";
+        if (error.code === 'auth/wrong-password') msg = "Incorrect password.";
+        throw new Error(msg);
     }
-    return null;
   },
 
-  // NEW: Google Login Logic
+  // --- GOOGLE LOGIN (For Students, or Admins using Google) ---
   loginWithGoogle: async (role: UserRole): Promise<User> => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -44,13 +68,20 @@ export const authService = {
         sessionStorage.setItem('currentUser', JSON.stringify(userData));
         return userData;
       } else {
-        // Create NEW User
+        // Create NEW User (Default to Student)
+        // NOTE: Security risk if you allow creating ADMINs here. 
+        // We force Role to be whatever was passed, but in production, 
+        // Admin creation should be manual or guarded.
+        
+        // For safety: If role requested is ADMIN, check if we allow auto-creation (Usually NO).
+        // Here we default new Google sign-ins to STUDENT unless manually set in DB.
+        
         const newUser: User = {
           id: fbUser.uid,
-          name: fbUser.displayName || 'New Student',
+          name: fbUser.displayName || 'New User',
           email: fbUser.email || '',
-          role: role, 
-          profileCompleted: false, // Trigger profile setup
+          role: UserRole.STUDENT, // Always default to STUDENT for new Google Signups
+          profileCompleted: false,
           status: 'ACTIVE',
           joinedDate: new Date().toISOString(),
           avatar: fbUser.photoURL || `https://ui-avatars.com/api/?name=${fbUser.displayName}`,
