@@ -5,7 +5,7 @@ import { db, firebaseConfig } from '../../services/firebase';
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from 'firebase/firestore';
-import { MASTER_ADMIN_EMAIL } from '../../constants'; // IMPORT THIS
+import { MASTER_ADMIN_EMAIL } from '../../constants';
 import { 
     Search, 
     Ban, 
@@ -25,14 +25,20 @@ import {
     Activity,
     School,
     ScrollText,
-    ShieldAlert
+    ShieldAlert,
+    Phone,
+    MapPin,
+    Award,
+    Hash,
+    Briefcase,
+    Calendar
 } from 'lucide-react';
 
 interface Props {
     users: User[];
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-    adminLogs?: AdminActivityLog[]; // Optional for now
-    currentUser?: User; // Added to check permissions
+    adminLogs?: AdminActivityLog[]; 
+    currentUser?: User; 
 }
 
 const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser }) => {
@@ -46,7 +52,17 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   // Student Modal & Edit State
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', class: '', institute: '' });
+  
+  // Expanded Edit Form State
+  const [editForm, setEditForm] = useState({ 
+      name: '', 
+      class: '', 
+      institute: '',
+      phone: '',
+      district: '',
+      studentType: 'REGULAR' as 'REGULAR' | 'ADMISSION',
+      points: 0
+  });
 
   // Admin Logs State
   const [viewLogsAdminId, setViewLogsAdminId] = useState<string | null>(null);
@@ -58,8 +74,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [newAdminName, setNewAdminName] = useState('');
   const [adminCreationLoading, setAdminCreationLoading] = useState(false);
 
-  // --- PERMISSION CHECK (Robust) ---
-  // You are super admin if flag is true OR your email matches the master email
+  // --- PERMISSION CHECK ---
   const isSuperAdmin = currentUser?.isSuperAdmin === true || currentUser?.email === MASTER_ADMIN_EMAIL;
 
   // --- Statistics Calculation ---
@@ -82,19 +97,17 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     
     if (activeTab === 'ADMINS') {
         if (u.role !== UserRole.ADMIN) return false;
-        
-        // Security Rule: Even Super Admin shouldn't see themselves in the list to prevent self-blocking accidents
         if (u.id === currentUser?.id) return false;
-        
-        // Security Rule: Regular admins cannot see the admin tab (enforced by UI, but double check logic)
         if (!isSuperAdmin) return false;
     }
 
     // 2. Search
     const name = u.name || '';
     const email = u.email || '';
+    const phone = u.phone || '';
     const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          email.toLowerCase().includes(searchTerm.toLowerCase());
+                          email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          phone.includes(searchTerm);
     
     // 3. Dropdown Filters (Only for Students)
     if (activeTab === 'STUDENTS') {
@@ -109,13 +122,11 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   // --- Handlers ---
 
   const handleToggleStatus = (id: string, currentStatus: 'ACTIVE' | 'BLOCKED', targetRole: UserRole) => {
-    // Security Rule: Regular admins cannot block anyone if they somehow trigger this function for an admin
     if (targetRole === UserRole.ADMIN && !isSuperAdmin) {
         alert("Access Denied: Only Super Admin can manage other admins.");
         return;
     }
 
-    // Security Rule: Cannot block a Super Admin or the Master Email
     const targetUser = users.find(u => u.id === id);
     if (targetUser?.isSuperAdmin || targetUser?.email === MASTER_ADMIN_EMAIL) {
         alert("Action Restricted: Master/Super Admin cannot be blocked.");
@@ -126,7 +137,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     const action = newStatus === 'BLOCKED' ? 'Block' : 'Unblock';
     
     const confirmMsg = targetRole === UserRole.ADMIN 
-        ? `⚠️ CRITICAL: Are you sure you want to ${action} this ADMIN?\nThis will prevent them from accessing the dashboard immediately.`
+        ? `⚠️ CRITICAL: Are you sure you want to ${action} this ADMIN?`
         : `Are you sure you want to ${action} this student account?`;
 
     if (confirm(confirmMsg)) {
@@ -139,42 +150,51 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   const openStudentModal = (user: User) => {
       setSelectedUser(user);
+      // Initialize form with all available data
       setEditForm({
           name: user.name || '',
           class: user.class || '',
-          institute: user.institute || ''
+          institute: user.institute || '',
+          phone: user.phone || '',
+          district: user.district || '',
+          studentType: user.studentType || 'REGULAR',
+          points: user.points || 0
       });
       setIsEditing(false);
   };
 
   const handleSaveStudentChanges = () => {
       if (!selectedUser) return;
-      setUsers(prev => prev.map(u => 
-          u.id === selectedUser.id 
-          ? { ...u, name: editForm.name, class: editForm.class, institute: editForm.institute }
-          : u
-      ));
-      setSelectedUser(prev => prev ? { ...prev, ...editForm } : null);
+      
+      const updatedUser: User = {
+          ...selectedUser,
+          name: editForm.name,
+          class: editForm.class,
+          institute: editForm.institute,
+          phone: editForm.phone,
+          district: editForm.district,
+          studentType: editForm.studentType,
+          points: Number(editForm.points)
+      };
+
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? updatedUser : u));
+      setSelectedUser(updatedUser);
       setIsEditing(false);
-      alert("Profile updated successfully.");
+      alert("Student profile updated successfully.");
   };
 
-  // --- ADMIN CREATION LOGIC (SECURE) ---
+  // --- ADMIN CREATION LOGIC ---
   const handleCreateAdmin = async (e: React.FormEvent) => {
       e.preventDefault();
       setAdminCreationLoading(true);
 
-      // 1. Initialize a secondary Firebase App to create user WITHOUT logging out current admin
       const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
       const secondaryAuth = getAuth(secondaryApp);
 
       try {
-          // 2. Create User in Auth
           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newAdminEmail, newAdminPassword);
           const newUser = userCredential.user;
 
-          // 3. Create User Document in Firestore (using main db connection)
-          // NEW ADMINS ARE REGULAR BY DEFAULT (isSuperAdmin: false)
           const newAdminData: User = {
               id: newUser.uid,
               name: newAdminName,
@@ -188,8 +208,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           };
 
           await setDoc(doc(db, "users", newUser.uid), newAdminData);
-
-          // 4. Update Local State
           setUsers(prev => [...prev, newAdminData]);
 
           alert(`New Admin "${newAdminName}" created successfully!`);
@@ -202,13 +220,11 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           console.error("Admin Creation Error:", error);
           alert("Error creating admin: " + error.message);
       } finally {
-          // 5. Cleanup Secondary App
           await deleteApp(secondaryApp);
           setAdminCreationLoading(false);
       }
   };
 
-  // Filter logs for selected admin
   const selectedAdminLogs = viewLogsAdminId 
     ? adminLogs.filter(l => l.adminId === viewLogsAdminId).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     : [];
@@ -223,7 +239,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
             <p className="text-slate-500 text-sm">Manage student access and platform administrators.</p>
         </div>
         
-        {/* TAB SWITCHER - HIDDEN FOR REGULAR ADMINS */}
         <div className="bg-slate-100 p-1 rounded-lg flex">
             <button
                 onClick={() => setActiveTab('STUDENTS')}
@@ -247,7 +262,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         </div>
       </div>
 
-      {/* 1. Overview Stats - Show restricted stats for non-super admins */}
+      {/* Overview Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4 border-l-4 border-l-indigo-500">
               <p className="text-slate-500 text-xs font-bold uppercase">Total Students</p>
@@ -277,21 +292,19 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       </div>
 
       <Card className="min-h-[500px]">
-        {/* 2. Toolbar */}
+        {/* Toolbar */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-center">
-            {/* Search */}
             <div className="relative w-full md:w-96">
                 <Search className="absolute left-3 top-3 text-slate-400" size={18} />
                 <input 
                     type="text" 
-                    placeholder={activeTab === 'STUDENTS' ? "Search students..." : "Search admins..."}
+                    placeholder={activeTab === 'STUDENTS' ? "Search by Name, Email or Phone..." : "Search admins..."}
                     className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                 />
             </div>
 
-            {/* Filters / Actions */}
             <div className="flex gap-2 w-full md:w-auto">
                 {activeTab === 'STUDENTS' ? (
                     <>
@@ -321,7 +334,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                         </select>
                     </>
                 ) : (
-                    // Only Super Admin can add new admins
                     isSuperAdmin && (
                         <Button onClick={() => setIsAdminModalOpen(true)} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
                             <Plus size={18} className="mr-2" /> Add New Admin
@@ -331,15 +343,15 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
             </div>
         </div>
 
-        {/* 3. User Table */}
+        {/* User Table */}
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50">
                         <th className="py-3 pl-4 font-semibold text-slate-600 text-sm">Profile</th>
+                        <th className="py-3 font-semibold text-slate-600 text-sm">Contact</th>
                         <th className="py-3 font-semibold text-slate-600 text-sm">Role Details</th>
                         <th className="py-3 font-semibold text-slate-600 text-sm">Status</th>
-                        <th className="py-3 font-semibold text-slate-600 text-sm">Joined</th>
                         <th className="py-3 text-right pr-4 font-semibold text-slate-600 text-sm">Actions</th>
                     </tr>
                 </thead>
@@ -357,11 +369,16 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                         <p className="font-bold text-slate-800 text-sm flex items-center">
                                             {user.name}
                                             {user.role === UserRole.ADMIN && <ShieldCheck size={14} className="ml-1 text-emerald-500" />}
-                                            {/* Show Master tag if email matches, or if flag is present */}
                                             {(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">MASTER</span>}
                                         </p>
-                                        <p className="text-xs text-slate-500">{user.email || 'No Email'}</p>
+                                        <p className="text-xs text-slate-500">Rank: {user.rank || 'N/A'}</p>
                                     </div>
+                                </div>
+                            </td>
+                            <td className="py-4">
+                                <div className="text-sm">
+                                    <p className="text-slate-700 flex items-center gap-1"><Mail size={12}/> {user.email}</p>
+                                    <p className="text-slate-500 flex items-center gap-1"><Phone size={12}/> {user.phone || 'N/A'}</p>
                                 </div>
                             </td>
                             <td className="py-4">
@@ -372,7 +389,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                         </span>
                                     ) : (
                                         <>
-                                            <p className="font-medium text-slate-700">Class {user.class || 'N/A'}</p>
+                                            <p className="font-medium text-slate-700">{user.class || 'No Class'}</p>
                                             <p className="text-xs text-slate-500">{user.institute || 'No Institute'}</p>
                                         </>
                                     )}
@@ -383,37 +400,30 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                     {user.status || 'UNKNOWN'}
                                 </Badge>
                             </td>
-                            <td className="py-4 text-xs text-slate-500">
-                                {user.joinedDate ? new Date(user.joinedDate).toLocaleDateString() : 'N/A'}
-                            </td>
                             <td className="py-4 text-right pr-4">
                                 <div className="flex items-center justify-end space-x-2">
-                                    {/* STUDENT ACTIONS */}
                                     {user.role === UserRole.STUDENT && (
                                         <Button 
                                             variant="outline" 
                                             className="p-1.5 h-auto border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" 
                                             onClick={() => openStudentModal(user)}
-                                            title="Edit Profile"
+                                            title="View Full Profile"
                                         >
                                             <Eye size={16} />
                                         </Button>
                                     )}
 
-                                    {/* ADMIN ACTIONS: Activity Log (Only Super Admin sees logs of other admins) */}
                                     {user.role === UserRole.ADMIN && isSuperAdmin && (
                                         <Button 
                                             variant="outline"
                                             className="p-1.5 h-auto border-slate-200 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
                                             onClick={() => setViewLogsAdminId(user.id)}
-                                            title="View Activity Logs"
+                                            title="View Logs"
                                         >
                                             <ScrollText size={16} />
                                         </Button>
                                     )}
 
-                                    {/* BLOCK/UNBLOCK */}
-                                    {/* Disable if target is Super Admin or Master Email */}
                                     {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
                                         <Button 
                                             variant="outline" 
@@ -423,7 +433,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                                 : 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200'
                                             }`}
                                             onClick={() => handleToggleStatus(user.id, user.status, user.role)}
-                                            title={user.status === 'ACTIVE' ? 'Block Account' : 'Unblock Account'}
+                                            title={user.status === 'ACTIVE' ? 'Block' : 'Unblock'}
                                         >
                                             {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
                                         </Button>
@@ -432,106 +442,194 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             </td>
                         </tr>
                     ))}
-                    {displayUsers.length === 0 && (
-                        <tr>
-                            <td colSpan={5} className="text-center py-12 text-slate-400 bg-slate-50/50 rounded-b-xl">
-                                <div className="flex flex-col items-center">
-                                    <Search size={32} className="mb-2 opacity-20" />
-                                    <p>No {activeTab.toLowerCase()} found.</p>
-                                </div>
-                            </td>
-                        </tr>
-                    )}
                 </tbody>
             </table>
         </div>
       </Card>
 
-      {/* --- STUDENT MODAL --- */}
+      {/* --- STUDENT FULL PROFILE MODAL (EXPANDED) --- */}
       <Modal 
         isOpen={!!selectedUser} 
         onClose={() => setSelectedUser(null)} 
-        title={isEditing ? "Edit Student Profile" : "Student Overview"}
+        title={isEditing ? "Edit Student Profile" : "Student Details (Full View)"}
       >
         {selectedUser && (
             <div className="space-y-6">
-                <div className="flex items-center space-x-4 mb-4">
-                    <img src={selectedUser.avatar} alt="av" className="w-16 h-16 rounded-full border-4 border-slate-100" />
+                <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-slate-100">
+                    <img src={selectedUser.avatar} alt="av" className="w-20 h-20 rounded-full border-4 border-indigo-50" />
                     <div>
                         <h3 className="text-xl font-bold text-slate-800">{selectedUser.name}</h3>
                         <p className="text-sm text-slate-500">{selectedUser.email}</p>
+                        <div className="flex gap-2 mt-1">
+                            <Badge color="bg-indigo-100 text-indigo-700">{selectedUser.role}</Badge>
+                            <Badge color={selectedUser.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
+                                {selectedUser.status}
+                            </Badge>
+                        </div>
                     </div>
-                    {!isEditing && <button onClick={() => setIsEditing(true)} className="ml-auto text-indigo-600 hover:bg-indigo-50 p-2 rounded-full"><Edit size={18}/></button>}
+                    {!isEditing && (
+                        <button 
+                            onClick={() => setIsEditing(true)} 
+                            className="ml-auto text-indigo-600 hover:bg-indigo-50 p-2 rounded-full border border-indigo-100"
+                            title="Edit Data"
+                        >
+                            <Edit size={20}/>
+                        </button>
+                    )}
                 </div>
 
                 {isEditing ? (
-                    <div className="space-y-3">
-                        <input className="w-full p-2 border rounded" placeholder="Full Name" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
-                        <input className="w-full p-2 border rounded" placeholder="Institute" value={editForm.institute} onChange={e => setEditForm({...editForm, institute: e.target.value})} />
-                        <select className="w-full p-2 border rounded" value={editForm.class} onChange={e => setEditForm({...editForm, class: e.target.value})}>
-                            <option value="">Select Class</option>
-                            <option value="9">Class 9</option>
-                            <option value="10">Class 10</option>
-                            <option value="11">Class 11</option>
-                            <option value="12">Class 12</option>
-                        </select>
-                        <div className="flex justify-end gap-2 pt-2">
+                    // --- EDIT MODE ---
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Full Name</label>
+                                <input className="w-full p-2 border rounded" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Phone</label>
+                                <input className="w-full p-2 border rounded" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} />
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Institute</label>
+                            <input className="w-full p-2 border rounded" value={editForm.institute} onChange={e => setEditForm({...editForm, institute: e.target.value})} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Class/Category</label>
+                                <select className="w-full p-2 border rounded" value={editForm.class} onChange={e => setEditForm({...editForm, class: e.target.value})}>
+                                    <option value="">Select Class</option>
+                                    <option value="9">Class 9</option>
+                                    <option value="10">Class 10</option>
+                                    <option value="11">Class 11</option>
+                                    <option value="12">Class 12</option>
+                                    <option value="Admission">Admission</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">District</label>
+                                <input className="w-full p-2 border rounded" value={editForm.district} onChange={e => setEditForm({...editForm, district: e.target.value})} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Student Type</label>
+                                <select className="w-full p-2 border rounded" value={editForm.studentType} onChange={e => setEditForm({...editForm, studentType: e.target.value as any})}>
+                                    <option value="REGULAR">Regular</option>
+                                    <option value="ADMISSION">Admission</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">XP / Points</label>
+                                <input type="number" className="w-full p-2 border rounded" value={editForm.points} onChange={e => setEditForm({...editForm, points: Number(e.target.value)})} />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                             <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
                             <Button onClick={handleSaveStudentChanges}>Save Changes</Button>
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-4">
-                        <div>
-                            <span className="text-xs text-slate-400 block">Class</span>
-                            <span className="font-bold text-slate-700">{selectedUser.class || 'N/A'}</span>
+                    // --- VIEW MODE (Comprehensive) ---
+                    <div className="space-y-6">
+                        
+                        {/* 1. Personal & Contact */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
+                                <Users size={14} className="mr-1"/> Personal Details
+                            </h4>
+                            <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+                                <div>
+                                    <span className="block text-xs text-slate-400">Mobile Number</span>
+                                    <span className="font-semibold text-slate-700 flex items-center">
+                                        <Phone size={12} className="mr-1 text-slate-400"/> {selectedUser.phone || 'N/A'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-400">District</span>
+                                    <span className="font-semibold text-slate-700 flex items-center">
+                                        <MapPin size={12} className="mr-1 text-slate-400"/> {selectedUser.district || 'N/A'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-slate-400">Joined On</span>
+                                    <span className="font-semibold text-slate-700 flex items-center">
+                                        <Calendar size={12} className="mr-1 text-slate-400"/> 
+                                        {new Date(selectedUser.joinedDate).toLocaleDateString()}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span className="text-xs text-slate-400 block">Institute</span>
-                            <span className="font-bold text-slate-700">{selectedUser.institute || 'N/A'}</span>
+
+                        {/* 2. Academic Info */}
+                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                            <h4 className="text-xs font-bold text-indigo-400 uppercase mb-3 flex items-center">
+                                <GraduationCap size={14} className="mr-1"/> Academic Profile
+                            </h4>
+                            <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+                                <div>
+                                    <span className="block text-xs text-indigo-400">Student Type</span>
+                                    <span className="font-bold text-indigo-900">{selectedUser.studentType || 'REGULAR'}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-xs text-indigo-400">Class / Sector</span>
+                                    <span className="font-bold text-indigo-900 flex items-center">
+                                        <Briefcase size={12} className="mr-1 text-indigo-400"/> {selectedUser.class || 'N/A'}
+                                    </span>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="block text-xs text-indigo-400">Institute</span>
+                                    <span className="font-bold text-indigo-900 flex items-center">
+                                        <School size={12} className="mr-1 text-indigo-400"/> {selectedUser.institute || 'N/A'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span className="text-xs text-slate-400 block">Status</span>
-                            <span className={`font-bold ${selectedUser.status === 'ACTIVE' ? 'text-emerald-600' : 'text-red-600'}`}>{selectedUser.status}</span>
+
+                        {/* 3. Platform Stats */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-center">
+                                <div className="text-amber-500 mb-1 flex justify-center"><Award size={20}/></div>
+                                <div className="text-2xl font-bold text-amber-700">{selectedUser.points || 0}</div>
+                                <div className="text-[10px] font-bold text-amber-600 uppercase">Total XP</div>
+                            </div>
+                            <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 text-center">
+                                <div className="text-emerald-500 mb-1 flex justify-center"><Hash size={20}/></div>
+                                <div className="text-2xl font-bold text-emerald-700">{selectedUser.rank || '-'}</div>
+                                <div className="text-[10px] font-bold text-emerald-600 uppercase">Global Rank</div>
+                            </div>
                         </div>
+
                     </div>
                 )}
             </div>
         )}
       </Modal>
 
-      {/* --- ADMIN ACTIVITY LOG MODAL --- */}
-      <Modal 
-        isOpen={!!viewLogsAdminId} 
-        onClose={() => setViewLogsAdminId(null)} 
-        title={`Activity Log: ${selectedAdminName}`}
-      >
+      {/* --- ADMIN LOGS MODAL --- */}
+      <Modal isOpen={!!viewLogsAdminId} onClose={() => setViewLogsAdminId(null)} title={`Activity Log: ${selectedAdminName}`}>
           <div className="max-h-[60vh] overflow-y-auto pr-2">
               {selectedAdminLogs.length === 0 ? (
                   <div className="text-center py-10 text-slate-400">
                       <ScrollText size={32} className="mx-auto mb-2 opacity-20" />
-                      <p>No activity recorded for this admin yet.</p>
+                      <p>No activity recorded yet.</p>
                   </div>
               ) : (
                   <div className="relative border-l border-slate-200 ml-3 space-y-6 pb-2">
                       {selectedAdminLogs.map((log) => (
                           <div key={log.id} className="relative pl-6">
                               <div className={`absolute -left-1.5 top-1 w-3 h-3 rounded-full border-2 border-white ${
-                                  log.type === 'DANGER' ? 'bg-red-500' : 
-                                  log.type === 'WARNING' ? 'bg-amber-500' :
-                                  log.type === 'SUCCESS' ? 'bg-emerald-500' : 'bg-blue-500'
+                                  log.type === 'DANGER' ? 'bg-red-500' : log.type === 'WARNING' ? 'bg-amber-500' : 'bg-blue-500'
                               }`}></div>
-                              
                               <div className="flex flex-col">
-                                  <span className="text-xs text-slate-400 font-mono mb-0.5">
-                                      {new Date(log.timestamp).toLocaleString()}
-                                  </span>
-                                  <span className="font-bold text-slate-800 text-sm">
-                                      {log.action}
-                                  </span>
-                                  <span className="text-xs text-slate-500">
-                                      {log.details}
-                                  </span>
+                                  <span className="text-xs text-slate-400 font-mono mb-0.5">{new Date(log.timestamp).toLocaleString()}</span>
+                                  <span className="font-bold text-slate-800 text-sm">{log.action}</span>
+                                  <span className="text-xs text-slate-500">{log.details}</span>
                               </div>
                           </div>
                       ))}
@@ -543,66 +641,28 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           </div>
       </Modal>
 
-      {/* --- ADD ADMIN MODAL (Only Visible via State if Super Admin) --- */}
+      {/* --- ADD ADMIN MODAL --- */}
       <Modal isOpen={isAdminModalOpen} onClose={() => setIsAdminModalOpen(false)} title="Create New Admin">
           <form onSubmit={handleCreateAdmin} className="space-y-4">
               <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start">
                   <ShieldCheck className="text-emerald-600 mr-3 mt-0.5 shrink-0" size={20} />
                   <div>
                       <h4 className="text-sm font-bold text-emerald-800">Secure Creation</h4>
-                      <p className="text-xs text-emerald-700 mt-1">
-                          You are creating a user with <strong>Full Access</strong> (Regular Admin). They cannot manage other admins.
-                      </p>
+                      <p className="text-xs text-emerald-700 mt-1">You are creating a user with <strong>Full Access</strong> (Regular Admin).</p>
                   </div>
               </div>
-
               <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Admin Name</label>
-                  <div className="relative">
-                      <Users size={18} className="absolute left-3 top-3 text-slate-400" />
-                      <input 
-                          type="text" 
-                          required
-                          className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                          placeholder="e.g. Senior Instructor"
-                          value={newAdminName}
-                          onChange={e => setNewAdminName(e.target.value)}
-                      />
-                  </div>
+                  <input type="text" required className="w-full p-2 border rounded" placeholder="e.g. Senior Instructor" value={newAdminName} onChange={e => setNewAdminName(e.target.value)} />
               </div>
-
               <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                  <div className="relative">
-                      <Mail size={18} className="absolute left-3 top-3 text-slate-400" />
-                      <input 
-                          type="email" 
-                          required
-                          className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                          placeholder="admin@edumaster.com"
-                          value={newAdminEmail}
-                          onChange={e => setNewAdminEmail(e.target.value)}
-                      />
-                  </div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input type="email" required className="w-full p-2 border rounded" placeholder="admin@edumaster.com" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} />
               </div>
-
               <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                  <div className="relative">
-                      <Lock size={18} className="absolute left-3 top-3 text-slate-400" />
-                      <input 
-                          type="password" 
-                          required
-                          minLength={6}
-                          className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                          placeholder="******"
-                          value={newAdminPassword}
-                          onChange={e => setNewAdminPassword(e.target.value)}
-                      />
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1 ml-1">Must be at least 6 characters.</p>
+                  <input type="password" required minLength={6} className="w-full p-2 border rounded" placeholder="******" value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} />
               </div>
-
               <div className="pt-2 flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsAdminModalOpen(false)}>Cancel</Button>
                   <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={adminCreationLoading}>
