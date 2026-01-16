@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Button, Card, Badge } from './UI';
 import { Exam, ExamQuestion, Folder } from '../types';
 import { Plus, Trash2, CheckCircle, Save, FileText, List, AlertOctagon, Image as ImageIcon, Type, Bold, Divide, Target } from 'lucide-react';
-import { EDUCATION_LEVELS } from '../constants';
 
 interface ExamCreationFormProps {
   onSubmit: (data: Omit<Exam, 'id'>) => void;
   folders: Folder[];
   fixedFolderId?: string;
+  educationLevels: { REGULAR: string[], ADMISSION: string[] }; // Added Prop
 }
 
-const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, fixedFolderId }) => {
+const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, fixedFolderId, educationLevels }) => {
   // --- BASIC INFO STATE ---
   const [basicInfo, setBasicInfo] = useState({
     title: '',
@@ -193,10 +193,10 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
                       >
                           <option value="">-- Same as Folder / Public --</option>
                           <optgroup label="Regular & Job Prep">
-                              {EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                              {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
                           <optgroup label="Admission">
-                              {EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                              {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
                       </select>
                   </div>

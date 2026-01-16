@@ -3,9 +3,13 @@ import { Card, Button } from '../../components/UI';
 import { User } from '../../types';
 import { authService } from '../../services/authService';
 import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin } from 'lucide-react';
-import { ALL_DISTRICTS, EDUCATION_LEVELS } from '../../constants';
+import { ALL_DISTRICTS } from '../../constants';
 
-const ProfileSettings: React.FC = () => {
+interface Props {
+    educationLevels?: { REGULAR: string[], ADMISSION: string[] };
+}
+
+const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,6 +62,8 @@ const ProfileSettings: React.FC = () => {
         setSaving(false);
     }
   };
+
+  const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
 
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="animate-spin text-indigo-600" /></div>;
   if (!user) return <div className="text-center text-slate-500 py-10">User not found</div>;
@@ -143,8 +149,8 @@ const ProfileSettings: React.FC = () => {
                                 >
                                     <option value="">Select Option</option>
                                     {studentType === 'REGULAR' 
-                                        ? EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)
-                                        : EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
+                                        ? levels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)
+                                        : levels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
                                     }
                                 </select>
                             </div>

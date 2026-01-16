@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Settings,
   Share2,
-  CheckSquare
+  CheckSquare,
+  Sliders
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { authService } from '../services/authService';
@@ -87,6 +88,8 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
       <NavItem to="/admin/blog" icon={Newspaper} label="Blog Mgmt" />
       <NavItem to="/admin/notice" icon={Bell} label="Notice Mgmt" />
       <NavItem to="/admin/social" icon={Share2} label="Social Mgmt" />
+      <div className="my-2 border-t border-slate-100"></div>
+      <NavItem to="/admin/settings" icon={Sliders} label="System Settings" />
     </>
   );
 

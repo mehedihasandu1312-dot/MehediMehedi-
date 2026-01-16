@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { Card, Button } from '../components/UI';
 import { User, School, MapPin, Phone, BookOpen, GraduationCap } from 'lucide-react';
-import { ALL_DISTRICTS, EDUCATION_LEVELS } from '../constants';
+import { ALL_DISTRICTS } from '../constants';
 
-const ProfileSetup: React.FC = () => {
+interface Props {
+    educationLevels?: { REGULAR: string[], ADMISSION: string[] };
+}
+
+const ProfileSetup: React.FC<Props> = ({ educationLevels }) => {
   const navigate = useNavigate();
   const [studentType, setStudentType] = useState<'REGULAR' | 'ADMISSION'>('REGULAR');
   const [formData, setFormData] = useState({
@@ -23,6 +27,8 @@ const ProfileSetup: React.FC = () => {
     });
     navigate('/student/dashboard');
   };
+
+  const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -83,8 +89,8 @@ const ProfileSetup: React.FC = () => {
                 >
                 <option value="">Select Option</option>
                 {studentType === 'REGULAR' 
-                    ? EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)
-                    : EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
+                    ? levels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)
+                    : levels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)
                 }
                 </select>
             </div>

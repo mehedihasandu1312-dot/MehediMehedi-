@@ -3,7 +3,6 @@ import { Card, Button, Modal, Badge } from '../../components/UI';
 import WrittenContentForm from '../../components/WrittenContentForm';
 import McqContentForm from '../../components/McqContentForm';
 import { StudyContent, ContentType, Folder } from '../../types';
-import { EDUCATION_LEVELS } from '../../constants';
 import { 
     Plus, 
     FileText, 
@@ -50,9 +49,10 @@ interface ContentManagementProps {
     setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
     contents: StudyContent[];
     setContents: React.Dispatch<React.SetStateAction<StudyContent[]>>;
+    educationLevels: { REGULAR: string[], ADMISSION: string[] }; // ADDED PROP
 }
 
-const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolders, contents, setContents }) => {
+const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolders, contents, setContents, educationLevels }) => {
   // Navigation State (Explorer)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
@@ -576,7 +576,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 />
             </div>
 
-            {/* Target Class Selection */}
+            {/* Target Class Selection (Dynamic) */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Target Class / Group</label>
                 <div className="relative">
@@ -588,10 +588,10 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     >
                         <option value="">-- All Classes / Public --</option>
                         <optgroup label="Regular & Job Prep">
-                            {EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                            {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
                         </optgroup>
                         <optgroup label="Admission">
-                            {EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                            {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
                         </optgroup>
                     </select>
                 </div>

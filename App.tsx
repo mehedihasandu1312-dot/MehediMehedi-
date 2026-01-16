@@ -22,9 +22,10 @@ import BlogManagement from './pages/admin/BlogManagement';
 import NoticeManagement from './pages/admin/NoticeManagement';
 import SocialManagement from './pages/admin/SocialManagement';
 import ExamGrading from './pages/admin/ExamGrading';
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog } from './types';
+import SystemSettingsPage from './pages/admin/SystemSettings'; // New Import
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings } from './types';
 import { authService } from './services/authService';
-import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS } from './constants';
+import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS } from './constants';
 import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -145,10 +146,19 @@ const App: React.FC = () => {
   const [socialPosts, setSocialPosts, socialLoading] = useFirestoreCollection<SocialPostType>('social_posts', MOCK_SOCIAL_POSTS);
   const [socialReports, setSocialReports, reportsLoading] = useFirestoreCollection<SocialReport>('social_reports', MOCK_REPORTS);
   const [adminLogs, setAdminLogs, logsLoading] = useFirestoreCollection<AdminActivityLog>('admin_logs', MOCK_ADMIN_LOGS);
+  
+  // --- SETTINGS COLLECTION ---
+  const [settings, setSettings, settingsLoading] = useFirestoreCollection<SystemSettings>('settings', [{
+      id: 'global_settings',
+      educationLevels: DEFAULT_EDUCATION_LEVELS
+  }]);
+
+  // Derive Current Education Levels or Fallback
+  const currentEducationLevels = settings.find(s => s.id === 'global_settings')?.educationLevels || DEFAULT_EDUCATION_LEVELS;
 
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
                         blogFoldersLoading || blogsLoading || noticesLoading || appealsLoading || 
-                        socialLoading || reportsLoading || logsLoading;
+                        socialLoading || reportsLoading || logsLoading || settingsLoading;
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -257,7 +267,7 @@ const App: React.FC = () => {
             path="/complete-profile" 
             element={
                 user && !user.profileCompleted 
-                ? <ProfileSetup /> 
+                ? <ProfileSetup educationLevels={currentEducationLevels} /> 
                 : <Navigate to={user ? (user.role === UserRole.ADMIN ? '/admin/dashboard' : '/student/dashboard') : '/login'} />
             } 
         />
@@ -311,7 +321,7 @@ const App: React.FC = () => {
                  path="/student/leaderboard" 
                  element={<Leaderboard users={users} currentUser={user} />} 
               />
-              <Route path="/student/profile" element={<ProfileSettings />} />
+              <Route path="/student/profile" element={<ProfileSettings educationLevels={currentEducationLevels} />} />
               <Route 
                 path="/student/appeals" 
                 element={<StudentAppeals appeals={appeals} studentName={user.name} />} 
@@ -328,7 +338,7 @@ const App: React.FC = () => {
               />
               <Route path="/admin/appeals" element={<AppealManagement appeals={appeals} setAppeals={setAppeals} />} />
               {/* Pass currentUser to UserManagement for permission checks */}
-              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} currentUser={user} />} />
+              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} currentUser={user} educationLevels={currentEducationLevels} />} />
               <Route 
                 path="/admin/content" 
                 element={
@@ -337,6 +347,7 @@ const App: React.FC = () => {
                         setFolders={setFolders} 
                         contents={contents} 
                         setContents={setContents} 
+                        educationLevels={currentEducationLevels}
                     />
                 } 
               />
@@ -348,6 +359,7 @@ const App: React.FC = () => {
                         setExams={setExams} 
                         folders={folders} 
                         setFolders={setFolders} 
+                        educationLevels={currentEducationLevels}
                     />
                 } 
               />
@@ -375,6 +387,7 @@ const App: React.FC = () => {
                     />
                 } 
               />
+              <Route path="/admin/settings" element={<SystemSettingsPage settings={settings} setSettings={setSettings} />} />
             </>
           )}
         </Route>

@@ -8,16 +8,16 @@ import {
     FolderOpen, ArrowLeft, Edit, Upload, X, Target 
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
-import { EDUCATION_LEVELS } from '../../constants';
 
 interface ExamCreationProps {
     exams: Exam[];
     setExams: React.Dispatch<React.SetStateAction<Exam[]>>;
     folders: Folder[];
     setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
+    educationLevels: { REGULAR: string[], ADMISSION: string[] }; // ADDED PROP
 }
 
-const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, setFolders }) => {
+const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, setFolders, educationLevels }) => {
   // Navigation State
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -165,6 +165,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                     onSubmit={handleExamSubmit} 
                     folders={examFolders}
                     fixedFolderId={currentFolderId || undefined}
+                    educationLevels={educationLevels} // Pass to Form
                   />
               </Card>
           </div>
@@ -401,10 +402,10 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                       >
                           <option value="">-- All Classes / Public --</option>
                           <optgroup label="Regular & Job Prep">
-                              {EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                              {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
                           <optgroup label="Admission">
-                              {EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                              {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
                       </select>
                   </div>

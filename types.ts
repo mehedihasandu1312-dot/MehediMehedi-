@@ -5,6 +5,14 @@ export enum UserRole {
   STUDENT = 'STUDENT'
 }
 
+export interface SystemSettings {
+  id: string; // usually 'global_settings'
+  educationLevels: {
+    REGULAR: string[];
+    ADMISSION: string[];
+  };
+}
+
 export interface User {
   id: string;
   name: string;

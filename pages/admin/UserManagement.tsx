@@ -32,7 +32,7 @@ import {
     Hash,
     Briefcase,
     Calendar,
-    AlertTriangle, // Fixed Import
+    AlertTriangle,
     Send
 } from 'lucide-react';
 
@@ -41,9 +41,10 @@ interface Props {
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     adminLogs?: AdminActivityLog[]; 
     currentUser?: User; 
+    educationLevels: { REGULAR: string[], ADMISSION: string[] }; // Added Prop
 }
 
-const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser }) => {
+const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser, educationLevels }) => {
   const [activeTab, setActiveTab] = useState<'STUDENTS' | 'ADMINS'>('STUDENTS');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -350,10 +351,12 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                 onChange={e => setFilterClass(e.target.value)}
                             >
                                 <option value="ALL">All Classes</option>
-                                <option value="9">Class 9</option>
-                                <option value="10">Class 10</option>
-                                <option value="11">Class 11</option>
-                                <option value="12">Class 12</option>
+                                <optgroup label="Regular">
+                                    {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                                </optgroup>
+                                <optgroup label="Admission">
+                                    {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                                </optgroup>
                             </select>
                         </div>
                         
@@ -559,11 +562,12 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Class/Category</label>
                                 <select className="w-full p-2 border rounded" value={editForm.class} onChange={e => setEditForm({...editForm, class: e.target.value})}>
                                     <option value="">Select Class</option>
-                                    <option value="9">Class 9</option>
-                                    <option value="10">Class 10</option>
-                                    <option value="11">Class 11</option>
-                                    <option value="12">Class 12</option>
-                                    <option value="Admission">Admission</option>
+                                    <optgroup label="Regular">
+                                        {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
+                                    <optgroup label="Admission">
+                                        {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
                                 </select>
                             </div>
                             <div>
