@@ -43,6 +43,7 @@ const AdminSetup: React.FC = () => {
       const adminData = {
         email: user.email,
         role: UserRole.ADMIN,
+        isSuperAdmin: true, // MASTER ADMIN FLAG
         name: 'Super Admin',
         status: 'ACTIVE',
         profileCompleted: true,
@@ -57,7 +58,7 @@ const AdminSetup: React.FC = () => {
 
       setStatus({
         type: 'success',
-        msg: `Success! Admin created. You can now login.`
+        msg: `Success! Master Admin created. You can now login.`
       });
       
       // Clear form

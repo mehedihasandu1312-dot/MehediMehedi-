@@ -327,7 +327,8 @@ const App: React.FC = () => {
                 element={<AdminDashboard exams={exams} users={users} appeals={appeals} onLogout={handleLogout} />} 
               />
               <Route path="/admin/appeals" element={<AppealManagement appeals={appeals} setAppeals={setAppeals} />} />
-              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} />} />
+              {/* Pass currentUser to UserManagement for permission checks */}
+              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} currentUser={user} />} />
               <Route 
                 path="/admin/content" 
                 element={

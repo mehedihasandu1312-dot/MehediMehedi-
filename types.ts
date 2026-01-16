@@ -10,6 +10,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  isSuperAdmin?: boolean; // NEW: Identifies the Master Admin
   profileCompleted: boolean;
   status: 'ACTIVE' | 'BLOCKED';
   joinedDate: string; // ISO Date string

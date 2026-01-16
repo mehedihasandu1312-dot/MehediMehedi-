@@ -31,9 +31,10 @@ interface Props {
     users: User[];
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     adminLogs?: AdminActivityLog[]; // Optional for now
+    currentUser?: User; // Added to check permissions
 }
 
-const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) => {
+const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser }) => {
   const [activeTab, setActiveTab] = useState<'STUDENTS' | 'ADMINS'>('STUDENTS');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -56,6 +57,10 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
   const [newAdminName, setNewAdminName] = useState('');
   const [adminCreationLoading, setAdminCreationLoading] = useState(false);
 
+  // --- PERMISSION CHECK ---
+  // Only Super Admin can see other admins. Regular admins can only see students.
+  const isSuperAdmin = currentUser?.isSuperAdmin === true;
+
   // --- Statistics Calculation ---
   const stats = useMemo(() => {
     const students = users.filter(u => u.role === UserRole.STUDENT);
@@ -73,7 +78,16 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
   const displayUsers = users.filter(u => {
     // 1. Role Filter
     if (activeTab === 'STUDENTS' && u.role !== UserRole.STUDENT) return false;
-    if (activeTab === 'ADMINS' && u.role !== UserRole.ADMIN) return false;
+    
+    if (activeTab === 'ADMINS') {
+        if (u.role !== UserRole.ADMIN) return false;
+        
+        // Security Rule: Even Super Admin shouldn't see themselves in the list to prevent self-blocking accidents
+        if (u.id === currentUser?.id) return false;
+        
+        // Security Rule: Regular admins cannot see the admin tab (enforced by UI, but double check logic)
+        if (!isSuperAdmin) return false;
+    }
 
     // 2. Search
     const name = u.name || '';
@@ -93,11 +107,24 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
 
   // --- Handlers ---
 
-  const handleToggleStatus = (id: string, currentStatus: 'ACTIVE' | 'BLOCKED', role: UserRole) => {
+  const handleToggleStatus = (id: string, currentStatus: 'ACTIVE' | 'BLOCKED', targetRole: UserRole) => {
+    // Security Rule: Regular admins cannot block anyone if they somehow trigger this function for an admin
+    if (targetRole === UserRole.ADMIN && !isSuperAdmin) {
+        alert("Access Denied: Only Super Admin can manage other admins.");
+        return;
+    }
+
+    // Security Rule: Cannot block a Super Admin (even by another Super Admin, usually)
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser?.isSuperAdmin) {
+        alert("Action Restricted: Main Super Admin cannot be blocked.");
+        return;
+    }
+
     const newStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
     const action = newStatus === 'BLOCKED' ? 'Block' : 'Unblock';
     
-    const confirmMsg = role === UserRole.ADMIN 
+    const confirmMsg = targetRole === UserRole.ADMIN 
         ? `⚠️ CRITICAL: Are you sure you want to ${action} this ADMIN?\nThis will prevent them from accessing the dashboard immediately.`
         : `Are you sure you want to ${action} this student account?`;
 
@@ -146,11 +173,13 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
           const newUser = userCredential.user;
 
           // 3. Create User Document in Firestore (using main db connection)
+          // NEW ADMINS ARE REGULAR BY DEFAULT (isSuperAdmin: false)
           const newAdminData: User = {
               id: newUser.uid,
               name: newAdminName,
               email: newAdminEmail,
               role: UserRole.ADMIN,
+              isSuperAdmin: false, 
               status: 'ACTIVE',
               profileCompleted: true,
               joinedDate: new Date().toISOString(),
@@ -193,7 +222,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
             <p className="text-slate-500 text-sm">Manage student access and platform administrators.</p>
         </div>
         
-        {/* TAB SWITCHER */}
+        {/* TAB SWITCHER - HIDDEN FOR REGULAR ADMINS */}
         <div className="bg-slate-100 p-1 rounded-lg flex">
             <button
                 onClick={() => setActiveTab('STUDENTS')}
@@ -203,27 +232,39 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
             >
                 <Users size={16} className="mr-2" /> Students
             </button>
-            <button
-                onClick={() => setActiveTab('ADMINS')}
-                className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${
-                    activeTab === 'ADMINS' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-                <ShieldCheck size={16} className="mr-2" /> Admins
-            </button>
+            
+            {isSuperAdmin && (
+                <button
+                    onClick={() => setActiveTab('ADMINS')}
+                    className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                        activeTab === 'ADMINS' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <ShieldCheck size={16} className="mr-2" /> Admins
+                </button>
+            )}
         </div>
       </div>
 
-      {/* 1. Overview Stats */}
+      {/* 1. Overview Stats - Show restricted stats for non-super admins */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4 border-l-4 border-l-indigo-500">
               <p className="text-slate-500 text-xs font-bold uppercase">Total Students</p>
               <h3 className="text-2xl font-bold text-slate-800">{stats.totalStudents}</h3>
           </Card>
-          <Card className="p-4 border-l-4 border-l-emerald-500">
-              <p className="text-slate-500 text-xs font-bold uppercase">System Admins</p>
-              <h3 className="text-2xl font-bold text-slate-800">{stats.totalAdmins}</h3>
-          </Card>
+          
+          {isSuperAdmin ? (
+              <Card className="p-4 border-l-4 border-l-emerald-500">
+                  <p className="text-slate-500 text-xs font-bold uppercase">System Admins</p>
+                  <h3 className="text-2xl font-bold text-slate-800">{stats.totalAdmins}</h3>
+              </Card>
+          ) : (
+              <Card className="p-4 border-l-4 border-l-gray-300 bg-gray-50 opacity-60">
+                  <p className="text-slate-400 text-xs font-bold uppercase">Admins</p>
+                  <h3 className="text-2xl font-bold text-slate-400 flex items-center gap-2"><Lock size={16}/> Hidden</h3>
+              </Card>
+          )}
+
           <Card className="p-4 border-l-4 border-l-blue-500">
               <p className="text-slate-500 text-xs font-bold uppercase">Active Students</p>
               <h3 className="text-2xl font-bold text-slate-800">{stats.activeStudents}</h3>
@@ -279,9 +320,12 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
                         </select>
                     </>
                 ) : (
-                    <Button onClick={() => setIsAdminModalOpen(true)} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
-                        <Plus size={18} className="mr-2" /> Add New Admin
-                    </Button>
+                    // Only Super Admin can add new admins
+                    isSuperAdmin && (
+                        <Button onClick={() => setIsAdminModalOpen(true)} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
+                            <Plus size={18} className="mr-2" /> Add New Admin
+                        </Button>
+                    )
                 )}
             </div>
         </div>
@@ -312,6 +356,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
                                         <p className="font-bold text-slate-800 text-sm flex items-center">
                                             {user.name}
                                             {user.role === UserRole.ADMIN && <ShieldCheck size={14} className="ml-1 text-emerald-500" />}
+                                            {user.isSuperAdmin && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">MASTER</span>}
                                         </p>
                                         <p className="text-xs text-slate-500">{user.email || 'No Email'}</p>
                                     </div>
@@ -353,8 +398,8 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
                                         </Button>
                                     )}
 
-                                    {/* ADMIN ACTIONS: Activity Log */}
-                                    {user.role === UserRole.ADMIN && (
+                                    {/* ADMIN ACTIONS: Activity Log (Only Super Admin sees logs of other admins) */}
+                                    {user.role === UserRole.ADMIN && isSuperAdmin && (
                                         <Button 
                                             variant="outline"
                                             className="p-1.5 h-auto border-slate-200 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
@@ -365,19 +410,22 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
                                         </Button>
                                     )}
 
-                                    {/* BLOCK/UNBLOCK (Both) */}
-                                    <Button 
-                                        variant="outline" 
-                                        className={`p-1.5 h-auto border-slate-200 ${
-                                            user.status === 'ACTIVE' 
-                                            ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' 
-                                            : 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200'
-                                        }`}
-                                        onClick={() => handleToggleStatus(user.id, user.status, user.role)}
-                                        title={user.status === 'ACTIVE' ? 'Block Account' : 'Unblock Account'}
-                                    >
-                                        {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
-                                    </Button>
+                                    {/* BLOCK/UNBLOCK */}
+                                    {/* Disable for Super Admins to prevent accidental lockouts */}
+                                    {!user.isSuperAdmin && (
+                                        <Button 
+                                            variant="outline" 
+                                            className={`p-1.5 h-auto border-slate-200 ${
+                                                user.status === 'ACTIVE' 
+                                                ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' 
+                                                : 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200'
+                                            }`}
+                                            onClick={() => handleToggleStatus(user.id, user.status, user.role)}
+                                            title={user.status === 'ACTIVE' ? 'Block Account' : 'Unblock Account'}
+                                        >
+                                            {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
+                                        </Button>
+                                    )}
                                 </div>
                             </td>
                         </tr>
@@ -493,7 +541,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
           </div>
       </Modal>
 
-      {/* --- ADD ADMIN MODAL --- */}
+      {/* --- ADD ADMIN MODAL (Only Visible via State if Super Admin) --- */}
       <Modal isOpen={isAdminModalOpen} onClose={() => setIsAdminModalOpen(false)} title="Create New Admin">
           <form onSubmit={handleCreateAdmin} className="space-y-4">
               <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start">
@@ -501,7 +549,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [] }) =>
                   <div>
                       <h4 className="text-sm font-bold text-emerald-800">Secure Creation</h4>
                       <p className="text-xs text-emerald-700 mt-1">
-                          You are creating a user with <strong>Full Access</strong>. This user can manage content, exams, and other students.
+                          You are creating a user with <strong>Full Access</strong> (Regular Admin). They cannot manage other admins.
                       </p>
                   </div>
               </div>
