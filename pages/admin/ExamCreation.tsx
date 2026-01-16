@@ -5,9 +5,10 @@ import { Exam, Folder } from '../../types';
 import { 
     Plus, Trash2, Clock, Calendar, FileQuestion, 
     Eye, EyeOff, Folder as FolderIcon, Users, FolderPlus, 
-    FolderOpen, ArrowLeft, Edit, Upload, X 
+    FolderOpen, ArrowLeft, Edit, Upload, X, Target 
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
+import { EDUCATION_LEVELS } from '../../constants';
 
 interface ExamCreationProps {
     exams: Exam[];
@@ -25,6 +26,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderTargetClass, setNewFolderTargetClass] = useState('');
   const [newFolderIcon, setNewFolderIcon] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +63,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const openCreateFolderModal = () => {
       setEditingFolder(null);
       setNewFolderName('');
+      setNewFolderTargetClass('');
       setNewFolderIcon('');
       setIsFolderModalOpen(true);
   };
@@ -68,6 +71,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const openEditFolderModal = (folder: Folder) => {
       setEditingFolder(folder);
       setNewFolderName(folder.name);
+      setNewFolderTargetClass(folder.targetClass || '');
       setNewFolderIcon(folder.icon || '');
       setIsFolderModalOpen(true);
   };
@@ -81,6 +85,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
           setFolders(prev => prev.map(f => f.id === editingFolder.id ? {
               ...f,
               name: newFolderName,
+              targetClass: newFolderTargetClass || undefined,
               icon: newFolderIcon || undefined
           } : f));
           alert("Folder updated!");
@@ -91,6 +96,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               name: newFolderName,
               description: 'Exam Category',
               type: 'EXAM',
+              targetClass: newFolderTargetClass || undefined,
               icon: newFolderIcon || undefined
           };
           setFolders([...folders, newFolder]);
@@ -98,6 +104,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
       }
       
       setNewFolderName('');
+      setNewFolderTargetClass('');
       setNewFolderIcon('');
       setEditingFolder(null);
       setIsFolderModalOpen(false);
@@ -185,7 +192,10 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                               )}
                               {currentFolder?.name}
                           </h1>
-                          <p className="text-sm text-slate-500 ml-9">{folderExams.length} Exams in this folder</p>
+                          <p className="text-sm text-slate-500 ml-9">
+                              {folderExams.length} Exams in this folder 
+                              {currentFolder?.targetClass && <span className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold">{currentFolder.targetClass}</span>}
+                          </p>
                       </div>
                   </div>
                   <Button onClick={() => setIsCreating(true)} className="flex items-center">
@@ -213,6 +223,9 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                                           <Badge color={exam.examFormat === 'WRITTEN' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}>
                                               {exam.examFormat}
                                           </Badge>
+                                          {exam.targetClass && (
+                                              <Badge color="bg-slate-100 text-slate-600">{exam.targetClass}</Badge>
+                                          )}
                                       </div>
                                   </div>
                                   <div className="flex flex-wrap gap-4 text-sm text-slate-500 mt-2">
@@ -311,7 +324,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                     <div 
                         key={folder.id} 
                         onDoubleClick={() => setCurrentFolderId(folder.id)}
-                        className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-amber-300 cursor-pointer select-none"
+                        className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-amber-300 cursor-pointer select-none h-44 flex flex-col justify-between"
                     >
                         <div className="flex justify-between items-start mb-2">
                             {folder.icon ? (
@@ -336,8 +349,13 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                                 </button>
                             </div>
                         </div>
-                        <h4 className="font-bold text-slate-700 text-sm truncate" title={folder.name}>{folder.name}</h4>
-                        <p className="text-xs text-slate-400 mt-1">{examCount} Exams</p>
+                        <div>
+                            <h4 className="font-bold text-slate-700 text-sm truncate w-full" title={folder.name}>{folder.name}</h4>
+                            <p className="text-xs text-slate-400 mt-1">{examCount} Exams</p>
+                        </div>
+                        <div className="mt-2 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded truncate">
+                            {folder.targetClass || 'Public (All)'}
+                        </div>
                         <button 
                             onClick={() => setCurrentFolderId(folder.id)}
                             className="absolute inset-0 w-full h-full z-0"
@@ -347,7 +365,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               })}
               <button 
                   onClick={openCreateFolderModal}
-                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-indigo-500 hover:border-indigo-300 transition-all"
+                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-indigo-500 hover:border-indigo-300 transition-all h-44"
               >
                   <Plus size={24} className="mb-1" />
                   <span className="text-xs font-bold">Add Folder</span>
@@ -369,6 +387,27 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                   />
+              </div>
+
+              {/* Target Class Selection */}
+              <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Target Class / Group</label>
+                  <div className="relative">
+                      <Target size={16} className="absolute left-3 top-3 text-slate-400" />
+                      <select 
+                          className="w-full pl-9 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                          value={newFolderTargetClass}
+                          onChange={e => setNewFolderTargetClass(e.target.value)}
+                      >
+                          <option value="">-- All Classes / Public --</option>
+                          <optgroup label="Regular & Job Prep">
+                              {EDUCATION_LEVELS.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                          <optgroup label="Admission">
+                              {EDUCATION_LEVELS.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                      </select>
+                  </div>
               </div>
 
               {/* Folder Icon Upload */}

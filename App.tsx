@@ -210,13 +210,21 @@ const App: React.FC = () => {
       );
 
       const studentExams = exams.filter(e => {
-          // 1. If exam is in a folder, check if that folder is visible
+          // 1. Strict Exam-Level Filter: If exam has a specific class, it must match
+          if (e.targetClass && e.targetClass !== user.class) {
+              return false;
+          }
+
+          // 2. Folder-Level Filter: If exam is in a folder, the folder must be visible
           if (e.folderId) {
               const parentFolder = folders.find(f => f.id === e.folderId);
-              return !parentFolder?.targetClass || parentFolder.targetClass === user.class;
+              // If folder exists and has a target class, it MUST match
+              if (parentFolder?.targetClass && parentFolder.targetClass !== user.class) {
+                  return false;
+              }
           }
-          // 2. If exam is loose, check its own targetClass
-          return !e.targetClass || e.targetClass === user.class;
+          
+          return true;
       });
 
       return { studentFolders, studentExams };
