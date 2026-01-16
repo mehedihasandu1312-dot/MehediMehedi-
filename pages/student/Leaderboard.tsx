@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { User } from '../../types';
-import { Card, Badge, Button, Modal } from '../../components/UI';
+import { Badge, Button, Modal } from '../../components/UI';
 import { 
   Trophy, Crown, Medal, TrendingUp, Globe, Search, 
-  ArrowUp, ChevronLeft, ChevronRight, User as UserIcon,
+  ArrowUp, ChevronLeft, ChevronRight,
   Calendar, Star, School, Award
 } from 'lucide-react';
 
@@ -22,7 +22,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
 
   // --- LEADERBOARD LOGIC ---
   const sortedUsers = useMemo(() => {
-    let data = [...users];
+    // 1. Safety Filter: Ensure user object exists
+    let data = users.filter(u => u && typeof u === 'object');
 
     if (view === 'WORLD') {
       // Sort by Total Points
@@ -31,16 +32,25 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
       // WEEKLY SIMULATION 
       data = data.map(u => ({
           ...u,
-          weeklyPoints: Math.round((u.points || 0) * 0.15) + (u.name.length * 5) // Mock logic
+          // Safety check for name length to prevent NaN
+          weeklyPoints: Math.round((u.points || 0) * 0.15) + ((u.name || '').length * 5) 
       }));
       data.sort((a, b) => ((b as any).weeklyPoints) - ((a as any).weeklyPoints));
     }
 
-    return data.map((u, index) => ({ ...u, rank: index + 1 }));
+    // 2. Map with Rank and Default Values (Prevents Crash on null name/avatar)
+    return data.map((u, index) => ({ 
+        ...u, 
+        name: u.name || 'Anonymous Student', 
+        avatar: u.avatar || `https://ui-avatars.com/api/?name=${u.name || 'User'}`,
+        rank: index + 1 
+    }));
   }, [users, view]);
 
-  // Filter for search
-  const filteredList = sortedUsers.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filter for search (Case Safe)
+  const filteredList = sortedUsers.filter(u => 
+      (u.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Find Current User Stats
   const myRankData = sortedUsers.find(u => u.id === currentUser.id);
@@ -48,27 +58,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
   // Top 3 Users (For Podium)
   const topThree = sortedUsers.slice(0, 3);
 
-  // --- PAGINATION LOGIC ---
-  // If we are on Page 1 and NOT searching, we skip the top 3 (because they are on podium)
-  // Otherwise, we paginate normally through the filtered list
-  const effectiveList = searchTerm ? filteredList : (currentPage === 1 ? filteredList.slice(3) : filteredList);
+  // --- PAGINATION & VISIBILITY LOGIC ---
   
-  // Correction: Standard pagination usually treats the list as continuous.
-  // Let's keep Podium separate visually, but the list below follows strict pagination.
-  // If Page 1: Podium (1-3) + List (4-13).
-  // If Page 2: List (14-23).
+  // Show podium ONLY on Page 1, No Search, and At least 3 users exist
+  const showPodium = currentPage === 1 && !searchTerm && sortedUsers.length >= 3;
   
-  // Adjusted Logic for Display:
-  // If Page 1 & No Search: Show Podium. List data starts from index 3 (Rank 4).
-  // If Page > 1 or Search: Hide Podium. List data is sliced normally based on page.
-  
-  const showPodium = currentPage === 1 && !searchTerm;
-  
-  // Calculate total items for pagination
-  // If showing podium (Page 1), we effectively have 'total - 3' items in the list view context
-  // But to keep pagination numbers simple (1, 2, 3), let's paginate the *Rest* of the users.
-  const listSource = searchTerm ? filteredList : sortedUsers.slice(3); // Start from Rank 4
-  const totalPages = Math.ceil(listSource.length / ITEMS_PER_PAGE);
+  // Determine which list to paginate
+  const listSource = useMemo(() => {
+      if (searchTerm) return filteredList;
+      // If showing podium, remove top 3 from the list so they don't appear twice
+      if (showPodium) return sortedUsers.slice(3);
+      // Otherwise show everyone (e.g. if only 2 users, show them in list)
+      return sortedUsers;
+  }, [searchTerm, showPodium, sortedUsers, filteredList]);
+
+  const totalPages = Math.ceil(listSource.length / ITEMS_PER_PAGE) || 1;
 
   const paginatedUsers = useMemo(() => {
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -90,6 +94,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
           window.scrollTo({ top: 0, behavior: 'smooth' });
       }
   };
+
+  // Safe Name Getter
+  const getSafeName = (name?: string) => name ? name.split(' ')[0] : 'User';
 
   return (
     <div className="space-y-6 animate-fade-in pb-24 relative min-h-screen">
@@ -140,8 +147,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
          />
       </div>
 
-      {/* PODIUM SECTION (Only Page 1 & No Search) */}
-      {showPodium && sortedUsers.length >= 3 && (
+      {/* PODIUM SECTION (Only Page 1 & No Search & Enough Users) */}
+      {showPodium && (
         <div className="flex justify-center items-end gap-2 md:gap-6 py-8 mb-4">
            {/* 2nd Place */}
            <div 
@@ -149,13 +156,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
              onClick={() => setSelectedStudent(topThree[1])}
            >
               <div className="relative mb-2">
-                 <img src={topThree[1].avatar} alt={topThree[1].name} className="w-16 h-16 rounded-full border-4 border-slate-300 shadow-lg" />
+                 <img src={topThree[1].avatar} alt={topThree[1].name} className="w-16 h-16 rounded-full border-4 border-slate-300 shadow-lg object-cover" />
                  <div className="absolute -bottom-2 inset-x-0 flex justify-center">
                     <span className="bg-slate-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">2</span>
                  </div>
               </div>
               <div className="text-center mb-2">
-                  <p className="font-bold text-slate-700 text-sm line-clamp-1 w-20">{topThree[1].name.split(' ')[0]}</p>
+                  <p className="font-bold text-slate-700 text-sm line-clamp-1 w-20">{getSafeName(topThree[1].name)}</p>
                   <p className="text-xs text-indigo-600 font-bold">{(topThree[1] as any).weeklyPoints || topThree[1].points} XP</p>
               </div>
               <div className={`w-20 md:w-24 ${getPodiumStyle(1).height} ${getPodiumStyle(1).color} rounded-t-lg border-t-4 ${getPodiumStyle(1).border} shadow-inner flex items-end justify-center pb-4`}>
@@ -170,7 +177,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
            >
                <Crown size={32} className="text-yellow-500 mb-1 animate-bounce" fill="currentColor" />
                <div className="relative mb-2">
-                 <img src={topThree[0].avatar} alt={topThree[0].name} className="w-20 h-20 rounded-full border-4 border-yellow-400 shadow-xl" />
+                 <img src={topThree[0].avatar} alt={topThree[0].name} className="w-20 h-20 rounded-full border-4 border-yellow-400 shadow-xl object-cover" />
                  <div className="absolute -bottom-3 inset-x-0 flex justify-center">
                     <span className="bg-yellow-600 text-white text-sm font-bold px-3 py-0.5 rounded-full shadow-sm">1</span>
                  </div>
@@ -190,13 +197,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
              onClick={() => setSelectedStudent(topThree[2])}
            >
               <div className="relative mb-2">
-                 <img src={topThree[2].avatar} alt={topThree[2].name} className="w-16 h-16 rounded-full border-4 border-orange-300 shadow-lg" />
+                 <img src={topThree[2].avatar} alt={topThree[2].name} className="w-16 h-16 rounded-full border-4 border-orange-300 shadow-lg object-cover" />
                  <div className="absolute -bottom-2 inset-x-0 flex justify-center">
                     <span className="bg-orange-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">3</span>
                  </div>
               </div>
               <div className="text-center mb-2">
-                  <p className="font-bold text-slate-700 text-sm line-clamp-1 w-20">{topThree[2].name.split(' ')[0]}</p>
+                  <p className="font-bold text-slate-700 text-sm line-clamp-1 w-20">{getSafeName(topThree[2].name)}</p>
                   <p className="text-xs text-indigo-600 font-bold">{(topThree[2] as any).weeklyPoints || topThree[2].points} XP</p>
               </div>
               <div className={`w-20 md:w-24 ${getPodiumStyle(2).height} ${getPodiumStyle(2).color} rounded-t-lg border-t-4 ${getPodiumStyle(2).border} shadow-inner flex items-end justify-center pb-4`}>
@@ -227,7 +234,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
                         <span className={`font-bold w-8 text-center text-lg ${user.rank <= 10 ? 'text-slate-800' : 'text-slate-400'}`}>
                             {user.rank}
                         </span>
-                        <img src={user.avatar} alt="av" className="w-10 h-10 rounded-full border border-slate-100" />
+                        <img src={user.avatar} alt="av" className="w-10 h-10 rounded-full border border-slate-100 object-cover" />
                         <div>
                             <h4 className={`font-bold text-sm ${user.id === currentUser.id ? 'text-indigo-700' : 'text-slate-700'}`}>
                                 {user.name} {user.id === currentUser.id && '(You)'}
@@ -267,6 +274,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
                     if (totalPages > 5) {
                         if (currentPage > 3) pNum = currentPage - 2 + i;
                         if (pNum > totalPages) pNum = totalPages - 4 + i;
+                        if (pNum <= 0) pNum = 1; // Safety
                     }
 
                     return (
@@ -305,7 +313,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
                             <span className="font-bold text-xl text-yellow-400">#{myRankData.rank}</span>
                         </div>
                         <div className="h-8 w-px bg-slate-600"></div>
-                        <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500" alt="me" />
+                        <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500 object-cover" alt="me" />
                         <div>
                             <p className="font-bold text-sm">Your Position</p>
                             <p className="text-xs text-slate-400">{view === 'WORLD' ? 'All Time' : 'This Week'}</p>
@@ -330,7 +338,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users, currentUser }) => {
                     <img 
                         src={selectedStudent.avatar} 
                         alt={selectedStudent.name} 
-                        className="w-24 h-24 rounded-full border-4 border-indigo-100 shadow-md mx-auto" 
+                        className="w-24 h-24 rounded-full border-4 border-indigo-100 shadow-md mx-auto object-cover" 
                     />
                     <div className="absolute bottom-0 right-0 bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full border-2 border-white">
                         Rank #{selectedStudent.rank}
