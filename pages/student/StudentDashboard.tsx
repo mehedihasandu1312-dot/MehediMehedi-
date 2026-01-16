@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, BarChart, Bar
+  BarChart, Bar, Legend
 } from 'recharts';
 import { User, Exam, StudentResult } from '../../types';
 import { 
@@ -257,8 +257,8 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       if (comparisonTarget === friendId) setComparisonTarget('');
   };
 
-  // --- RADAR DATA ---
-  const radarData = useMemo(() => {
+  // --- COMPARISON DATA ---
+  const comparisonData = useMemo(() => {
     const friend = myFriends.find(f => f.id === comparisonTarget);
     const fStats = friend ? calculateStats(friend) : null;
 
@@ -290,7 +290,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   const comparisonFriendName = myFriends.find(f => f.id === comparisonTarget)?.name || 'Friend';
 
-  const CustomRadarTooltip = ({ active, payload, label }: any) => {
+  const CustomComparisonTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
           return (
               <div className="bg-white p-3 border border-slate-200 shadow-xl rounded-xl text-xs z-50">
@@ -420,33 +420,18 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
               <div className="flex-1 w-full h-full min-h-[300px]">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                          <PolarGrid stroke="#e2e8f0" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                      <BarChart data={comparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} />
+                          <YAxis hide domain={[0, 100]} />
+                          <Tooltip content={<CustomComparisonTooltip />} cursor={{fill: 'transparent'}} />
+                          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                           
-                          <Radar 
-                            name="You" 
-                            dataKey="You" 
-                            stroke="#4f46e5" 
-                            strokeWidth={3} 
-                            fill="#4f46e5" 
-                            fillOpacity={0.3} 
-                          />
+                          <Bar name="You" dataKey="You" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={25} />
                           {comparisonTarget && (
-                              <Radar 
-                                name={comparisonFriendName} 
-                                dataKey="Friend" 
-                                stroke="#10b981" 
-                                strokeWidth={2} 
-                                fill="#10b981" 
-                                fillOpacity={0.1} 
-                              />
+                              <Bar name={comparisonFriendName} dataKey="Friend" fill="#10b981" radius={[4, 4, 0, 0]} barSize={25} />
                           )}
-                          
-                          <Legend wrapperStyle={{fontSize: '12px', paddingTop: '10px'}} />
-                          <Tooltip content={<CustomRadarTooltip />} />
-                      </RadarChart>
+                      </BarChart>
                   </ResponsiveContainer>
               </div>
           </Card>
