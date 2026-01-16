@@ -110,6 +110,25 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
     !c.isDeleted && c.folderId === (currentFolderId || 'root_unsupported_in_demo')
   );
 
+  // --- GROUPING LOGIC (Group by Target Class) ---
+  const foldersByClass = useMemo(() => {
+      const groups: Record<string, Folder[]> = {};
+      
+      displayedFolders.forEach(folder => {
+          const key = folder.targetClass || 'General / Uncategorized';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(folder);
+      });
+      
+      return groups;
+  }, [displayedFolders]);
+
+  const sortedClassKeys = Object.keys(foldersByClass).sort((a, b) => {
+      if (a === 'General / Uncategorized') return 1;
+      if (b === 'General / Uncategorized') return -1;
+      return a.localeCompare(b);
+  });
+
 
   // --- HANDLERS ---
 
@@ -268,6 +287,57 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
       }
   };
 
+  const renderFolderCard = (folder: Folder) => (
+      <div 
+          key={folder.id}
+          onDoubleClick={() => setCurrentFolderId(folder.id)}
+          className="group p-4 bg-amber-50/50 border border-amber-100 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all relative select-none flex flex-col h-36"
+      >
+          <div className="flex justify-between items-start mb-2">
+              <div className="relative">
+                  {folder.icon ? (
+                      <img src={folder.icon} alt="icon" className="w-10 h-10 object-contain" />
+                  ) : (
+                      <div className="p-2 bg-amber-200 text-amber-700 rounded-lg">
+                          <FolderIcon size={20} />
+                      </div>
+                  )}
+              </div>
+              <div className="flex space-x-1">
+                    <button 
+                      onClick={() => setCurrentFolderId(folder.id)}
+                      className="text-amber-600 hover:text-amber-800 p-1 bg-white/50 rounded hover:bg-white"
+                      title="Open Folder"
+                  >
+                      <FolderOpen size={16} />
+                  </button>
+                  <button 
+                      onClick={() => openEditFolderModal(folder)}
+                      className="text-indigo-400 hover:text-indigo-600 p-1 hover:bg-white/50 rounded"
+                      title="Rename/Edit Folder"
+                  >
+                      <Edit size={16} />
+                  </button>
+                  <button 
+                      onClick={(e) => handleDeleteFolder(e, folder.id)}
+                      className="text-amber-400 hover:text-red-500 p-1 hover:bg-white/50 rounded"
+                      title="Delete Folder"
+                  >
+                      <Trash2 size={16} />
+                  </button>
+              </div>
+          </div>
+          <div className="flex-1 min-h-0">
+              <h4 className="font-bold text-slate-800 truncate" title={folder.name}>{folder.name}</h4>
+              <p className="text-xs text-slate-500 truncate">{folder.description || 'No description'}</p>
+          </div>
+          <div className="text-[10px] text-amber-700 font-medium uppercase tracking-wide mt-1 flex justify-between">
+              <span>Folder</span>
+              {folder.targetClass && <span className="text-indigo-600 bg-white px-1 rounded">{folder.targetClass}</span>}
+          </div>
+      </div>
+  );
+
   return (
     <div className="space-y-6 animate-fade-in h-full flex flex-col">
       <div className="flex justify-between items-center">
@@ -383,106 +453,81 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     <Button variant="outline" className="mt-4" onClick={openCreateFolderModal}>Create First Folder</Button>
                  </div>
             ) : (
-                // UPDATED GRID: grid-cols-2 on mobile
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {/* Folders */}
-                    {displayedFolders.map(folder => (
-                        <div 
-                            key={folder.id}
-                            onDoubleClick={() => setCurrentFolderId(folder.id)}
-                            className="group p-4 bg-amber-50/50 border border-amber-100 rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all relative select-none flex flex-col h-36"
-                        >
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="relative">
-                                    {folder.icon ? (
-                                        <img src={folder.icon} alt="icon" className="w-10 h-10 object-contain" />
-                                    ) : (
-                                        <div className="p-2 bg-amber-200 text-amber-700 rounded-lg">
-                                            <FolderIcon size={20} />
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex space-x-1">
-                                     <button 
-                                        onClick={() => setCurrentFolderId(folder.id)}
-                                        className="text-amber-600 hover:text-amber-800 p-1 bg-white/50 rounded hover:bg-white"
-                                        title="Open Folder"
-                                    >
-                                        <FolderOpen size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={() => openEditFolderModal(folder)}
-                                        className="text-indigo-400 hover:text-indigo-600 p-1 hover:bg-white/50 rounded"
-                                        title="Rename/Edit Folder"
-                                    >
-                                        <Edit size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={(e) => handleDeleteFolder(e, folder.id)}
-                                        className="text-amber-400 hover:text-red-500 p-1 hover:bg-white/50 rounded"
-                                        title="Delete Folder"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                <div className="space-y-8">
+                    {/* Render Grouped Folders (Only if there are keys to group by) */}
+                    {sortedClassKeys.length > 0 ? (
+                        sortedClassKeys.map(className => (
+                            <div key={className}>
+                                <h4 className="text-sm font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-1 flex items-center">
+                                    <Target size={14} className="mr-2" />
+                                    {className}
+                                </h4>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {foldersByClass[className].map(folder => renderFolderCard(folder))}
                                 </div>
                             </div>
-                            <div className="flex-1 min-h-0">
-                                <h4 className="font-bold text-slate-800 truncate" title={folder.name}>{folder.name}</h4>
-                                <p className="text-xs text-slate-500 truncate">{folder.description || 'No description'}</p>
-                            </div>
-                            <div className="text-[10px] text-amber-700 font-medium uppercase tracking-wide mt-1 flex justify-between">
-                                <span>Folder</span>
-                                {folder.targetClass && <span className="text-indigo-600 bg-white px-1 rounded">{folder.targetClass}</span>}
-                            </div>
-                        </div>
-                    ))}
+                        ))
+                    ) : (
+                        // Fallback if no folders
+                        null
+                    )}
 
-                    {/* Content Files */}
-                    {displayedContents.map(content => (
-                        <div 
-                            key={content.id}
-                            className={`group p-4 border rounded-xl hover:shadow-md cursor-default transition-all relative h-36 flex flex-col ${
-                                content.type === ContentType.WRITTEN 
-                                ? 'bg-blue-50/50 border-blue-100 hover:bg-blue-100 hover:border-blue-300' 
-                                : 'bg-purple-50/50 border-purple-100 hover:bg-purple-100 hover:border-purple-300'
-                            }`}
-                        >
-                            <div className="flex justify-between items-start mb-2">
-                                <div className={`p-2 rounded-lg ${
-                                    content.type === ContentType.WRITTEN ? 'bg-blue-200 text-blue-700' : 'bg-purple-200 text-purple-700'
-                                }`}>
-                                    {content.type === ContentType.WRITTEN ? <FileText size={20} /> : <CheckSquare size={20} />}
-                                </div>
-                                <div className="flex space-x-1">
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); handleEditContent(content); }}
-                                        className="text-indigo-400 hover:text-indigo-600 p-1 hover:bg-white/50 rounded"
-                                        title="Edit Content"
+                    {/* Content Files (Separate Section) */}
+                    {displayedContents.length > 0 && (
+                        <div>
+                            {displayedFolders.length > 0 && <div className="my-6 border-t border-slate-100"></div>}
+                            <h4 className="text-sm font-bold text-slate-500 uppercase mb-3 flex items-center">
+                                <FileText size={14} className="mr-2" /> Files
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {displayedContents.map(content => (
+                                    <div 
+                                        key={content.id}
+                                        className={`group p-4 border rounded-xl hover:shadow-md cursor-default transition-all relative h-36 flex flex-col ${
+                                            content.type === ContentType.WRITTEN 
+                                            ? 'bg-blue-50/50 border-blue-100 hover:bg-blue-100 hover:border-blue-300' 
+                                            : 'bg-purple-50/50 border-purple-100 hover:bg-purple-100 hover:border-purple-300'
+                                        }`}
                                     >
-                                        <Edit size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={(e) => handleDeleteContent(e, content.id)}
-                                        className="text-slate-300 hover:text-red-500 p-1 hover:bg-white/50 rounded"
-                                        title="Delete Content"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex-1 min-h-0">
-                                <h4 className="font-bold text-slate-800 truncate" title={content.title}>{content.title}</h4>
-                                <p className="text-xs text-slate-500 truncate">
-                                    {content.type === ContentType.WRITTEN ? 'Read Only Note' : `${content.questions} Questions`}
-                                </p>
-                            </div>
-                            <div className={`mt-1 text-[10px] font-medium uppercase tracking-wide ${
-                                content.type === ContentType.WRITTEN ? 'text-blue-700' : 'text-purple-700'
-                            }`}>
-                                {content.type}
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className={`p-2 rounded-lg ${
+                                                content.type === ContentType.WRITTEN ? 'bg-blue-200 text-blue-700' : 'bg-purple-200 text-purple-700'
+                                            }`}>
+                                                {content.type === ContentType.WRITTEN ? <FileText size={20} /> : <CheckSquare size={20} />}
+                                            </div>
+                                            <div className="flex space-x-1">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleEditContent(content); }}
+                                                    className="text-indigo-400 hover:text-indigo-600 p-1 hover:bg-white/50 rounded"
+                                                    title="Edit Content"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => handleDeleteContent(e, content.id)}
+                                                    className="text-slate-300 hover:text-red-500 p-1 hover:bg-white/50 rounded"
+                                                    title="Delete Content"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-h-0">
+                                            <h4 className="font-bold text-slate-800 truncate" title={content.title}>{content.title}</h4>
+                                            <p className="text-xs text-slate-500 truncate">
+                                                {content.type === ContentType.WRITTEN ? 'Read Only Note' : `${content.questions} Questions`}
+                                            </p>
+                                        </div>
+                                        <div className={`mt-1 text-[10px] font-medium uppercase tracking-wide ${
+                                            content.type === ContentType.WRITTEN ? 'text-blue-700' : 'text-purple-700'
+                                        }`}>
+                                            {content.type}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ))}
+                    )}
                     
                     {/* Empty State for current folder */}
                     {displayedFolders.length === 0 && displayedContents.length === 0 && (

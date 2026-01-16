@@ -32,7 +32,7 @@ import {
     Hash,
     Briefcase,
     Calendar,
-    AlertTriangle,
+    AlertTriangle, // Fixed Import
     Send
 } from 'lucide-react';
 
