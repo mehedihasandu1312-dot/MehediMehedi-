@@ -264,7 +264,11 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
     const normalize = (val: number, max: number, inverse = false) => {
         if (inverse) {
-             return Math.max(0, (20 - val) / 20 * 100);
+             // For Bar charts, we typically want the value to represent magnitude.
+             // If inverse was true (for Radar "performance"), 0 was mapped to 100%.
+             // For Bar chart "Negative Marks", we want 0 to be 0%.
+             // So we actually don't want inversion for the bar chart visual if we want to show "Amount of Negative".
+             return Math.min(100, (val / max) * 100); 
         }
         return Math.min(100, (val / max) * 100);
     };
@@ -274,7 +278,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
         { label: 'Exams', key: 'totalExams' as keyof ComparisonStats, max: 50 },
         { label: 'Accuracy', key: 'accuracy' as keyof ComparisonStats, max: 100 },
         { label: 'XP', key: 'xp' as keyof ComparisonStats, max: 2000 },
-        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 5, inverse: true },
+        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 5, inverse: false }, // Fixed: inverse false to show actual value
     ];
 
     return metrics.map(m => ({
