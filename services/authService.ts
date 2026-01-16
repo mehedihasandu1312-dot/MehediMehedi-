@@ -17,7 +17,8 @@ export const authService = {
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
-            const userData = userSnap.data() as User;
+            // FIX: Manually merge the Document ID with the data
+            const userData = { id: userSnap.id, ...userSnap.data() } as User;
             
             // SECURITY CHECK: Verify Role
             if (userData.role !== UserRole.ADMIN) {
@@ -59,7 +60,7 @@ export const authService = {
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        const userData = userSnap.data() as User;
+        const userData = { id: userSnap.id, ...userSnap.data() } as User;
         
         if (userData.status === 'BLOCKED') {
            throw new Error("This account is blocked.");
@@ -69,13 +70,6 @@ export const authService = {
         return userData;
       } else {
         // Create NEW User (Default to Student)
-        // NOTE: Security risk if you allow creating ADMINs here. 
-        // We force Role to be whatever was passed, but in production, 
-        // Admin creation should be manual or guarded.
-        
-        // For safety: If role requested is ADMIN, check if we allow auto-creation (Usually NO).
-        // Here we default new Google sign-ins to STUDENT unless manually set in DB.
-        
         const newUser: User = {
           id: fbUser.uid,
           name: fbUser.displayName || 'New User',

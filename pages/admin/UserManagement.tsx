@@ -39,6 +39,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
         active: users.filter(u => u.status === 'ACTIVE').length,
         blocked: users.filter(u => u.status === 'BLOCKED').length,
         newThisWeek: users.filter(u => {
+            if (!u.joinedDate) return false;
             const date = new Date(u.joinedDate);
             const now = new Date();
             const diffTime = Math.abs(now.getTime() - date.getTime());
@@ -50,8 +51,11 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
 
   // --- Filtering Logic ---
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = u.name || '';
+    const email = u.email || '';
+    
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = filterClass === 'ALL' || u.class === filterClass;
     const matchesStatus = filterStatus === 'ALL' || u.status === filterStatus;
     
@@ -75,7 +79,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
   const openModal = (user: User) => {
       setSelectedUser(user);
       setEditForm({
-          name: user.name,
+          name: user.name || '',
           class: user.class || '',
           institute: user.institute || ''
       });
@@ -181,7 +185,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
                 <tbody className="divide-y divide-slate-100">
                     {filteredUsers.map(user => {
                         // Generating a pseudo-random score based on name length for demo visual
-                        const randomScore = Math.min(100, Math.max(40, (user.name.length * 7) + 20)); 
+                        // Safe access to user.name
+                        const safeName = user.name || 'Unknown';
+                        const randomScore = Math.min(100, Math.max(40, (safeName.length * 7) + 20)); 
                         const scoreColor = randomScore > 80 ? 'bg-emerald-500' : randomScore > 60 ? 'bg-amber-500' : 'bg-red-500';
 
                         return (
@@ -189,13 +195,13 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
                                 <td className="py-4 pl-4">
                                     <div className="flex items-center">
                                         <img 
-                                            src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} 
-                                            alt={user.name} 
+                                            src={user.avatar || `https://ui-avatars.com/api/?name=${safeName}`} 
+                                            alt={safeName} 
                                             className="w-10 h-10 rounded-full mr-3 border border-slate-200"
                                         />
                                         <div>
-                                            <p className="font-bold text-slate-800 text-sm">{user.name}</p>
-                                            <p className="text-xs text-slate-500">{user.email}</p>
+                                            <p className="font-bold text-slate-800 text-sm">{safeName}</p>
+                                            <p className="text-xs text-slate-500">{user.email || 'No Email'}</p>
                                         </div>
                                     </div>
                                 </td>
@@ -207,7 +213,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
                                 </td>
                                 <td className="py-4">
                                     <Badge color={user.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
-                                        {user.status}
+                                        {user.status || 'UNKNOWN'}
                                     </Badge>
                                 </td>
                                 <td className="py-4 align-middle">
@@ -279,14 +285,14 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
                                     onChange={e => setEditForm({...editForm, name: e.target.value})}
                                 />
                             ) : (
-                                <h3 className="text-xl font-bold text-slate-800">{selectedUser.name}</h3>
+                                <h3 className="text-xl font-bold text-slate-800">{selectedUser.name || 'Unnamed User'}</h3>
                             )}
                             <div className="flex items-center space-x-2 mt-1">
                                 <Badge color={selectedUser.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
-                                    {selectedUser.status}
+                                    {selectedUser.status || 'UNKNOWN'}
                                 </Badge>
                                 <span className="text-xs text-slate-500 flex items-center">
-                                    <Clock size={12} className="mr-1"/> Joined {new Date(selectedUser.joinedDate).toLocaleDateString()}
+                                    <Clock size={12} className="mr-1"/> Joined {selectedUser.joinedDate ? new Date(selectedUser.joinedDate).toLocaleDateString() : 'N/A'}
                                 </span>
                             </div>
                         </div>
@@ -355,7 +361,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers }) => {
                              <label className="text-xs text-slate-500 block mb-1">Email Address</label>
                              <div className="flex items-center text-sm text-slate-600 bg-white p-2 rounded border border-slate-200">
                                 <Mail size={14} className="mr-2 text-slate-400" />
-                                {selectedUser.email}
+                                {selectedUser.email || 'No Email'}
                              </div>
                          </div>
                     </div>

@@ -51,7 +51,8 @@ function useFirestoreCollection<T extends { id: string }>(
   // 1. READ: Real-time Listener
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
-      const fetchedData = snapshot.docs.map(doc => doc.data() as T);
+      // FIX: Ensure ID is included from doc.id, overriding data if necessary
+      const fetchedData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as T);
       setData(fetchedData);
       setLoading(false);
       setInitialized(true);
