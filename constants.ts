@@ -1,4 +1,4 @@
-import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission } from './types';
+import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog } from './types';
 
 // --- DATA CONSTANTS ---
 
@@ -41,7 +41,17 @@ export const MOCK_USERS: User[] = [
     profileCompleted: true,
     status: 'ACTIVE',
     joinedDate: '2023-01-01T00:00:00Z',
-    avatar: 'https://picsum.photos/200/200?random=1'
+    avatar: 'https://ui-avatars.com/api/?name=Super+Admin&background=0D9488&color=fff'
+  },
+  {
+    id: 'admin2',
+    name: 'Content Manager',
+    email: 'editor@edumaster.com',
+    role: UserRole.ADMIN,
+    profileCompleted: true,
+    status: 'ACTIVE',
+    joinedDate: '2023-03-15T00:00:00Z',
+    avatar: 'https://ui-avatars.com/api/?name=Content+Manager&background=6366f1&color=fff'
   },
   {
     id: 'student1',
@@ -85,6 +95,14 @@ export const MOCK_USERS: User[] = [
     points: 100,
     rank: 150
   }
+];
+
+export const MOCK_ADMIN_LOGS: AdminActivityLog[] = [
+    { id: 'l1', adminId: 'admin1', adminName: 'Super Admin', action: 'Created Exam', details: 'Physics Mid-Term 2024', timestamp: '2023-10-28T10:00:00Z', type: 'SUCCESS' },
+    { id: 'l2', adminId: 'admin2', adminName: 'Content Manager', action: 'Deleted User', details: 'Spam Account (ID: 992)', timestamp: '2023-10-28T09:30:00Z', type: 'DANGER' },
+    { id: 'l3', adminId: 'admin1', adminName: 'Super Admin', action: 'Updated Notice', details: 'Maintenance Alert', timestamp: '2023-10-27T14:00:00Z', type: 'INFO' },
+    { id: 'l4', adminId: 'admin2', adminName: 'Content Manager', action: 'Blocked User', details: 'Bad Actor', timestamp: '2023-10-26T11:15:00Z', type: 'WARNING' },
+    { id: 'l5', adminId: 'admin1', adminName: 'Super Admin', action: 'Login', details: 'System Access', timestamp: '2023-10-28T08:00:00Z', type: 'INFO' },
 ];
 
 export const MOCK_FOLDERS: Folder[] = [

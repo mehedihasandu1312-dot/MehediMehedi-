@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRole, User } from '../types';
 import { authService } from '../services/authService';
-import { ShieldCheck, Loader2, AlertTriangle, Copy, Lock, Mail, Wrench } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertTriangle, Copy, Lock, Mail } from 'lucide-react';
 
 interface LoginProps {
   setUser: (user: User) => void;
@@ -207,20 +207,6 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
                           {loading ? <Loader2 className="animate-spin" size={20} /> : "Login"}
                       </button>
                   </div>
-
-                  {/* === NEW: SETUP BUTTON === */}
-                  <div className="mt-4 pt-4 border-t border-slate-100 text-center">
-                      <p className="text-xs text-slate-400 mb-2">First time setting up?</p>
-                      <button 
-                          type="button"
-                          onClick={() => navigate('/setup-admin')}
-                          className="text-xs flex items-center justify-center mx-auto text-indigo-600 font-bold hover:text-indigo-800 hover:underline transition-colors"
-                      >
-                          <Wrench size={12} className="mr-1" />
-                          Create Master Admin Account
-                      </button>
-                  </div>
-
               </form>
           ) : (
               <button

@@ -22,9 +22,9 @@ import BlogManagement from './pages/admin/BlogManagement';
 import NoticeManagement from './pages/admin/NoticeManagement';
 import SocialManagement from './pages/admin/SocialManagement';
 import ExamGrading from './pages/admin/ExamGrading';
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport } from './types';
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog } from './types';
 import { authService } from './services/authService';
-import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS } from './constants';
+import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS } from './constants';
 import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -144,10 +144,11 @@ const App: React.FC = () => {
   const [appeals, setAppeals, appealsLoading] = useFirestoreCollection<Appeal>('appeals', MOCK_APPEALS);
   const [socialPosts, setSocialPosts, socialLoading] = useFirestoreCollection<SocialPostType>('social_posts', MOCK_SOCIAL_POSTS);
   const [socialReports, setSocialReports, reportsLoading] = useFirestoreCollection<SocialReport>('social_reports', MOCK_REPORTS);
+  const [adminLogs, setAdminLogs, logsLoading] = useFirestoreCollection<AdminActivityLog>('admin_logs', MOCK_ADMIN_LOGS);
 
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
                         blogFoldersLoading || blogsLoading || noticesLoading || appealsLoading || 
-                        socialLoading || reportsLoading;
+                        socialLoading || reportsLoading || logsLoading;
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -326,7 +327,7 @@ const App: React.FC = () => {
                 element={<AdminDashboard exams={exams} users={users} appeals={appeals} onLogout={handleLogout} />} 
               />
               <Route path="/admin/appeals" element={<AppealManagement appeals={appeals} setAppeals={setAppeals} />} />
-              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} />} />
+              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} />} />
               <Route 
                 path="/admin/content" 
                 element={

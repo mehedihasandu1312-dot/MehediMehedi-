@@ -28,6 +28,16 @@ export interface User {
   friendRequests?: string[]; // Array of User IDs who sent request
 }
 
+export interface AdminActivityLog {
+  id: string;
+  adminId: string;
+  adminName: string;
+  action: string; // e.g., "Created Exam", "Blocked User"
+  details: string; // e.g., "Physics Mid-Term"
+  timestamp: string;
+  type: 'DANGER' | 'WARNING' | 'INFO' | 'SUCCESS';
+}
+
 export enum ContentType {
   WRITTEN = 'WRITTEN',
   MCQ = 'MCQ'
