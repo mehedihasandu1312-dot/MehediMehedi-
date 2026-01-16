@@ -10,7 +10,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  isSuperAdmin?: boolean; // NEW: Identifies the Master Admin
+  isSuperAdmin?: boolean; // Identifies the Master Admin
   profileCompleted: boolean;
   status: 'ACTIVE' | 'BLOCKED';
   joinedDate: string; // ISO Date string
@@ -24,6 +24,8 @@ export interface User {
   institute?: string;
   points?: number;
   rank?: number;
+  // Admin Management
+  warnings?: string[]; // Array of warning messages sent by Super Admin
   // Social Fields
   friends?: string[]; // Array of User IDs
   friendRequests?: string[]; // Array of User IDs who sent request

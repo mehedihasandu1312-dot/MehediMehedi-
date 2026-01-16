@@ -31,7 +31,9 @@ import {
     Award,
     Hash,
     Briefcase,
-    Calendar
+    Calendar,
+    TriangleAlert,
+    Send
 } from 'lucide-react';
 
 interface Props {
@@ -66,6 +68,11 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   // Admin Logs State
   const [viewLogsAdminId, setViewLogsAdminId] = useState<string | null>(null);
+
+  // Admin Warning State
+  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [targetAdminId, setTargetAdminId] = useState<string | null>(null);
+  const [warningText, setWarningText] = useState('');
 
   // Admin Creation State
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -148,6 +155,32 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     }
   };
 
+  // --- WARNING SYSTEM ---
+  const openWarningModal = (adminId: string) => {
+      setTargetAdminId(adminId);
+      setWarningText('');
+      setWarningModalOpen(true);
+  };
+
+  const handleSendWarning = () => {
+      if (!targetAdminId || !warningText.trim()) return;
+
+      const timestamp = new Date().toLocaleString();
+      const formattedWarning = `[${timestamp}] ${warningText}`;
+
+      setUsers(prev => prev.map(u => {
+          if (u.id === targetAdminId) {
+              const currentWarnings = u.warnings || [];
+              return { ...u, warnings: [...currentWarnings, formattedWarning] };
+          }
+          return u;
+      }));
+
+      alert("Warning sent to Admin!");
+      setWarningModalOpen(false);
+      setTargetAdminId(null);
+  };
+
   const openStudentModal = (user: User) => {
       setSelectedUser(user);
       // Initialize form with all available data
@@ -204,7 +237,8 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
               status: 'ACTIVE',
               profileCompleted: true,
               joinedDate: new Date().toISOString(),
-              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newAdminName)}&background=0D9488&color=fff`
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newAdminName)}&background=0D9488&color=fff`,
+              warnings: []
           };
 
           await setDoc(doc(db, "users", newUser.uid), newAdminData);
@@ -384,9 +418,16 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             <td className="py-4">
                                 <div className="text-sm">
                                     {user.role === UserRole.ADMIN ? (
-                                        <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded text-xs border border-emerald-100">
-                                            Administrator
-                                        </span>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded text-xs border border-emerald-100">
+                                                Administrator
+                                            </span>
+                                            {user.warnings && user.warnings.length > 0 && (
+                                                <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded text-[10px] border border-amber-100 flex items-center">
+                                                    <TriangleAlert size={10} className="mr-1" /> {user.warnings.length} Warnings
+                                                </span>
+                                            )}
+                                        </div>
                                     ) : (
                                         <>
                                             <p className="font-medium text-slate-700">{user.class || 'No Class'}</p>
@@ -413,15 +454,30 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                         </Button>
                                     )}
 
+                                    {/* ADMIN: VIEW LOGS & WARNINGS */}
                                     {user.role === UserRole.ADMIN && isSuperAdmin && (
-                                        <Button 
-                                            variant="outline"
-                                            className="p-1.5 h-auto border-slate-200 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
-                                            onClick={() => setViewLogsAdminId(user.id)}
-                                            title="View Logs"
-                                        >
-                                            <ScrollText size={16} />
-                                        </Button>
+                                        <>
+                                            <Button 
+                                                variant="outline"
+                                                className="p-1.5 h-auto border-slate-200 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
+                                                onClick={() => setViewLogsAdminId(user.id)}
+                                                title="View Activity Logs"
+                                            >
+                                                <ScrollText size={16} />
+                                            </Button>
+                                            
+                                            {/* Warning Button */}
+                                            {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
+                                                <Button 
+                                                    variant="outline"
+                                                    className="p-1.5 h-auto border-slate-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                    onClick={() => openWarningModal(user.id)}
+                                                    title="Issue Warning"
+                                                >
+                                                    <TriangleAlert size={16} />
+                                                </Button>
+                                            )}
+                                        </>
                                     )}
 
                                     {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
@@ -448,6 +504,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       </Card>
 
       {/* --- STUDENT FULL PROFILE MODAL (EXPANDED) --- */}
+      {/* (Code remains same as provided in previous version) */}
       <Modal 
         isOpen={!!selectedUser} 
         onClose={() => setSelectedUser(null)} 
@@ -614,6 +671,20 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       {/* --- ADMIN LOGS MODAL --- */}
       <Modal isOpen={!!viewLogsAdminId} onClose={() => setViewLogsAdminId(null)} title={`Activity Log: ${selectedAdminName}`}>
           <div className="max-h-[60vh] overflow-y-auto pr-2">
+              {/* Show Warnings at the top if any */}
+              {users.find(u => u.id === viewLogsAdminId)?.warnings?.length ? (
+                  <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
+                          <TriangleAlert size={14} className="mr-1"/> Warnings Issued
+                      </h4>
+                      <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
+                          {users.find(u => u.id === viewLogsAdminId)?.warnings?.map((w, idx) => (
+                              <li key={idx}>{w}</li>
+                          ))}
+                      </ul>
+                  </div>
+              ) : null}
+
               {selectedAdminLogs.length === 0 ? (
                   <div className="text-center py-10 text-slate-400">
                       <ScrollText size={32} className="mx-auto mb-2 opacity-20" />
@@ -638,6 +709,34 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           </div>
           <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
               <Button onClick={() => setViewLogsAdminId(null)}>Close</Button>
+          </div>
+      </Modal>
+
+      {/* --- WARNING MODAL --- */}
+      <Modal isOpen={warningModalOpen} onClose={() => setWarningModalOpen(false)} title="Issue Warning to Admin">
+          <div className="space-y-4">
+              <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 text-sm flex items-start">
+                  <TriangleAlert size={16} className="mr-2 mt-0.5 shrink-0" />
+                  <p>
+                      You are issuing a warning to this administrator. This will be recorded in their profile.
+                  </p>
+              </div>
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Warning Message</label>
+                  <textarea 
+                      className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                      rows={4}
+                      placeholder="e.g. Please do not delete exam questions without approval..."
+                      value={warningText}
+                      onChange={(e) => setWarningText(e.target.value)}
+                  />
+              </div>
+              <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setWarningModalOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSendWarning} className="bg-amber-500 hover:bg-amber-600 border-amber-600 text-white flex items-center">
+                      <Send size={16} className="mr-2"/> Send Warning
+                  </Button>
+              </div>
           </div>
       </Modal>
 
