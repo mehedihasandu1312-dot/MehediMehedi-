@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Card, Button } from '../components/UI';
-import { ShieldCheck, CheckCircle, AlertTriangle, Loader2, Key } from 'lucide-react';
+import { ShieldCheck, CheckCircle, AlertTriangle, Loader2, Key, ArrowLeft, LogIn } from 'lucide-react';
 import { UserRole } from '../types';
 
 // --- SECURITY CONFIGURATION ---
-// রিয়েল অ্যাপে এই কি (Key) কাউকে বলা যাবে না।
 const MASTER_SECURITY_KEY = "PRO_ADMIN_2025"; 
 
 const AdminSetup: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [masterKey, setMasterKey] = useState(''); // New State for Security Key
+  const [masterKey, setMasterKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+  
+  const navigate = useNavigate();
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +57,7 @@ const AdminSetup: React.FC = () => {
 
       setStatus({
         type: 'success',
-        msg: `Success! Admin created with UID: ${user.uid}. You can now go to /login.`
+        msg: `Success! Admin created. You can now login.`
       });
       
       // Clear form
@@ -76,8 +78,18 @@ const AdminSetup: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-t-4 border-t-emerald-600">
-        <div className="text-center mb-6">
+      <Card className="w-full max-w-md border-t-4 border-t-emerald-600 relative">
+        
+        {/* Back Button */}
+        <button 
+            onClick={() => navigate('/login')}
+            className="absolute top-4 left-4 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+            title="Back to Login"
+        >
+            <ArrowLeft size={20} />
+        </button>
+
+        <div className="text-center mb-6 pt-2">
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShieldCheck size={32} className="text-emerald-600" />
           </div>
@@ -86,9 +98,16 @@ const AdminSetup: React.FC = () => {
         </div>
 
         {status && (
-          <div className={`p-4 rounded-lg mb-6 text-sm flex items-start ${status.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-            {status.type === 'success' ? <CheckCircle size={18} className="mr-2 shrink-0" /> : <AlertTriangle size={18} className="mr-2 shrink-0" />}
-            {status.msg}
+          <div className={`p-4 rounded-lg mb-6 text-sm flex flex-col ${status.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+            <div className="flex items-start">
+                {status.type === 'success' ? <CheckCircle size={18} className="mr-2 shrink-0" /> : <AlertTriangle size={18} className="mr-2 shrink-0" />}
+                {status.msg}
+            </div>
+            {status.type === 'success' && (
+                <Button onClick={() => navigate('/login')} size="sm" className="mt-3 bg-emerald-700 hover:bg-emerald-800 self-end flex items-center">
+                    <LogIn size={14} className="mr-1" /> Go to Login
+                </Button>
+            )}
           </div>
         )}
 
