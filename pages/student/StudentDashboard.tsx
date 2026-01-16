@@ -30,7 +30,9 @@ import {
   Percent,
   Search,
   Check,
-  Mail
+  Mail,
+  Send,
+  ArrowRight
 } from 'lucide-react';
 
 interface Props {
@@ -54,11 +56,16 @@ interface ComparisonStats {
 
 const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, allUsers, setAllUsers }) => {
   
+  // --- REAL-TIME USER DATA ---
+  // Ensure we use the latest version of the current user from allUsers array to react to changes instantly
+  const liveUser = useMemo(() => allUsers.find(u => u.id === user.id) || user, [allUsers, user.id]);
+
   // --- STATE FOR FRIENDS ---
   const [comparisonTarget, setComparisonTarget] = useState<string>('');
   const [searchEmail, setSearchEmail] = useState('');
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [foundUser, setFoundUser] = useState<User | null>(null);
+  const [requestTab, setRequestTab] = useState<'INCOMING' | 'OUTGOING'>('INCOMING');
   
   // --- CERTIFICATE STATE ---
   const [showCertificate, setShowCertificate] = useState(false);
@@ -102,7 +109,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       };
   };
 
-  const myStats = useMemo(() => calculateStats(user), [results, user, allUsers]);
+  const myStats = useMemo(() => calculateStats(liveUser), [results, liveUser, allUsers]);
 
   // Weekly Rank Logic
   const weeklyRank = myStats.totalExams > 0 ? Math.max(1, Math.floor(myStats.rank / 5)) : 0;
@@ -111,7 +118,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
   // --- CHART DATA GENERATION (FIXED DATE) ---
   const performanceHistory = useMemo(() => {
       // 1. Get MY results
-      const myResults = results.filter(r => r.studentId === user.id);
+      const myResults = results.filter(r => r.studentId === liveUser.id);
       
       if (myResults.length === 0) return [];
       
@@ -127,31 +134,40 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
               score: r.totalMarks > 0 ? ((r.score / r.totalMarks) * 100).toFixed(0) : 0
           };
       });
-  }, [results, user]);
+  }, [results, liveUser]);
 
   // --- FRIEND LOGIC ---
+  
+  // 1. Friends List
   const myFriends = useMemo(() => {
-      return allUsers.filter(u => user.friends?.includes(u.id));
-  }, [allUsers, user.friends]);
+      return allUsers.filter(u => liveUser.friends?.includes(u.id));
+  }, [allUsers, liveUser.friends]);
 
+  // 2. Incoming Requests (People who sent request to ME)
   const incomingRequests = useMemo(() => {
-      return allUsers.filter(u => user.friendRequests?.includes(u.id));
-  }, [allUsers, user.friendRequests]);
+      return allUsers.filter(u => liveUser.friendRequests?.includes(u.id));
+  }, [allUsers, liveUser.friendRequests]);
+
+  // 3. Outgoing Requests (People *I* sent requests TO)
+  // We check other users' friendRequests array to see if MY ID is there
+  const outgoingRequests = useMemo(() => {
+      return allUsers.filter(u => u.friendRequests?.includes(liveUser.id));
+  }, [allUsers, liveUser.id]);
 
   const handleSearchFriend = (e: React.FormEvent) => {
       e.preventDefault();
-      const found = allUsers.find(u => u.email.toLowerCase() === searchEmail.toLowerCase() && u.id !== user.id);
+      const found = allUsers.find(u => u.email.toLowerCase() === searchEmail.toLowerCase() && u.id !== liveUser.id);
       setFoundUser(found || null);
       if (!found) alert("No user found with this email.");
   };
 
   const sendFriendRequest = () => {
       if (!foundUser) return;
-      if (user.friends?.includes(foundUser.id)) {
+      if (liveUser.friends?.includes(foundUser.id)) {
           alert("Already friends!");
           return;
       }
-      if (foundUser.friendRequests?.includes(user.id)) {
+      if (foundUser.friendRequests?.includes(liveUser.id)) {
           alert("Request already sent.");
           return;
       }
@@ -159,7 +175,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       // Update Found User to include My ID in their requests
       const updatedFoundUser = {
           ...foundUser,
-          friendRequests: [...(foundUser.friendRequests || []), user.id]
+          friendRequests: [...(foundUser.friendRequests || []), liveUser.id]
       };
 
       setAllUsers(prev => prev.map(u => u.id === foundUser.id ? updatedFoundUser : u));
@@ -175,9 +191,9 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       // 3. Remove Requester from My Requests
       
       const meUpdated = {
-          ...user,
-          friends: [...(user.friends || []), requesterId],
-          friendRequests: (user.friendRequests || []).filter(id => id !== requesterId)
+          ...liveUser,
+          friends: [...(liveUser.friends || []), requesterId],
+          friendRequests: (liveUser.friendRequests || []).filter(id => id !== requesterId)
       };
 
       const requester = allUsers.find(u => u.id === requesterId);
@@ -185,11 +201,11 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
       const requesterUpdated = {
           ...requester,
-          friends: [...(requester.friends || []), user.id]
+          friends: [...(requester.friends || []), liveUser.id]
       };
 
       setAllUsers(prev => prev.map(u => {
-          if (u.id === user.id) return meUpdated;
+          if (u.id === liveUser.id) return meUpdated;
           if (u.id === requesterId) return requesterUpdated;
           return u;
       }));
@@ -197,18 +213,30 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   const handleDeclineRequest = (requesterId: string) => {
       const meUpdated = {
-          ...user,
-          friendRequests: (user.friendRequests || []).filter(id => id !== requesterId)
+          ...liveUser,
+          friendRequests: (liveUser.friendRequests || []).filter(id => id !== requesterId)
       };
-      setAllUsers(prev => prev.map(u => u.id === user.id ? meUpdated : u));
+      setAllUsers(prev => prev.map(u => u.id === liveUser.id ? meUpdated : u));
+  };
+
+  const handleCancelRequest = (targetUserId: string) => {
+      const targetUser = allUsers.find(u => u.id === targetUserId);
+      if (!targetUser) return;
+
+      const targetUpdated = {
+          ...targetUser,
+          friendRequests: (targetUser.friendRequests || []).filter(id => id !== liveUser.id)
+      };
+
+      setAllUsers(prev => prev.map(u => u.id === targetUserId ? targetUpdated : u));
   };
 
   const handleRemoveFriend = (friendId: string) => {
       if (!confirm("Remove this friend?")) return;
 
       const meUpdated = {
-          ...user,
-          friends: (user.friends || []).filter(id => id !== friendId)
+          ...liveUser,
+          friends: (liveUser.friends || []).filter(id => id !== friendId)
       };
 
       const friend = allUsers.find(u => u.id === friendId);
@@ -216,12 +244,12 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       if (friend) {
           friendUpdated = {
               ...friend,
-              friends: (friend.friends || []).filter(id => id !== user.id)
+              friends: (friend.friends || []).filter(id => id !== liveUser.id)
           };
       }
 
       setAllUsers(prev => prev.map(u => {
-          if (u.id === user.id) return meUpdated;
+          if (u.id === liveUser.id) return meUpdated;
           if (u.id === friendId) return friendUpdated!;
           return u;
       }));
@@ -295,7 +323,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between">
         <div>
-           <h1 className="text-2xl font-bold text-slate-800">Hello, {user.name.split(' ')[0]} 👋</h1>
+           <h1 className="text-2xl font-bold text-slate-800">Hello, {liveUser.name.split(' ')[0]} 👋</h1>
            <p className="text-slate-500 text-sm mt-1">
                {myStats.totalExams === 0 ? "Start taking exams to unlock your stats!" : "Here is your academic performance overview."}
            </p>
@@ -327,7 +355,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                   </span>
               )}
             </div>
-            <h2 className="text-3xl font-bold mb-1">{user.points || 0} XP</h2>
+            <h2 className="text-3xl font-bold mb-1">{liveUser.points || 0} XP</h2>
             <p className="text-indigo-100 text-sm max-w-lg mt-2 opacity-90">
               {myStats.totalExams > 0 
                 ? "Rank calculated via: Avg Marks, Accuracy, XP & Negative Penalties."
@@ -424,7 +452,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
           </Card>
 
           <div className="flex flex-col gap-4">
-              <Card className="flex-1 relative">
+              <Card className="flex-1 relative flex flex-col">
                   <div className="flex justify-between items-center mb-4">
                       <h3 className="font-bold text-slate-800 flex items-center">
                           <Users size={18} className="mr-2 text-indigo-600" /> My Study Circle
@@ -434,10 +462,27 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                       </Button>
                   </div>
                   
-                  {/* Friend Requests List */}
-                  {incomingRequests.length > 0 && (
+                  {/* Requests Tabs (Incoming / Outgoing) */}
+                  {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
+                      <div className="flex bg-slate-100 p-1 rounded-lg mb-3">
+                          <button 
+                            className={`flex-1 text-xs py-1.5 font-bold rounded ${requestTab === 'INCOMING' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
+                            onClick={() => setRequestTab('INCOMING')}
+                          >
+                              Incoming ({incomingRequests.length})
+                          </button>
+                          <button 
+                            className={`flex-1 text-xs py-1.5 font-bold rounded ${requestTab === 'OUTGOING' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
+                            onClick={() => setRequestTab('OUTGOING')}
+                          >
+                              Sent ({outgoingRequests.length})
+                          </button>
+                      </div>
+                  )}
+
+                  {/* Requests Lists */}
+                  {requestTab === 'INCOMING' && incomingRequests.length > 0 && (
                       <div className="mb-4 bg-amber-50 rounded-lg p-3 border border-amber-100">
-                          <h4 className="text-xs font-bold text-amber-700 uppercase mb-2">Pending Requests</h4>
                           <div className="space-y-2">
                               {incomingRequests.map(req => (
                                   <div key={req.id} className="flex items-center justify-between bg-white p-2 rounded shadow-sm">
@@ -446,8 +491,8 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                                           <span className="text-xs font-bold">{req.name}</span>
                                       </div>
                                       <div className="flex gap-1">
-                                          <button onClick={() => handleAcceptRequest(req.id)} className="p-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200"><Check size={12} /></button>
-                                          <button onClick={() => handleDeclineRequest(req.id)} className="p-1 bg-red-100 text-red-700 rounded hover:bg-red-200"><X size={12} /></button>
+                                          <button onClick={() => handleAcceptRequest(req.id)} className="p-1.5 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200" title="Accept"><Check size={14} /></button>
+                                          <button onClick={() => handleDeclineRequest(req.id)} className="p-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200" title="Decline"><X size={14} /></button>
                                       </div>
                                   </div>
                               ))}
@@ -455,14 +500,31 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                       </div>
                   )}
 
+                  {requestTab === 'OUTGOING' && outgoingRequests.length > 0 && (
+                      <div className="mb-4 bg-blue-50 rounded-lg p-3 border border-blue-100">
+                          <div className="space-y-2">
+                              {outgoingRequests.map(req => (
+                                  <div key={req.id} className="flex items-center justify-between bg-white p-2 rounded shadow-sm">
+                                      <div className="flex items-center gap-2">
+                                          <img src={req.avatar} className="w-6 h-6 rounded-full" />
+                                          <span className="text-xs font-bold text-slate-600">{req.name}</span>
+                                      </div>
+                                      <button onClick={() => handleCancelRequest(req.id)} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded hover:bg-red-50 hover:text-red-500">Cancel</button>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  )}
+
+                  {/* Friends List */}
                   {myFriends.length === 0 ? (
-                      <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                          <Users size={32} className="mx-auto mb-2 opacity-20" />
+                      <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200 flex-1 flex flex-col justify-center items-center">
+                          <Users size={32} className="mb-2 opacity-20" />
                           <p className="text-sm">No friends added yet.</p>
                           <Button size="sm" variant="outline" className="mt-2" onClick={() => setIsAddFriendModalOpen(true)}>Find Peers</Button>
                       </div>
                   ) : (
-                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 flex-1">
                           {myFriends.map(friend => {
                               const fStats = calculateStats(friend);
                               return (
@@ -597,7 +659,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                         <div className="flex items-center text-slate-600">
                             <FileCheck size={16} className="mr-2 text-indigo-400" /> Exams
                         </div>
-                        <span className="font-bold text-slate-800">{results.filter(r => r.studentId === user.id).length}</span>
+                        <span className="font-bold text-slate-800">{results.filter(r => r.studentId === liveUser.id).length}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
                         <div className="flex items-center text-slate-600">
@@ -651,10 +713,10 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
             <h3 className="text-lg font-bold text-slate-800 flex items-center">
                 <History size={20} className="mr-2 text-slate-500" /> Recent Exam History
             </h3>
-            {results.filter(r => r.studentId === user.id).length === 0 && <span className="text-xs text-slate-400">No exams taken yet</span>}
+            {results.filter(r => r.studentId === liveUser.id).length === 0 && <span className="text-xs text-slate-400">No exams taken yet</span>}
         </div>
         
-        {results.filter(r => r.studentId === user.id).length === 0 ? (
+        {results.filter(r => r.studentId === liveUser.id).length === 0 ? (
             <div className="text-center py-10 bg-slate-50 rounded border-2 border-dashed border-slate-200 text-slate-400">
                 <FileCheck size={48} className="mx-auto mb-2 opacity-20" />
                 <p>You haven't participated in any exams yet.</p>
@@ -674,7 +736,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                         </tr>
                     </thead>
                     <tbody className="text-sm">
-                        {results.filter(r => r.studentId === user.id).slice(0,10).map(res => (
+                        {results.filter(r => r.studentId === liveUser.id).slice(0,10).map(res => (
                             <tr key={res.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                 <td className="py-3 pl-2 font-medium text-slate-700">{res.examTitle}</td>
                                 <td className="py-3 text-slate-500">{new Date(res.date).toLocaleDateString()}</td>
@@ -801,7 +863,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                  
                  <div className="mb-6">
                      <p className="text-slate-500 text-sm mb-1">This is to certify that</p>
-                     <h3 className="text-2xl font-bold text-indigo-900 border-b-2 border-slate-200 pb-2 inline-block px-8">{user.name}</h3>
+                     <h3 className="text-2xl font-bold text-indigo-900 border-b-2 border-slate-200 pb-2 inline-block px-8">{liveUser.name}</h3>
                  </div>
                  
                  <p className="text-slate-700 mb-6 leading-relaxed">
