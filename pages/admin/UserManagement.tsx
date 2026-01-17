@@ -75,6 +75,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [targetAdminId, setTargetAdminId] = useState<string | null>(null);
   const [warningText, setWarningText] = useState('');
 
+  // Status Change Confirmation State
+  const [statusConfirm, setStatusConfirm] = useState<{ isOpen: boolean; id: string; status: 'ACTIVE' | 'BLOCKED'; role: UserRole } | null>(null);
+
   // Admin Creation State
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -129,7 +132,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   // --- Handlers ---
 
-  const handleToggleStatus = (id: string, currentStatus: 'ACTIVE' | 'BLOCKED', targetRole: UserRole) => {
+  const initiateStatusToggle = (id: string, currentStatus: 'ACTIVE' | 'BLOCKED', targetRole: UserRole) => {
     if (targetRole === UserRole.ADMIN && !isSuperAdmin) {
         alert("Access Denied: Only Super Admin can manage other admins.");
         return;
@@ -141,19 +144,20 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         return;
     }
 
-    const newStatus = currentStatus === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
-    const action = newStatus === 'BLOCKED' ? 'Block' : 'Unblock';
-    
-    const confirmMsg = targetRole === UserRole.ADMIN 
-        ? `⚠️ CRITICAL: Are you sure you want to ${action} this ADMIN?`
-        : `Are you sure you want to ${action} this student account?`;
+    setStatusConfirm({ isOpen: true, id, status: currentStatus, role: targetRole });
+  };
 
-    if (confirm(confirmMsg)) {
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: newStatus } : u));
-      if (selectedUser?.id === id) {
+  const confirmStatusToggle = () => {
+    if (!statusConfirm) return;
+    const { id, status } = statusConfirm;
+    
+    const newStatus = status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+    
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, status: newStatus } : u));
+    if (selectedUser?.id === id) {
         setSelectedUser(prev => prev ? { ...prev, status: newStatus } : null);
-      }
     }
+    setStatusConfirm(null);
   };
 
   // --- WARNING SYSTEM ---
@@ -491,7 +495,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                                 ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' 
                                                 : 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200'
                                             }`}
-                                            onClick={() => handleToggleStatus(user.id, user.status, user.role)}
+                                            onClick={() => initiateStatusToggle(user.id, user.status, user.role)}
                                             title={user.status === 'ACTIVE' ? 'Block' : 'Unblock'}
                                         >
                                             {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
@@ -773,6 +777,39 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                   </Button>
               </div>
           </form>
+      </Modal>
+
+      {/* --- STATUS CHANGE CONFIRMATION MODAL --- */}
+      <Modal isOpen={!!statusConfirm} onClose={() => setStatusConfirm(null)} title="Confirm Status Change">
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${statusConfirm?.status === 'ACTIVE' ? 'bg-red-50 border-red-100 text-red-800' : 'bg-emerald-50 border-emerald-100 text-emerald-800'}`}>
+                  {statusConfirm?.status === 'ACTIVE' ? (
+                      <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                  ) : (
+                      <CheckCircle size={24} className="mr-3 shrink-0 mt-1" />
+                  )}
+                  <div>
+                      <p className="font-bold">
+                          Are you sure you want to {statusConfirm?.status === 'ACTIVE' ? 'BLOCK' : 'UNBLOCK'} this {statusConfirm?.role === 'ADMIN' ? 'Admin' : 'Student'} account?
+                      </p>
+                      <p className="text-xs mt-1">
+                          {statusConfirm?.status === 'ACTIVE' 
+                              ? "The user will lose access to the platform immediately." 
+                              : "The user will regain access to the platform."}
+                      </p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setStatusConfirm(null)}>Cancel</Button>
+                  <Button 
+                    variant={statusConfirm?.status === 'ACTIVE' ? "danger" : "primary"} 
+                    className={statusConfirm?.status === 'BLOCKED' ? "bg-emerald-600 hover:bg-emerald-700 border-transparent text-white" : ""}
+                    onClick={confirmStatusToggle}
+                  >
+                      {statusConfirm?.status === 'ACTIVE' ? 'Confirm Block' : 'Confirm Unblock'}
+                  </Button>
+              </div>
+          </div>
       </Modal>
 
     </div>

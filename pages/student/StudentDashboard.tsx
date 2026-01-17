@@ -32,7 +32,8 @@ import {
   Check,
   Mail,
   Send,
-  ArrowRight
+  ArrowRight,
+  AlertTriangle
 } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; // Import Ads
 
@@ -70,8 +71,8 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
   // --- CERTIFICATE STATE ---
   const [showCertificate, setShowCertificate] = useState(false);
 
-  // --- EXAM PREVIEW STATE ---
-  const [selectedResult, setSelectedResult] = useState<StudentResult | null>(null);
+  // --- DELETE FRIEND CONFIRMATION STATE ---
+  const [friendToRemove, setFriendToRemove] = useState<string | null>(null);
 
   // --- HELPER: CALCULATE STATS ---
   const calculateStats = (targetUser: User): ComparisonStats => {
@@ -162,20 +163,21 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       setAllUsers(prev => prev.map(u => u.id === liveUser.id ? meUpdated : u));
   };
 
-  const handleCancelRequest = (targetUserId: string) => {
-      const targetUser = allUsers.find(u => u.id === targetUserId);
-      if (!targetUser) return;
-      const targetUpdated = { ...targetUser, friendRequests: (targetUser.friendRequests || []).filter(id => id !== liveUser.id) };
-      setAllUsers(prev => prev.map(u => u.id === targetUserId ? targetUpdated : u));
+  const initiateRemoveFriend = (friendId: string) => {
+      setFriendToRemove(friendId);
   };
 
-  const handleRemoveFriend = (friendId: string) => {
-      if (!confirm("Remove this friend?")) return;
+  const confirmRemoveFriend = () => {
+      if (!friendToRemove) return;
+      const friendId = friendToRemove;
+      
       const meUpdated = { ...liveUser, friends: (liveUser.friends || []).filter(id => id !== friendId) };
       const friend = allUsers.find(u => u.id === friendId);
       const friendUpdated = friend ? { ...friend, friends: (friend.friends || []).filter(id => id !== liveUser.id) } : friend;
       setAllUsers(prev => prev.map(u => { if (u.id === liveUser.id) return meUpdated; if (u.id === friendId) return friendUpdated!; return u; }));
       if (comparisonTarget === friendId) setComparisonTarget('');
+      
+      setFriendToRemove(null);
   };
 
   // --- COMPARISON DATA ---
@@ -394,7 +396,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                             </div>
                             <div className="flex space-x-1">
                                 <button className="p-1.5 text-slate-400 hover:text-brand-600 rounded bg-slate-50" title="Compare"><GitCompare size={16} /></button>
-                                <button className="p-1.5 text-slate-300 hover:text-red-500 rounded hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.id); }}><X size={16} /></button>
+                                <button className="p-1.5 text-slate-300 hover:text-red-500 rounded hover:bg-red-50" onClick={(e) => { e.stopPropagation(); initiateRemoveFriend(friend.id); }}><X size={16} /></button>
                             </div>
                         </div>
                       ))
@@ -495,6 +497,23 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                  </Button>
              </div>
         </div>
+      </Modal>
+
+      {/* DELETE FRIEND CONFIRMATION MODAL */}
+      <Modal isOpen={!!friendToRemove} onClose={() => setFriendToRemove(null)} title="Remove Friend?">
+          <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                  <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                  <div>
+                      <p className="font-bold">Are you sure you want to remove this friend?</p>
+                      <p className="text-xs mt-1">They will be removed from your study circle and leaderboards.</p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setFriendToRemove(null)}>Cancel</Button>
+                  <Button variant="danger" onClick={confirmRemoveFriend}>Remove Friend</Button>
+              </div>
+          </div>
       </Modal>
 
     </div>
