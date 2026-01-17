@@ -136,6 +136,7 @@ export interface ExamSubmission {
     questionId: string;
     selectedOption?: number; // For MCQ
     writtenImages?: string[]; // For Written (Array of base64/urls)
+    feedback?: string; // NEW: Admin feedback text for specific mistakes
   }[];
 }
 

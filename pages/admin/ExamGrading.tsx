@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { MOCK_SUBMISSIONS } from '../../constants';
 import { ExamSubmission, Exam, User } from '../../types';
-import { CheckSquare, Save, FolderOpen, ChevronDown, ChevronRight, FileCheck, Clock, CheckCircle2, UserCheck, Target } from 'lucide-react';
+import { CheckSquare, Save, FolderOpen, ChevronDown, ChevronRight, FileCheck, Clock, CheckCircle2, UserCheck, Target, MessageCircle, AlertCircle } from 'lucide-react';
 
 interface Props {
     exams?: Exam[]; // Passed from App.tsx
@@ -12,7 +12,10 @@ interface Props {
 const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
     const [submissions, setSubmissions] = useState<ExamSubmission[]>(MOCK_SUBMISSIONS);
     const [selectedSubmission, setSelectedSubmission] = useState<ExamSubmission | null>(null);
+    
+    // Grading State
     const [marksInput, setMarksInput] = useState<Record<string, number>>({}); // questionId -> marks
+    const [feedbackInput, setFeedbackInput] = useState<Record<string, string>>({}); // questionId -> feedback text
     
     // UI State
     const [expandedClasses, setExpandedClasses] = useState<Record<string, boolean>>({});
@@ -60,8 +63,15 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
     const handleOpenGrading = (sub: ExamSubmission) => {
         setSelectedSubmission(sub);
         const initialMarks: Record<string, number> = {};
-        sub.answers.forEach(ans => initialMarks[ans.questionId] = 0);
+        const initialFeedback: Record<string, string> = {};
+        
+        sub.answers.forEach(ans => {
+            initialMarks[ans.questionId] = 0;
+            initialFeedback[ans.questionId] = ans.feedback || '';
+        });
+        
         setMarksInput(initialMarks);
+        setFeedbackInput(initialFeedback);
     };
 
     const handleSaveGrade = () => {
@@ -75,7 +85,11 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
                 ...s, 
                 status: 'GRADED', 
                 obtainedMarks: totalObtained,
-                gradedBy: currentUser?.name || 'Admin' // Track Admin
+                gradedBy: currentUser?.name || 'Admin', // Track Admin
+                answers: s.answers.map(ans => ({
+                    ...ans,
+                    feedback: feedbackInput[ans.questionId] // Save feedback per question
+                }))
               } 
             : s
         ));
@@ -253,10 +267,10 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
                 )}
             </div>
 
-            {/* GRADING MODAL (Unchanged Logic, just clean UI) */}
+            {/* GRADING MODAL */}
             {selectedSubmission && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-scale-up">
+                    <div className="bg-white rounded-xl w-full max-w-5xl h-[95vh] flex flex-col overflow-hidden animate-scale-up">
                         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                             <div>
                                 <h3 className="font-bold text-slate-800 text-lg flex items-center">
@@ -284,6 +298,7 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
                                         </div>
 
                                         <div className="p-4 space-y-4">
+                                            {/* Answer Images */}
                                             <div className="flex overflow-x-auto gap-4 pb-2">
                                                 {ans.writtenImages?.map((img, i) => (
                                                     <a key={i} href={img} target="_blank" rel="noreferrer" className="block w-48 h-64 shrink-0 border rounded-lg overflow-hidden relative group bg-slate-100">
@@ -299,16 +314,38 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
                                             </div>
                                         </div>
 
-                                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
-                                            <label className="text-sm font-bold text-slate-700">Marks Awarded:</label>
-                                            <input 
-                                                type="number" 
-                                                max={question?.marks}
-                                                min="0"
-                                                className="w-20 p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 text-center font-bold text-indigo-700"
-                                                value={marksInput[ans.questionId] || 0}
-                                                onChange={(e) => setMarksInput({...marksInput, [ans.questionId]: Number(e.target.value)})}
-                                            />
+                                        {/* Feedback & Scoring Section */}
+                                        <div className="p-4 bg-slate-50 border-t border-slate-100">
+                                            <div className="flex flex-col md:flex-row gap-4">
+                                                {/* Feedback Input */}
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 flex items-center">
+                                                        <MessageCircle size={12} className="mr-1" /> Feedback / Remarks
+                                                    </label>
+                                                    <textarea 
+                                                        className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm resize-none h-20"
+                                                        placeholder="Write specific feedback here (e.g. calculation error in line 2)..."
+                                                        value={feedbackInput[ans.questionId] || ''}
+                                                        onChange={(e) => setFeedbackInput({...feedbackInput, [ans.questionId]: e.target.value})}
+                                                    />
+                                                </div>
+
+                                                {/* Marks Input */}
+                                                <div className="w-full md:w-32">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Marks Awarded</label>
+                                                    <div className="relative">
+                                                        <input 
+                                                            type="number" 
+                                                            max={question?.marks}
+                                                            min="0"
+                                                            className="w-full p-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-center font-bold text-xl text-indigo-700 outline-none"
+                                                            value={marksInput[ans.questionId] || 0}
+                                                            onChange={(e) => setMarksInput({...marksInput, [ans.questionId]: Number(e.target.value)})}
+                                                        />
+                                                        <span className="absolute top-1/2 -translate-y-1/2 right-3 text-xs text-slate-400 font-medium">/{question?.marks}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )
