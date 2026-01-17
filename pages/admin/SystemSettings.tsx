@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Modal } from '../../components/UI';
 import { SystemSettings } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X } from 'lucide-react';
 
 interface Props {
     settings: SystemSettings[];
@@ -20,6 +20,9 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     
     const [newRegular, setNewRegular] = useState('');
     const [newAdmission, setNewAdmission] = useState('');
+
+    // Edit State
+    const [editingItem, setEditingItem] = useState<{ index: number; type: 'REGULAR' | 'ADMISSION'; value: string } | null>(null);
 
     // Delete State
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; index: number | null; type: 'REGULAR' | 'ADMISSION' }>({ 
@@ -52,6 +55,25 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         }
     };
 
+    const initiateEdit = (index: number, type: 'REGULAR' | 'ADMISSION', currentValue: string) => {
+        setEditingItem({ index, type, value: currentValue });
+    };
+
+    const saveEdit = () => {
+        if (!editingItem || !editingItem.value.trim()) return;
+
+        if (editingItem.type === 'REGULAR') {
+            const newList = [...regularList];
+            newList[editingItem.index] = editingItem.value.trim();
+            setRegularList(newList);
+        } else {
+            const newList = [...admissionList];
+            newList[editingItem.index] = editingItem.value.trim();
+            setAdmissionList(newList);
+        }
+        setEditingItem(null);
+    };
+
     const initiateRemove = (index: number, type: 'REGULAR' | 'ADMISSION') => {
         setDeleteModal({ isOpen: true, index, type });
     };
@@ -69,6 +91,53 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             }
             setDeleteModal({ isOpen: false, index: null, type: 'REGULAR' });
         }
+    };
+
+    const renderListItem = (item: string, index: number, type: 'REGULAR' | 'ADMISSION') => {
+        const isEditing = editingItem?.index === index && editingItem?.type === type;
+
+        return (
+            <div key={index} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group">
+                {isEditing ? (
+                    <div className="flex-1 flex items-center gap-2">
+                        <input 
+                            type="text" 
+                            autoFocus
+                            className="flex-1 p-1 px-2 text-sm border border-indigo-300 rounded outline-none focus:ring-1 focus:ring-indigo-500"
+                            value={editingItem.value}
+                            onChange={(e) => setEditingItem({ ...editingItem, value: e.target.value })}
+                            onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                        />
+                        <button onClick={saveEdit} className="text-emerald-600 hover:text-emerald-700 p-1 rounded hover:bg-emerald-50">
+                            <Check size={16} />
+                        </button>
+                        <button onClick={() => setEditingItem(null)} className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50">
+                            <X size={16} />
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <span className="text-sm font-medium text-slate-700">{item}</span>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                                onClick={() => initiateEdit(index, type, item)}
+                                className="text-indigo-400 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50"
+                                title="Rename"
+                            >
+                                <Edit2 size={14} />
+                            </button>
+                            <button 
+                                onClick={() => initiateRemove(index, type)}
+                                className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
+                                title="Remove"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -112,17 +181,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                     </div>
 
                     <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                        {regularList.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group">
-                                <span className="text-sm font-medium text-slate-700">{item}</span>
-                                <button 
-                                    onClick={() => initiateRemove(idx, 'REGULAR')}
-                                    className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        ))}
+                        {regularList.map((item, idx) => renderListItem(item, idx, 'REGULAR'))}
                     </div>
                 </Card>
 
@@ -150,17 +209,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                     </div>
 
                     <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                        {admissionList.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group">
-                                <span className="text-sm font-medium text-slate-700">{item}</span>
-                                <button 
-                                    onClick={() => initiateRemove(idx, 'ADMISSION')}
-                                    className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        ))}
+                        {admissionList.map((item, idx) => renderListItem(item, idx, 'ADMISSION'))}
                     </div>
                 </Card>
 
