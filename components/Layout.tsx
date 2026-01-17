@@ -91,7 +91,8 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
   );
 
   return (
-    <div className="flex h-screen w-screen bg-surface overflow-hidden">
+    // Fixed inset-0 ensures the layout takes exactly the viewport size and does not scroll the body
+    <div className="fixed inset-0 flex bg-surface overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -133,8 +134,11 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
           </span>
         </div>
 
-        {/* Sidebar Navigation - Added overscroll-contain */}
-        <nav className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar overscroll-contain">
+        {/* Sidebar Navigation - Scrolls independently with 'overscroll-contain' to prevent chaining */}
+        <nav 
+            className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar overscroll-contain"
+            style={{ overscrollBehavior: 'contain' }} // Inline style fallback
+        >
           {user.role === UserRole.STUDENT ? <StudentLinks /> : <AdminLinks />}
         </nav>
 
@@ -160,8 +164,11 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
           <div className="w-8" /> {/* Spacer */}
         </header>
 
-        {/* Main Scrollable Area - Added overscroll-contain */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 overscroll-contain">
+        {/* Main Scrollable Area - Scrolls independently */}
+        <div 
+            className="flex-1 overflow-y-auto p-4 md:p-8 overscroll-contain"
+            style={{ overscrollBehavior: 'contain' }} // Inline style fallback
+        >
           <div className="max-w-7xl mx-auto pb-10">
             {children || <Outlet />}
           </div>
