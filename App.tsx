@@ -267,7 +267,7 @@ const App: React.FC = () => {
             path="/complete-profile" 
             element={
                 user && !user.profileCompleted 
-                ? <ProfileSetup educationLevels={currentEducationLevels} /> 
+                ? <ProfileSetup educationLevels={currentEducationLevels} onProfileComplete={setUser} /> 
                 : <Navigate to={user ? (user.role === UserRole.ADMIN ? '/admin/dashboard' : '/student/dashboard') : '/login'} />
             } 
         />

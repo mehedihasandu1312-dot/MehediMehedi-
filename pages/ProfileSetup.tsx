@@ -4,12 +4,14 @@ import { authService } from '../services/authService';
 import { Card, Button } from '../components/UI';
 import { User, School, MapPin, Phone, BookOpen, GraduationCap } from 'lucide-react';
 import { ALL_DISTRICTS } from '../constants';
+import { User as UserType } from '../types';
 
 interface Props {
     educationLevels?: { REGULAR: string[], ADMISSION: string[] };
+    onProfileComplete: (user: UserType) => void;
 }
 
-const ProfileSetup: React.FC<Props> = ({ educationLevels }) => {
+const ProfileSetup: React.FC<Props> = ({ educationLevels, onProfileComplete }) => {
   const navigate = useNavigate();
   const [studentType, setStudentType] = useState<'REGULAR' | 'ADMISSION'>('REGULAR');
   const [formData, setFormData] = useState({
@@ -18,14 +20,27 @@ const ProfileSetup: React.FC<Props> = ({ educationLevels }) => {
     phone: '',
     district: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await authService.updateProfile({
-        ...formData,
-        studentType: studentType
-    });
-    navigate('/student/dashboard');
+    setIsSubmitting(true);
+    try {
+        const updatedUser = await authService.updateProfile({
+            ...formData,
+            studentType: studentType
+        });
+        
+        // Critical: Update global app state so routes are accessible immediately
+        onProfileComplete(updatedUser);
+        
+        navigate('/student/dashboard');
+    } catch (error) {
+        console.error("Profile update failed", error);
+        alert("Failed to update profile. Please try again.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
@@ -147,7 +162,9 @@ const ProfileSetup: React.FC<Props> = ({ educationLevels }) => {
           </div>
 
           <div className="pt-4">
-            <Button type="submit" className="w-full py-3">Save & Start Learning</Button>
+            <Button type="submit" className="w-full py-3" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save & Start Learning'}
+            </Button>
           </div>
         </form>
       </Card>
