@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { authService } from '../services/authService';
-import AdBanner from './AdBanner'; // Import Ad Component
 
 interface LayoutProps {
   user: User;
@@ -136,11 +135,6 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
 
         <nav className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar">
           {user.role === UserRole.STUDENT ? <StudentLinks /> : <AdminLinks />}
-          
-          {/* Ad Space in Sidebar */}
-          <div className="mt-4 px-2">
-             <AdBanner slotId="SIDEBAR_AD_SLOT_ID" />
-          </div>
         </nav>
 
         <div className="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50">
