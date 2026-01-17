@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button } from '../../components/UI';
+import { Card, Button, Modal } from '../../components/UI';
 import { User } from '../../types';
 import { authService } from '../../services/authService';
-import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin } from 'lucide-react';
+import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
 import { ALL_DISTRICTS } from '../../constants';
 
 interface Props {
@@ -23,6 +23,11 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     phone: '',
     district: ''
   });
+
+  // Modal States
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [tempAvatarUrl, setTempAvatarUrl] = useState('');
+  const [messageModal, setMessageModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -53,14 +58,34 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             studentType: studentType
         });
         setUser(updatedUser);
-        setTimeout(() => {
-            alert("Profile updated successfully!");
-            setSaving(false);
-        }, 500);
+        setMessageModal({
+            isOpen: true,
+            title: 'Success',
+            message: 'Profile updated successfully!',
+            type: 'SUCCESS'
+        });
     } catch (error) {
-        alert("Failed to update profile.");
+        setMessageModal({
+            isOpen: true,
+            title: 'Error',
+            message: 'Failed to update profile. Please try again.',
+            type: 'ERROR'
+        });
+    } finally {
         setSaving(false);
     }
+  };
+
+  const handleAvatarChange = () => {
+      if(tempAvatarUrl.trim()) {
+          setFormData({ ...formData, avatar: tempAvatarUrl });
+          setAvatarModalOpen(false);
+      }
+  };
+
+  const openAvatarModal = () => {
+      setTempAvatarUrl(formData.avatar);
+      setAvatarModalOpen(true);
   };
 
   const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
@@ -91,10 +116,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                             type="button"
                             className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition-colors shadow-md"
                             title="Change Photo"
-                            onClick={() => {
-                                const newUrl = prompt("Enter new avatar URL:", formData.avatar);
-                                if(newUrl) setFormData({...formData, avatar: newUrl});
-                            }}
+                            onClick={openAvatarModal}
                         >
                             <Camera size={16} />
                         </button>
@@ -242,6 +264,39 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             </div>
          </div>
        </form>
+
+       {/* Custom Input Modal for Avatar */}
+       <Modal isOpen={avatarModalOpen} onClose={() => setAvatarModalOpen(false)} title="Update Profile Picture">
+           <div className="space-y-4">
+               <p className="text-sm text-slate-600">Enter a direct URL to an image to use as your profile picture.</p>
+               <input 
+                   type="url" 
+                   className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                   placeholder="https://example.com/my-photo.jpg"
+                   value={tempAvatarUrl}
+                   onChange={e => setTempAvatarUrl(e.target.value)}
+                   autoFocus
+               />
+               <div className="flex justify-end gap-2 pt-2">
+                   <Button variant="outline" onClick={() => setAvatarModalOpen(false)}>Cancel</Button>
+                   <Button onClick={handleAvatarChange}>Update Photo</Button>
+               </div>
+           </div>
+       </Modal>
+
+       {/* Success/Error Message Modal */}
+       <Modal isOpen={messageModal.isOpen} onClose={() => setMessageModal({ ...messageModal, isOpen: false })} title={messageModal.title}>
+           <div className="space-y-4">
+               <div className={`p-4 rounded-lg border flex items-start ${messageModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                   {messageModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                   <p>{messageModal.message}</p>
+               </div>
+               <div className="flex justify-end pt-2">
+                   <Button onClick={() => setMessageModal({ ...messageModal, isOpen: false })}>OK</Button>
+               </div>
+           </div>
+       </Modal>
+
     </div>
   );
 };

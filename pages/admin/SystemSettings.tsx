@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Modal } from '../../components/UI';
 import { SystemSettings } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle } from 'lucide-react';
 
 interface Props {
     settings: SystemSettings[];
@@ -9,7 +9,6 @@ interface Props {
 }
 
 const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
-    // Get current settings object (assume ID 'global_settings')
     const currentSettings = settings.find(s => s.id === 'global_settings') || {
         id: 'global_settings',
         educationLevels: { REGULAR: [], ADMISSION: [] }
@@ -21,13 +20,13 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const [newRegular, setNewRegular] = useState('');
     const [newAdmission, setNewAdmission] = useState('');
 
-    // Edit State
     const [editingItem, setEditingItem] = useState<{ index: number; type: 'REGULAR' | 'ADMISSION'; value: string } | null>(null);
 
-    // Delete State
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; index: number | null; type: 'REGULAR' | 'ADMISSION' }>({ 
         isOpen: false, index: null, type: 'REGULAR' 
     });
+
+    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
 
     const handleSave = () => {
         const updatedSettings: SystemSettings = {
@@ -38,14 +37,13 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             }
         };
 
-        // Update global state which syncs to Firestore via App.tsx hook
-        // If settings array is empty, create new; otherwise replace.
         if (settings.length === 0) {
             setSettings([updatedSettings]);
         } else {
             setSettings(settings.map(s => s.id === 'global_settings' ? updatedSettings : s));
         }
-        alert("System settings saved successfully!");
+        
+        setInfoModal({ isOpen: true, title: "Success", message: "System settings saved successfully!" });
     };
 
     const addItem = (list: string[], setList: (l: string[]) => void, item: string, setItem: (s: string) => void) => {
@@ -228,6 +226,19 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                         <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
                         <Button variant="danger" onClick={confirmRemove}>Remove</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* INFO MODAL */}
+            <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+                <div className="space-y-4">
+                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start text-emerald-800">
+                        <CheckCircle size={24} className="mr-3 shrink-0" />
+                        <p>{infoModal.message}</p>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                        <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
                     </div>
                 </div>
             </Modal>

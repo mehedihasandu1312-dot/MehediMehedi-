@@ -16,7 +16,9 @@ import {
   Flag,
   AlertOctagon,
   Ban,
-  Lock
+  Lock,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 // Extended type to handle local comments and reach for this component
@@ -50,34 +52,27 @@ interface Props {
 }
 
 const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
-  // Sync current user state to check for blocks in real-time if updated in session
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
-  
-  // File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Post Creation State
   const [newPostText, setNewPostText] = useState('');
-  const [newPostImage, setNewPostImage] = useState(''); // Stores Base64 string
-  
-  // Feeling State
+  const [newPostImage, setNewPostImage] = useState(''); 
   const [showFeelingPicker, setShowFeelingPicker] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState<{ label: string; icon: string } | null>(null);
-
-  // Comment State
   const [activeCommentBox, setActiveCommentBox] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
-  
-  // Menu & Report State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [postToReport, setPostToReport] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
 
-  // --- ALGORITHM SIMULATION ---
+  // Info Modal State
+  const [notificationModal, setNotificationModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'INFO' | 'ERROR' | 'SUCCESS' }>({ isOpen: false, title: '', message: '', type: 'INFO' });
+
+  const showNotification = (title: string, message: string, type: 'INFO' | 'ERROR' | 'SUCCESS' = 'INFO') => {
+      setNotificationModal({ isOpen: true, title, message, type });
+  };
+
   const calculateReach = (post: ExtendedPost) => {
-    // Algorithm: Base Reach + (Likes * 50) + (Comments * 100)
-    // This simulates "Viral" effect
     const baseReach = post.reach || 150;
     const commentsCount = post.commentsList ? post.commentsList.length : post.comments;
     return baseReach + (post.likes * 10) + (commentsCount * 50);
@@ -98,7 +93,7 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
       comments: 0,
       isLiked: false,
       feeling: selectedFeeling || undefined,
-      reach: 150, // Start low, grow with engagement
+      reach: 150, 
       commentsList: []
     };
 
@@ -115,7 +110,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
       if (post.id === id) {
         const isLiked = !post.isLiked;
         const likeChange = isLiked ? 1 : -1;
-        
         return {
           ...post,
           likes: post.likes + likeChange,
@@ -139,7 +133,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
 
     setPosts(posts.map(post => {
       if (post.id === postId) {
-        // Safe cast for local logic, though ideally backend handles comments array
         const p = post as ExtendedPost;
         const commentsList = p.commentsList || [];
         return {
@@ -162,7 +155,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
     setCommentText('');
   };
 
-  // Handle Local Image Upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
@@ -185,11 +177,10 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
 
   const submitReport = () => {
       if (!reportReason) {
-          alert("Please select a reason.");
+          showNotification("Action Required", "Please select a reason for reporting.", "ERROR");
           return;
       }
-      // In real app, send to API
-      alert(`Report submitted successfully for Post ID: ${postToReport}\nReason: ${reportReason}\nAdmin will review this shortly.`);
+      showNotification("Report Submitted", "Your report has been sent to the admin team for review.", "SUCCESS");
       setReportModalOpen(false);
       setPostToReport(null);
   };
@@ -245,7 +236,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                     onChange={(e) => setNewPostText(e.target.value)}
                  />
                  
-                 {/* Image Preview Area */}
                  {newPostImage && (
                    <div className="mt-3 relative animate-fade-in group inline-block">
                       <img 
@@ -289,7 +279,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                           <span>Feeling</span>
                       </button>
                       
-                      {/* Feeling Picker Dropdown */}
                       {showFeelingPicker && (
                           <div className="absolute top-10 left-0 bg-white shadow-xl border border-slate-100 rounded-xl p-2 z-20 w-48 grid grid-cols-2 gap-1 animate-fade-in">
                               {FEELINGS.map(f => (
@@ -322,7 +311,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
         return (
           <Card key={post.id} className="p-0 overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
               
-              {/* Post Header */}
               <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                       <img src={post.authorAvatar} alt={post.authorName} className="w-10 h-10 rounded-full border border-slate-100" />
@@ -350,7 +338,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                           <MoreHorizontal size={20} />
                       </button>
                       
-                      {/* Post Menu */}
                       {activeMenuId === post.id && (
                           <div className="absolute right-0 top-8 w-40 bg-white shadow-lg border border-slate-100 rounded-lg z-10 overflow-hidden animate-fade-in">
                               <button 
@@ -364,19 +351,16 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                   </div>
               </div>
 
-              {/* Post Content */}
               <div className="px-4 pb-3">
                   <p className="text-slate-800 whitespace-pre-wrap leading-relaxed text-[15px]">{post.content}</p>
               </div>
 
-              {/* Post Image */}
               {post.imageUrl && (
                   <div className="w-full bg-slate-50 border-t border-b border-slate-100">
                       <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover max-h-[500px]" />
                   </div>
               )}
 
-              {/* Engagement Stats (Algorithm Feedback) */}
               <div className="px-4 py-2 flex items-center justify-between text-xs text-slate-500 border-b border-slate-50">
                   <div className="flex items-center space-x-4">
                      {post.likes > 0 && (
@@ -387,7 +371,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                           <span>{post.likes}</span>
                        </div>
                      )}
-                     {/* Algorithm Visualizer */}
                      <div className="flex items-center space-x-1 text-slate-400" title="Estimated Post Reach">
                         <TrendingUp size={12} />
                         <span>{currentReach.toLocaleString()} reached</span>
@@ -399,10 +382,9 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                   </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="px-2 py-1 flex items-center justify-between">
                   <button 
-                      onClick={() => currentUser?.status !== 'BLOCKED' ? handleLike(post.id) : alert("Restricted: You are banned.")}
+                      onClick={() => currentUser?.status !== 'BLOCKED' ? handleLike(post.id) : showNotification("Restricted", "You are banned from interacting.", "ERROR")}
                       className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-medium transition-colors ${
                           post.isLiked 
                           ? 'text-indigo-600 bg-indigo-50' 
@@ -421,10 +403,8 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                   </button>
               </div>
 
-              {/* Comment Section */}
               {activeCommentBox === post.id && (
                 <div className="bg-slate-50 p-4 border-t border-slate-100 animate-fade-in">
-                    {/* Existing Comments */}
                     <div className="space-y-3 mb-4">
                        {commentsList.map(comment => (
                          <div key={comment.id} className="flex space-x-2">
@@ -437,7 +417,6 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                        ))}
                     </div>
 
-                    {/* Add Comment Input (Disabled if blocked) */}
                     {currentUser?.status === 'BLOCKED' ? (
                         <div className="text-center text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 flex items-center justify-center">
                             <Lock size={12} className="mr-1" /> Commenting disabled due to account restriction.
@@ -498,6 +477,21 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
               <div className="flex justify-end gap-3 pt-4">
                   <Button variant="outline" onClick={() => setReportModalOpen(false)}>Cancel</Button>
                   <Button variant="danger" onClick={submitReport}>Submit Report</Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* Generic Info Modal */}
+      <Modal isOpen={notificationModal.isOpen} onClose={() => setNotificationModal({ ...notificationModal, isOpen: false })} title={notificationModal.title}>
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${notificationModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : notificationModal.type === 'ERROR' ? 'bg-red-50 border-red-100 text-red-800' : 'bg-blue-50 border-blue-100 text-blue-800'}`}>
+                  {notificationModal.type === 'SUCCESS' && <CheckCircle size={24} className="mr-3 shrink-0" />}
+                  {notificationModal.type === 'ERROR' && <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                  {notificationModal.type === 'INFO' && <AlertOctagon size={24} className="mr-3 shrink-0" />}
+                  <p>{notificationModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setNotificationModal({ ...notificationModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>

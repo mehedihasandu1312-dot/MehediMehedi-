@@ -41,7 +41,7 @@ interface Props {
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     adminLogs?: AdminActivityLog[]; 
     currentUser?: User; 
-    educationLevels: { REGULAR: string[], ADMISSION: string[] }; // Added Prop
+    educationLevels: { REGULAR: string[], ADMISSION: string[] }; 
 }
 
 const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser, educationLevels }) => {
@@ -56,7 +56,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Expanded Edit Form State
+  // Edit Form State
   const [editForm, setEditForm] = useState({ 
       name: '', 
       class: '', 
@@ -85,7 +85,15 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [newAdminName, setNewAdminName] = useState('');
   const [adminCreationLoading, setAdminCreationLoading] = useState(false);
 
-  // --- PERMISSION CHECK ---
+  // NEW: Info/Alert Modal State
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ 
+      isOpen: false, title: '', message: '', type: 'SUCCESS' 
+  });
+
+  const showInfo = (title: string, message: string, type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
+      setInfoModal({ isOpen: true, title, message, type });
+  };
+
   const isSuperAdmin = currentUser?.isSuperAdmin === true || currentUser?.email === MASTER_ADMIN_EMAIL;
 
   // --- Statistics Calculation ---
@@ -103,7 +111,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   // --- Filtering Logic ---
   const displayUsers = users.filter(u => {
-    // 1. Role Filter
     if (activeTab === 'STUDENTS' && u.role !== UserRole.STUDENT) return false;
     
     if (activeTab === 'ADMINS') {
@@ -112,7 +119,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         if (!isSuperAdmin) return false;
     }
 
-    // 2. Search
     const name = u.name || '';
     const email = u.email || '';
     const phone = u.phone || '';
@@ -120,7 +126,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                           email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           phone.includes(searchTerm);
     
-    // 3. Dropdown Filters (Only for Students)
     if (activeTab === 'STUDENTS') {
         const matchesClass = filterClass === 'ALL' || u.class === filterClass;
         const matchesStatus = filterStatus === 'ALL' || u.status === filterStatus;
@@ -134,13 +139,13 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   const initiateStatusToggle = (id: string, currentStatus: 'ACTIVE' | 'BLOCKED', targetRole: UserRole) => {
     if (targetRole === UserRole.ADMIN && !isSuperAdmin) {
-        alert("Access Denied: Only Super Admin can manage other admins.");
+        showInfo("Access Denied", "Only Super Admin can manage other admins.", "ERROR");
         return;
     }
 
     const targetUser = users.find(u => u.id === id);
     if (targetUser?.isSuperAdmin || targetUser?.email === MASTER_ADMIN_EMAIL) {
-        alert("Action Restricted: Master/Super Admin cannot be blocked.");
+        showInfo("Action Restricted", "Master/Super Admin cannot be blocked.", "ERROR");
         return;
     }
 
@@ -160,7 +165,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     setStatusConfirm(null);
   };
 
-  // --- WARNING SYSTEM ---
   const openWarningModal = (adminId: string) => {
       setTargetAdminId(adminId);
       setWarningText('');
@@ -181,14 +185,13 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           return u;
       }));
 
-      alert("Warning sent to Admin!");
+      showInfo("Warning Sent", "The warning has been issued to the administrator.");
       setWarningModalOpen(false);
       setTargetAdminId(null);
   };
 
   const openStudentModal = (user: User) => {
       setSelectedUser(user);
-      // Initialize form with all available data
       setEditForm({
           name: user.name || '',
           class: user.class || '',
@@ -218,10 +221,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       setUsers(prev => prev.map(u => u.id === selectedUser.id ? updatedUser : u));
       setSelectedUser(updatedUser);
       setIsEditing(false);
-      alert("Student profile updated successfully.");
+      showInfo("Profile Updated", "Student details have been saved successfully.");
   };
 
-  // --- ADMIN CREATION LOGIC ---
   const handleCreateAdmin = async (e: React.FormEvent) => {
       e.preventDefault();
       setAdminCreationLoading(true);
@@ -249,7 +251,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           await setDoc(doc(db, "users", newUser.uid), newAdminData);
           setUsers(prev => [...prev, newAdminData]);
 
-          alert(`New Admin "${newAdminName}" created successfully!`);
+          showInfo("Admin Created", `New Admin "${newAdminName}" created successfully!`);
           setIsAdminModalOpen(false);
           setNewAdminEmail('');
           setNewAdminPassword('');
@@ -257,7 +259,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
       } catch (error: any) {
           console.error("Admin Creation Error:", error);
-          alert("Error creating admin: " + error.message);
+          showInfo("Creation Failed", error.message, "ERROR");
       } finally {
           await deleteApp(secondaryApp);
           setAdminCreationLoading(false);
@@ -510,8 +512,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         </div>
       </Card>
 
-      {/* --- STUDENT FULL PROFILE MODAL (EXPANDED) --- */}
-      {/* (Code remains same as provided in previous version) */}
+      {/* --- STUDENT FULL PROFILE MODAL --- */}
       <Modal 
         isOpen={!!selectedUser} 
         onClose={() => setSelectedUser(null)} 
@@ -600,10 +601,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                         </div>
                     </div>
                 ) : (
-                    // --- VIEW MODE (Comprehensive) ---
+                    // --- VIEW MODE ---
                     <div className="space-y-6">
-                        
-                        {/* 1. Personal & Contact */}
+                        {/* Personal & Contact */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
                                 <Users size={14} className="mr-1"/> Personal Details
@@ -631,7 +631,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             </div>
                         </div>
 
-                        {/* 2. Academic Info */}
+                        {/* Academic Info */}
                         <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                             <h4 className="text-xs font-bold text-indigo-400 uppercase mb-3 flex items-center">
                                 <GraduationCap size={14} className="mr-1"/> Academic Profile
@@ -656,7 +656,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             </div>
                         </div>
 
-                        {/* 3. Platform Stats */}
+                        {/* Platform Stats */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-center">
                                 <div className="text-amber-500 mb-1 flex justify-center"><Award size={20}/></div>
@@ -669,7 +669,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                 <div className="text-[10px] font-bold text-emerald-600 uppercase">Global Rank</div>
                             </div>
                         </div>
-
                     </div>
                 )}
             </div>
@@ -679,7 +678,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       {/* --- ADMIN LOGS MODAL --- */}
       <Modal isOpen={!!viewLogsAdminId} onClose={() => setViewLogsAdminId(null)} title={`Activity Log: ${selectedAdminName}`}>
           <div className="max-h-[60vh] overflow-y-auto pr-2">
-              {/* Show Warnings at the top if any */}
               {users.find(u => u.id === viewLogsAdminId)?.warnings?.length ? (
                   <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
@@ -808,6 +806,19 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                   >
                       {statusConfirm?.status === 'ACTIVE' ? 'Confirm Block' : 'Confirm Unblock'}
                   </Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* --- GENERIC INFO / ALERT MODAL --- */}
+      <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${infoModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                  {infoModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                  <p>{infoModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>

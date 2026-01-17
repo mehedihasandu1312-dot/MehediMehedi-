@@ -33,7 +33,8 @@ import {
   Mail,
   Send,
   ArrowRight,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; // Import Ads
 
@@ -73,6 +74,13 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   // --- DELETE FRIEND CONFIRMATION STATE ---
   const [friendToRemove, setFriendToRemove] = useState<string | null>(null);
+
+  // --- INFO NOTIFICATION STATE ---
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
+
+  const showInfo = (title: string, message: string) => {
+      setInfoModal({ isOpen: true, title, message });
+  };
 
   // --- HELPER: CALCULATE STATS ---
   const calculateStats = (targetUser: User): ComparisonStats => {
@@ -136,18 +144,29 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       e.preventDefault();
       const found = allUsers.find(u => u.email.toLowerCase() === searchEmail.toLowerCase() && u.id !== liveUser.id);
       setFoundUser(found || null);
-      if (!found) alert("No user found with this email.");
+      if (!found) {
+          showInfo("Not Found", "No user found with this email address.");
+      }
   };
 
   const sendFriendRequest = () => {
       if (!foundUser) return;
-      if (liveUser.friends?.includes(foundUser.id)) return alert("Already friends!");
-      if (foundUser.friendRequests?.includes(liveUser.id)) return alert("Request already sent.");
+      if (liveUser.friends?.includes(foundUser.id)) {
+          showInfo("Info", "You are already friends!");
+          return;
+      }
+      if (foundUser.friendRequests?.includes(liveUser.id)) {
+          showInfo("Info", "Request already sent to this user.");
+          return;
+      }
 
       const updatedFoundUser = { ...foundUser, friendRequests: [...(foundUser.friendRequests || []), liveUser.id] };
       setAllUsers(prev => prev.map(u => u.id === foundUser.id ? updatedFoundUser : u));
-      alert("Friend request sent!");
-      setFoundUser(null); setSearchEmail(''); setIsAddFriendModalOpen(false);
+      
+      showInfo("Success", "Friend request sent successfully!");
+      setFoundUser(null); 
+      setSearchEmail(''); 
+      setIsAddFriendModalOpen(false);
   };
 
   const handleAcceptRequest = (requesterId: string) => {
@@ -489,7 +508,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                  </p>
              </div>
              <div className="mt-6 flex gap-3 justify-center">
-                 <Button className="flex items-center bg-[#1877F2] hover:bg-[#166fe5]" onClick={() => alert('Shared!')}>
+                 <Button className="flex items-center bg-[#1877F2] hover:bg-[#166fe5]" onClick={() => showInfo("Shared", "Certificate shared successfully!")}>
                      <Share2 size={16} className="mr-2" /> Share
                  </Button>
                  <Button variant="outline" className="flex items-center">
@@ -512,6 +531,19 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <Button variant="outline" onClick={() => setFriendToRemove(null)}>Cancel</Button>
                   <Button variant="danger" onClick={confirmRemoveFriend}>Remove Friend</Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* GENERIC INFO MODAL */}
+      <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+          <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-start text-blue-800">
+                  <Info size={24} className="mr-3 shrink-0" />
+                  <p>{infoModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>
