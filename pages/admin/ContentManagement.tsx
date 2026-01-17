@@ -15,7 +15,7 @@ import {
     ChevronRight, 
     HardDrive, 
     Layers, 
-    PieChart,
+    PieChart, 
     Search,
     FolderOpen,
     ArrowUp,
@@ -179,7 +179,8 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             type: 'CONTENT', // Hardcoded for this page
             icon: newFolderIcon || undefined
         };
-        setFolders([...folders, newFolder]);
+        // UPDATED: Prepend new folder to show it first
+        setFolders([newFolder, ...folders]);
         alert("Folder created successfully!");
     }
 
@@ -235,6 +236,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             questionList: data.questionList, // Save detailed questions
             isDeleted: false
         };
+        // Prepend new content
         setContents([newContent, ...contents]);
         
         // If we added content to a different folder than current, navigate there or alert

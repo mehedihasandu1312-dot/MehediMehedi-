@@ -102,7 +102,8 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               targetClass: newFolderTargetClass || undefined,
               icon: newFolderIcon || undefined
           };
-          setFolders([...folders, newFolder]);
+          // UPDATED: Prepend new folder
+          setFolders([newFolder, ...folders]);
           alert("Folder created!");
       }
       

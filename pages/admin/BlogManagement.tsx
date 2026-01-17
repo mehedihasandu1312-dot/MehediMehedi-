@@ -64,7 +64,8 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
           parentId: currentFolderId || undefined // Support nesting
       };
       
-      setFolders([...folders, newFolder]);
+      // UPDATED: Prepend new folder so it appears first
+      setFolders([newFolder, ...folders]);
       setNewFolderName('');
       setNewFolderDesc('');
       setIsFolderModalOpen(false);
