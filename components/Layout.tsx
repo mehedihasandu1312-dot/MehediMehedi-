@@ -71,7 +71,6 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
       <NavItem to="/student/blog" icon={Newspaper} label="Educational Blog" />
       <NavItem to="/student/leaderboard" icon={Trophy} label="Leaderboard" />
       <NavItem to="/student/appeals" icon={AlertCircle} label="My Appeals" />
-      <div className="my-4 border-t border-slate-100 mx-4"></div>
       <NavItem to="/student/profile" icon={Settings} label="Profile Settings" />
     </>
   );
@@ -80,17 +79,11 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
     <>
       <NavItem to="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
       <NavItem to="/admin/settings" icon={Sliders} label="System Settings" />
-      
-      <div className="my-4 border-t border-slate-100 mx-4"></div>
-      
       <NavItem to="/admin/users" icon={Users} label="Student Mgmt" />
       <NavItem to="/admin/content" icon={FolderPlus} label="Content Mgmt" />
       <NavItem to="/admin/exams" icon={ClipboardList} label="Exam Mgmt" />
       <NavItem to="/admin/grading" icon={CheckSquare} label="Grading" />
       <NavItem to="/admin/appeals" icon={AlertCircle} label="Appeal Mgmt" />
-      
-      <div className="my-4 border-t border-slate-100 mx-4"></div>
-      
       <NavItem to="/admin/blog" icon={Newspaper} label="Blog Mgmt" />
       <NavItem to="/admin/notice" icon={Bell} label="Notice Mgmt" />
       <NavItem to="/admin/social" icon={Share2} label="Social Mgmt" />
