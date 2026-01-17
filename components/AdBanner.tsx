@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface AdBannerProps {
     slotId?: string; // Google AdSense Data Ad Slot ID
@@ -7,24 +7,33 @@ interface AdBannerProps {
 }
 
 const AdBanner: React.FC<AdBannerProps> = ({ slotId = "1234567890", format = "auto", className = "" }) => {
+    // Detect if we are using a placeholder ID or if the script is missing
+    const isPlaceholder = slotId === "1234567890" || slotId === "POPUP_MODAL_AD_ID";
+    const [adError, setAdError] = useState(false);
+
     useEffect(() => {
+        if (isPlaceholder || adError) return;
+
         try {
-            // Push the ad to Google AdSense
-            const adsbygoogle = (window as any).adsbygoogle || [];
-            adsbygoogle.push({});
+            // Push the ad to Google AdSense only if script is loaded
+            if ((window as any).adsbygoogle) {
+                (window as any).adsbygoogle.push({});
+            } else {
+                // Script not loaded (e.g. commented out in index.html)
+                setAdError(true);
+            }
         } catch (e) {
             console.error("AdSense Error:", e);
+            setAdError(true);
         }
-    }, []);
+    }, [isPlaceholder, adError]);
 
-    // Placeholder Development Mode (Remove this logic in production and keep only the <ins> tag)
-    const isDev = false; // Set to true to see placeholders instead of real ads
-
-    if (isDev) {
+    // Show a clean placeholder in development or if Ads fail to load
+    if (isPlaceholder || adError) {
         return (
-            <div className={`w-full bg-slate-200 border border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 p-4 my-4 min-h-[100px] ${className}`}>
-                <span className="font-bold text-xs uppercase tracking-widest">Advertisement</span>
-                <span className="text-[10px]">Google AdSense Space</span>
+            <div className={`w-full bg-slate-100 border border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400 p-4 my-4 min-h-[100px] animate-pulse ${className}`}>
+                <span className="font-bold text-xs uppercase tracking-widest text-slate-300">Advertisement Space</span>
+                <span className="text-[10px] text-slate-300 mt-1">AdSense will appear here in production</span>
             </div>
         );
     }

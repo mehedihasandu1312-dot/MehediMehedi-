@@ -9,9 +9,9 @@ interface ExamsPageProps {
     exams: Exam[];
     folders: Folder[];
     onExamComplete: (result: StudentResult) => void;
-    submissions?: ExamSubmission[]; // New Prop: All submissions
-    onSubmissionCreate?: (submission: ExamSubmission) => void; // New Prop
-    currentUser?: User | null; // To filter my history
+    submissions?: ExamSubmission[]; 
+    onSubmissionCreate?: (submission: ExamSubmission) => void; 
+    currentUser?: User | null; 
 }
 
 // Helper function moved outside component
@@ -117,6 +117,32 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
   const [showExamAd, setShowExamAd] = useState(false);
   const [pendingExam, setPendingExam] = useState<Exam | null>(null);
   
+  // --- MEMOIZED VALUES (HOOKS) ---
+  
+  // Filter only EXAM type folders
+  const examFolders = useMemo(() => folders.filter(f => f.type === 'EXAM'), [folders]);
+
+  // Grouping Logic
+  const foldersByClass = useMemo(() => {
+      const groups: Record<string, Folder[]> = {};
+      examFolders.forEach(folder => {
+          const key = folder.targetClass || 'General / Uncategorized';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(folder);
+      });
+      return groups;
+  }, [examFolders]);
+
+  const sortedClassKeys = useMemo(() => Object.keys(foldersByClass).sort((a, b) => {
+      if (a.includes('General')) return 1;
+      if (b.includes('General')) return -1;
+      return a.localeCompare(b);
+  }), [foldersByClass]);
+
+  // History Logic
+  const myHistory = useMemo(() => submissions.filter(sub => sub.studentId === currentUser?.id), [submissions, currentUser]);
+
+  // --- HANDLERS (Not Hooks) ---
   const handleStartExam = (exam: Exam) => {
       const { status } = getExamStatus(exam);
       if (status === 'UPCOMING') {
@@ -137,33 +163,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       }
   };
 
-  // Filter only EXAM type folders
-  // Using useMemo to prevent recalculation on every render
-  const examFolders = useMemo(() => folders.filter(f => f.type === 'EXAM'), [folders]);
-
-  // --- GROUPING LOGIC ---
-  const foldersByClass = useMemo(() => {
-      const groups: Record<string, Folder[]> = {};
-      
-      examFolders.forEach(folder => {
-          const key = folder.targetClass || 'General / Uncategorized';
-          if (!groups[key]) groups[key] = [];
-          groups[key].push(folder);
-      });
-      
-      return groups;
-  }, [examFolders]);
-
-  const sortedClassKeys = useMemo(() => Object.keys(foldersByClass).sort((a, b) => {
-      if (a.includes('General')) return 1;
-      if (b.includes('General')) return -1;
-      return a.localeCompare(b);
-  }), [foldersByClass]);
-
-  // --- HISTORY LOGIC ---
-  const myHistory = useMemo(() => submissions.filter(sub => sub.studentId === currentUser?.id), [submissions, currentUser]);
-
-  // --- 2. CONDITIONAL RETURN (AFTER Hooks) ---
+  // --- 2. CONDITIONAL RETURN (MUST BE AFTER ALL HOOKS) ---
   // If taking an exam, show the interface
   if (activeExam) {
       return (
