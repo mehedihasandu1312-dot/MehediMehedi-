@@ -158,6 +158,23 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   // Filter for EXAM type folders only
   const examFolders = folders.filter(f => f.type === 'EXAM');
 
+  // --- GROUPING LOGIC FOR FOLDERS ---
+  const foldersByClass = useMemo(() => {
+      const groups: Record<string, Folder[]> = {};
+      examFolders.forEach(folder => {
+          const key = folder.targetClass || 'General / Uncategorized';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(folder);
+      });
+      return groups;
+  }, [examFolders]);
+
+  const sortedClassKeys = Object.keys(foldersByClass).sort((a, b) => {
+      if (a.includes('General')) return 1;
+      if (b.includes('General')) return -1;
+      return a.localeCompare(b);
+  });
+
   // --- VIEW LOGIC ---
 
   // 1. Creation View
@@ -323,65 +340,70 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
           </Card>
       </div>
 
-      {/* Folder Grid */}
+      {/* Folder Grid - Grouped by Class */}
       <div className="space-y-4">
           <h3 className="text-lg font-bold text-slate-800 flex items-center">
               <FolderIcon size={20} className="mr-2 text-amber-500" /> Exam Folders
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {examFolders.map(folder => {
-                  const examCount = exams.filter(e => e.folderId === folder.id).length;
-                  return (
-                    <div 
-                        key={folder.id} 
-                        onDoubleClick={() => setCurrentFolderId(folder.id)}
-                        className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-amber-300 cursor-pointer select-none h-44 flex flex-col justify-between"
-                    >
-                        <div className="flex justify-between items-start mb-2">
-                            {folder.icon ? (
-                                <img src={folder.icon} alt="icon" className="w-10 h-10 object-contain mb-2" />
-                            ) : (
-                                <FolderIcon className="text-amber-400 fill-amber-50 mb-2" size={32} />
-                            )}
-                            <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); openEditFolderModal(folder); }}
-                                    className="text-indigo-400 hover:text-indigo-600 p-1"
-                                    title="Edit"
+          
+          {sortedClassKeys.length === 0 ? (
+              <p className="text-slate-400 italic pl-2">No folders created yet.</p>
+          ) : (
+              sortedClassKeys.map(className => (
+                  <div key={className} className="mb-6">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase mb-3 flex items-center border-b border-slate-200 pb-1">
+                          <Target size={16} className="mr-2" /> {className}
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                          {foldersByClass[className].map(folder => {
+                              const examCount = exams.filter(e => e.folderId === folder.id).length;
+                              return (
+                                <div 
+                                    key={folder.id} 
+                                    onDoubleClick={() => setCurrentFolderId(folder.id)}
+                                    className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-all hover:border-amber-300 cursor-pointer select-none h-44 flex flex-col justify-between"
                                 >
-                                    <Edit size={14} />
-                                </button>
-                                <button 
-                                    onClick={(e) => initiateDeleteFolder(e, folder.id)} 
-                                    className="text-slate-300 hover:text-red-500 p-1"
-                                    title="Delete"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-slate-700 text-sm truncate w-full" title={folder.name}>{folder.name}</h4>
-                            <p className="text-xs text-slate-400 mt-1">{examCount} Exams</p>
-                        </div>
-                        <div className="mt-2 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded truncate">
-                            {folder.targetClass || 'Public (All)'}
-                        </div>
-                        <button 
-                            onClick={() => setCurrentFolderId(folder.id)}
-                            className="absolute inset-0 w-full h-full z-0"
-                        />
-                    </div>
-                  );
-              })}
-              <button 
-                  onClick={openCreateFolderModal}
-                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-indigo-500 hover:border-indigo-300 transition-all h-44"
-              >
-                  <Plus size={24} className="mb-1" />
-                  <span className="text-xs font-bold">Add Folder</span>
-              </button>
-          </div>
+                                    <div className="flex justify-between items-start mb-2">
+                                        {folder.icon ? (
+                                            <img src={folder.icon} alt="icon" className="w-10 h-10 object-contain mb-2" />
+                                        ) : (
+                                            <FolderIcon className="text-amber-400 fill-amber-50 mb-2" size={32} />
+                                        )}
+                                        <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); openEditFolderModal(folder); }}
+                                                className="text-indigo-400 hover:text-indigo-600 p-1"
+                                                title="Edit"
+                                            >
+                                                <Edit size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => initiateDeleteFolder(e, folder.id)} 
+                                                className="text-slate-300 hover:text-red-500 p-1"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-700 text-sm truncate w-full" title={folder.name}>{folder.name}</h4>
+                                        <p className="text-xs text-slate-400 mt-1">{examCount} Exams</p>
+                                    </div>
+                                    <div className="mt-2 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded truncate">
+                                        {folder.targetClass || 'Public'}
+                                    </div>
+                                    <button 
+                                        onClick={() => setCurrentFolderId(folder.id)}
+                                        className="absolute inset-0 w-full h-full z-0"
+                                    />
+                                </div>
+                              );
+                          })}
+                      </div>
+                  </div>
+              ))
+          )}
       </div>
 
       {/* Modal for Folder Creation/Edit */}
