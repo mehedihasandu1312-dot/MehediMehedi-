@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StudentResult, ExamSubmission } from '../../types';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Clock, CheckCircle, Upload, X, AlertOctagon, Image as ImageIcon, AlertTriangle, HelpCircle, Check, ArrowLeft, PlayCircle } from 'lucide-react';
@@ -12,7 +12,10 @@ interface ExamLiveInterfaceProps {
 }
 
 const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onComplete, onSubmissionCreate }) => {
-    const [timeLeft, setTimeLeft] = useState(exam.durationMinutes * 60);
+    // Safety check if exam prop is missing
+    if (!exam) return <div className="p-8 text-center">Loading Exam Data...</div>;
+
+    const [timeLeft, setTimeLeft] = useState((exam.durationMinutes || 30) * 60);
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -77,9 +80,21 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
 
     // Handle Written Image Upload
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, qId: string) => {
-        if (e.target.files) {
+        if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files);
+            // Limit to 5 files per question to prevent heavy load
+            if (files.length > 5) {
+                alert("You can upload maximum 5 images per question.");
+                return;
+            }
+
             files.forEach((file: File) => {
+                // Check file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`File ${file.name} is too large. Max 5MB allowed.`);
+                    return;
+                }
+
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     if (event.target?.result) {
@@ -102,6 +117,16 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         }));
     };
 
+    // Calculate Attempted Count
+    const attemptedCount = useMemo(() => {
+        if (exam.examFormat === 'MCQ') {
+            return Object.keys(answers).length;
+        } else {
+            // For written, count questions that have at least one uploaded file
+            return Object.keys(uploadedFiles).filter(key => uploadedFiles[key] && uploadedFiles[key].length > 0).length;
+        }
+    }, [answers, uploadedFiles, exam.examFormat]);
+
     const confirmSubmit = () => {
         setShowConfirmModal(true);
     };
@@ -118,14 +143,13 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
 
     const submitWrittenExam = () => {
         const currentUser = authService.getCurrentUser();
-        if (!currentUser) return;
-
+        
         // Create Submission Object
         const submission: ExamSubmission = {
             id: `sub_${Date.now()}`,
             examId: exam.id,
-            studentId: currentUser.id,
-            studentName: currentUser.name,
+            studentId: currentUser?.id || 'unknown_user',
+            studentName: currentUser?.name || 'Unknown Student',
             submittedAt: new Date().toISOString(),
             status: 'PENDING',
             obtainedMarks: 0,
@@ -503,7 +527,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
              <div className="bg-white p-4 border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30 fixed bottom-0 w-full md:w-[calc(100%-256px)] right-0">
                  <div className="max-w-4xl mx-auto flex justify-between items-center">
                      <div className="text-sm text-slate-500 font-medium">
-                         <span className="text-indigo-600 font-bold">{Object.keys(answers).length}</span> of {exam.questionList?.length} Attempted
+                         <span className="text-indigo-600 font-bold">{attemptedCount}</span> of {exam.questionList?.length} Attempted
                      </div>
                      <Button 
                         size="lg"
@@ -523,7 +547,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                      </div>
                      <h3 className="text-xl font-bold text-slate-800 mb-2">Are you sure?</h3>
                      <p className="text-slate-500 mb-6">
-                         You have answered <strong className="text-indigo-600">{Object.keys(answers).length}</strong> out of <strong className="text-slate-800">{exam.questionList?.length}</strong> questions.
+                         You have answered <strong className="text-indigo-600">{attemptedCount}</strong> out of <strong className="text-slate-800">{exam.questionList?.length}</strong> questions.
                          <br/>
                          Once submitted, you cannot change your answers.
                      </p>
