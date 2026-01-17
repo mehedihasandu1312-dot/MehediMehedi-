@@ -49,14 +49,14 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
           navigate(to);
           setIsSidebarOpen(false);
         }}
-        className={`flex items-center w-full px-4 py-2.5 mb-1 rounded-lg transition-colors ${
+        className={`flex items-center w-full px-4 py-3 mb-1.5 rounded-xl transition-all duration-200 group ${
           isActive 
-            ? 'bg-indigo-600 text-white shadow-md' 
-            : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
+            ? 'bg-brand-600 text-white shadow-soft font-bold' 
+            : 'text-slate-500 hover:bg-brand-50 hover:text-brand-600 font-medium'
         }`}
       >
-        <Icon size={20} className="mr-3" />
-        <span className="font-medium text-sm">{label}</span>
+        <Icon size={20} className={`mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-brand-600'}`} />
+        <span className="text-sm tracking-wide">{label}</span>
       </button>
     );
   };
@@ -71,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
       <NavItem to="/student/blog" icon={Newspaper} label="Educational Blog" />
       <NavItem to="/student/leaderboard" icon={Trophy} label="Leaderboard" />
       <NavItem to="/student/appeals" icon={AlertCircle} label="My Appeals" />
-      <div className="my-2 border-t border-slate-100"></div>
+      <div className="my-4 border-t border-slate-100 mx-4"></div>
       <NavItem to="/student/profile" icon={Settings} label="Profile Settings" />
     </>
   );
@@ -81,7 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
       <NavItem to="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
       <NavItem to="/admin/settings" icon={Sliders} label="System Settings" />
       
-      <div className="my-2 border-t border-slate-100"></div>
+      <div className="my-4 border-t border-slate-100 mx-4"></div>
       
       <NavItem to="/admin/users" icon={Users} label="Student Mgmt" />
       <NavItem to="/admin/content" icon={FolderPlus} label="Content Mgmt" />
@@ -89,7 +89,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
       <NavItem to="/admin/grading" icon={CheckSquare} label="Grading" />
       <NavItem to="/admin/appeals" icon={AlertCircle} label="Appeal Mgmt" />
       
-      <div className="my-2 border-t border-slate-100"></div>
+      <div className="my-4 border-t border-slate-100 mx-4"></div>
       
       <NavItem to="/admin/blog" icon={Newspaper} label="Blog Mgmt" />
       <NavItem to="/admin/notice" icon={Bell} label="Notice Mgmt" />
@@ -98,73 +98,76 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
   );
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-surface overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 z-20 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside 
-        className={`fixed md:relative z-30 w-64 h-full bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out flex flex-col ${
+        className={`fixed md:relative z-50 w-72 h-full bg-white border-r border-slate-100 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl md:shadow-none ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
+        <div className="p-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-soft transform rotate-3">
+              <span className="text-white font-extrabold text-xl">E</span>
             </div>
-            <span className="text-xl font-bold text-slate-800">EduMaster</span>
+            <span className="text-2xl font-extrabold text-slate-800 tracking-tight">Edu<span className="text-brand-600">Master</span></span>
           </div>
-          <button className="md:hidden" onClick={() => setIsSidebarOpen(false)}>
-            <X size={20} className="text-slate-500" />
+          <button className="md:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-500" onClick={() => setIsSidebarOpen(false)}>
+            <X size={24} />
           </button>
         </div>
 
-        <div className="p-4 flex flex-col items-center border-b border-slate-100 bg-slate-50/50 shrink-0">
-           <img 
-            src={user.avatar || "https://picsum.photos/200/200"} 
-            alt="Profile" 
-            className="w-14 h-14 rounded-full border-2 border-indigo-100 mb-2"
-          />
-          <h3 className="font-semibold text-slate-800 text-sm">{user.name}</h3>
-          <span className="text-[10px] px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium mt-1 uppercase">
+        <div className="px-6 py-6 flex flex-col items-center shrink-0">
+           <div className="relative">
+             <div className="absolute -inset-1 bg-gradient-to-r from-brand-500 to-purple-600 rounded-full blur opacity-25"></div>
+             <img 
+              src={user.avatar || "https://picsum.photos/200/200"} 
+              alt="Profile" 
+              className="relative w-20 h-20 rounded-full border-4 border-white shadow-md object-cover"
+            />
+           </div>
+          <h3 className="font-bold text-slate-800 text-base mt-3">{user.name}</h3>
+          <span className="text-[10px] px-3 py-1 bg-brand-50 text-brand-700 rounded-full font-bold mt-1 uppercase tracking-wider border border-brand-100">
             {user.role}
           </span>
         </div>
 
-        <nav className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar">
           {user.role === UserRole.STUDENT ? <StudentLinks /> : <AdminLinks />}
         </nav>
 
-        <div className="p-3 border-t border-slate-100 shrink-0">
+        <div className="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50">
           <button 
             onClick={handleLogout}
-            className="flex items-center w-full px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+            className="flex items-center justify-center w-full px-4 py-3 text-slate-500 hover:text-white hover:bg-red-500 rounded-xl transition-all duration-300 font-bold text-sm group"
           >
-            <LogOut size={18} className="mr-3" />
-            <span>Logout</span>
+            <LogOut size={18} className="mr-3 group-hover:-translate-x-1 transition-transform" />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-surface">
         {/* Mobile Header */}
-        <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between shrink-0">
-          <button onClick={() => setIsSidebarOpen(true)}>
-            <Menu size={24} className="text-slate-600" />
+        <header className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex items-center justify-between shrink-0 sticky top-0 z-30">
+          <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600">
+            <Menu size={28} />
           </button>
-          <span className="font-bold text-slate-800">EduMaster</span>
-          <div className="w-6" /> {/* Spacer */}
+          <span className="font-extrabold text-lg text-slate-800">Edu<span className="text-brand-600">Master</span></span>
+          <div className="w-8" /> {/* Spacer */}
         </header>
 
         <div className="flex-1 overflow-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto pb-10">
+          <div className="max-w-7xl mx-auto pb-10">
             {children || <Outlet />}
           </div>
         </div>
