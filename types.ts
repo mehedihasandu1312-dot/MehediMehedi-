@@ -131,6 +131,7 @@ export interface ExamSubmission {
   submittedAt: string;
   status: 'PENDING' | 'GRADED';
   obtainedMarks: number;
+  gradedBy?: string; // NEW: Name of the admin who graded this
   answers: {
     questionId: string;
     selectedOption?: number; // For MCQ

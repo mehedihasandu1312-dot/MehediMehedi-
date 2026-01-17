@@ -363,7 +363,8 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              <Route path="/admin/grading" element={<ExamGrading />} />
+              {/* Pass exams and currentUser to Grading */}
+              <Route path="/admin/grading" element={<ExamGrading exams={exams} currentUser={user} />} />
               <Route 
                 path="/admin/blog" 
                 element={
