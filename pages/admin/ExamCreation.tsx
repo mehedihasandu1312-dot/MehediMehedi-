@@ -5,7 +5,7 @@ import { Exam, Folder } from '../../types';
 import { 
     Plus, Trash2, Clock, Calendar, FileQuestion, 
     Eye, EyeOff, Folder as FolderIcon, Users, FolderPlus, 
-    FolderOpen, ArrowLeft, Edit, Upload, X, Target 
+    FolderOpen, ArrowLeft, Edit, Upload, X, Target, AlertTriangle 
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -29,6 +29,9 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const [newFolderTargetClass, setNewFolderTargetClass] = useState('');
   const [newFolderIcon, setNewFolderIcon] = useState('');
   
+  // Delete State
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'EXAM' }>({ isOpen: false, id: null, type: 'EXAM' });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- STATS CALCULATION ---
@@ -123,26 +126,33 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
       }
   };
 
-  const handleDeleteFolder = (e: React.MouseEvent, id: string) => {
+  const initiateDeleteFolder = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       const hasExams = exams.some(e => e.folderId === id);
       if (hasExams) {
           alert("Cannot delete folder because it contains exams.");
           return;
       }
-      if (confirm("Delete this folder?")) {
-          setFolders(folders.filter(f => f.id !== id));
-      }
+      setDeleteModal({ isOpen: true, id, type: 'FOLDER' });
   };
 
   const handleTogglePublish = (id: string, currentStatus: boolean) => {
       setExams(exams.map(e => e.id === id ? { ...e, isPublished: !currentStatus } : e));
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this exam?")) {
-      setExams(exams.filter(e => e.id !== id));
-    }
+  const initiateDeleteExam = (id: string) => {
+      setDeleteModal({ isOpen: true, id, type: 'EXAM' });
+  };
+
+  const confirmDelete = () => {
+      if (deleteModal.id) {
+          if (deleteModal.type === 'FOLDER') {
+              setFolders(folders.filter(f => f.id !== deleteModal.id));
+          } else {
+              setExams(exams.filter(e => e.id !== deleteModal.id));
+          }
+          setDeleteModal({ isOpen: false, id: null, type: 'EXAM' });
+      }
   };
 
   // Filter for EXAM type folders only
@@ -249,7 +259,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                                       {exam.isPublished ? <EyeOff size={16} className="mr-1"/> : <Eye size={16} className="mr-1"/>}
                                       {exam.isPublished ? "Unpublish" : "Publish"}
                                   </Button>
-                                  <button onClick={() => handleDelete(exam.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                  <button onClick={() => initiateDeleteExam(exam.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                                       <Trash2 size={18} />
                                   </button>
                               </div>
@@ -342,7 +352,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                                     <Edit size={14} />
                                 </button>
                                 <button 
-                                    onClick={(e) => handleDeleteFolder(e, folder.id)} 
+                                    onClick={(e) => initiateDeleteFolder(e, folder.id)} 
                                     className="text-slate-300 hover:text-red-500 p-1"
                                     title="Delete"
                                 >
@@ -453,6 +463,24 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               </div>
           </form>
       </Modal>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })} title="Confirm Deletion">
+          <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                  <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                  <div>
+                      <p className="font-bold">Are you sure you want to delete this {deleteModal.type === 'FOLDER' ? 'Folder' : 'Exam'}?</p>
+                      <p className="text-xs mt-1">This action cannot be undone.</p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
+                  <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
     </div>
   );
 };

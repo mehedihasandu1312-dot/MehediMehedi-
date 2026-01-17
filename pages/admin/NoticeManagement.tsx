@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Card, Button, Badge } from '../../components/UI';
+import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Notice } from '../../types';
-import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload } from 'lucide-react';
+import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload, AlertTriangle } from 'lucide-react';
 
 interface Props {
   notices: Notice[];
@@ -16,6 +16,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
     priority: 'LOW' as 'HIGH' | 'MEDIUM' | 'LOW'
   });
   
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,10 +47,15 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
       }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Delete this notice?")) {
-      setNotices(notices.filter(n => n.id !== id));
-    }
+  const initiateDelete = (id: string) => {
+      setDeleteModal({ isOpen: true, id });
+  };
+
+  const confirmDelete = () => {
+      if (deleteModal.id) {
+          setNotices(notices.filter(n => n.id !== deleteModal.id));
+          setDeleteModal({ isOpen: false, id: null });
+      }
   };
 
   const getPriorityColor = (p: string) => {
@@ -142,7 +148,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
                   <h3 className="font-bold text-slate-800 text-lg">{notice.title}</h3>
                   <div className="flex items-center space-x-2">
                     <Badge color={getPriorityColor(notice.priority)}>{notice.priority}</Badge>
-                    <button onClick={() => handleDelete(notice.id)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={16} /></button>
+                    <button onClick={() => initiateDelete(notice.id)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={16} /></button>
                   </div>
                </div>
                <p className="text-xs text-slate-400 mb-3 flex items-center">
@@ -163,6 +169,24 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
           ))}
         </div>
       </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false, id: null })} title="Confirm Deletion">
+          <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                  <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                  <div>
+                      <p className="font-bold">Permanently delete this notice?</p>
+                      <p className="text-xs mt-1">This action cannot be undone.</p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setDeleteModal({ isOpen: false, id: null })}>Cancel</Button>
+                  <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
     </div>
   );
 };

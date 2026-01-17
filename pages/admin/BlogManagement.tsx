@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle } from 'lucide-react';
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -28,6 +28,9 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     thumbnail: '',
     tags: ''
   });
+
+  // Delete State
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'BLOG' }>({ isOpen: false, id: null, type: 'BLOG' });
 
   // --- NAVIGATION HELPERS ---
   const currentFolder = folders.find(f => f.id === currentFolderId);
@@ -67,7 +70,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       setIsFolderModalOpen(false);
   };
 
-  const handleDeleteFolder = (e: React.MouseEvent, id: string) => {
+  const initiateDeleteFolder = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       // Check for children folders or blogs
       const hasChildren = folders.some(f => f.parentId === id) || blogs.some(b => b.folderId === id);
@@ -75,9 +78,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
           alert("Cannot delete folder. It contains sub-folders or blog posts.");
           return;
       }
-      if (confirm("Delete this folder?")) {
-          setFolders(folders.filter(f => f.id !== id));
-      }
+      setDeleteModal({ isOpen: true, id, type: 'FOLDER' });
   };
 
   const handleBlogSubmit = (e: React.FormEvent) => {
@@ -105,10 +106,19 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     alert("Blog post published successfully!");
   };
 
-  const handleDeleteBlog = (id: string) => {
-    if (confirm("Delete this blog post?")) {
-      setBlogs(blogs.filter(b => b.id !== id));
-    }
+  const initiateDeleteBlog = (id: string) => {
+      setDeleteModal({ isOpen: true, id, type: 'BLOG' });
+  };
+
+  const confirmDelete = () => {
+      if (deleteModal.id) {
+          if (deleteModal.type === 'FOLDER') {
+              setFolders(folders.filter(f => f.id !== deleteModal.id));
+          } else {
+              setBlogs(blogs.filter(b => b.id !== deleteModal.id));
+          }
+          setDeleteModal({ isOpen: false, id: null, type: 'BLOG' });
+      }
   };
 
   const handleNavigateUp = () => {
@@ -245,7 +255,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                                   className="group relative bg-amber-50/50 border border-amber-100 rounded-xl p-4 hover:bg-amber-100 hover:border-amber-300 hover:shadow-sm cursor-pointer transition-all flex flex-col items-center text-center"
                               >
                                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button onClick={(e) => handleDeleteFolder(e, folder.id)} className="text-amber-400 hover:text-red-500 p-1">
+                                      <button onClick={(e) => initiateDeleteFolder(e, folder.id)} className="text-amber-400 hover:text-red-500 p-1">
                                           <Trash2 size={14} />
                                       </button>
                                   </div>
@@ -273,7 +283,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                                   <div className="flex-1">
                                       <div className="flex justify-between items-start">
                                           <h3 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors">{blog.title}</h3>
-                                          <button onClick={() => handleDeleteBlog(blog.id)} className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18} /></button>
+                                          <button onClick={() => initiateDeleteBlog(blog.id)} className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18} /></button>
                                       </div>
                                       <div className="flex items-center text-xs text-slate-500 mt-1 mb-2 space-x-3">
                                           <span className="flex items-center"><User size={12} className="mr-1"/> {blog.author}</span>
@@ -329,6 +339,24 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
               </div>
           </form>
       </Modal>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })} title="Confirm Deletion">
+          <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                  <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                  <div>
+                      <p className="font-bold">Are you sure you want to delete this {deleteModal.type === 'FOLDER' ? 'Folder' : 'Blog Post'}?</p>
+                      <p className="text-xs mt-1">This action cannot be undone.</p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
+                  <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, Button } from '../../components/UI';
+import { Card, Button, Modal } from '../../components/UI';
 import { SystemSettings } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle } from 'lucide-react';
 
 interface Props {
     settings: SystemSettings[];
@@ -20,6 +20,11 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     
     const [newRegular, setNewRegular] = useState('');
     const [newAdmission, setNewAdmission] = useState('');
+
+    // Delete State
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; index: number | null; type: 'REGULAR' | 'ADMISSION' }>({ 
+        isOpen: false, index: null, type: 'REGULAR' 
+    });
 
     const handleSave = () => {
         const updatedSettings: SystemSettings = {
@@ -47,11 +52,22 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         }
     };
 
-    const removeItem = (list: string[], setList: (l: string[]) => void, index: number) => {
-        if(confirm("Remove this category? Existing users/content might still display it but it won't be selectable.")) {
-            const newList = [...list];
-            newList.splice(index, 1);
-            setList(newList);
+    const initiateRemove = (index: number, type: 'REGULAR' | 'ADMISSION') => {
+        setDeleteModal({ isOpen: true, index, type });
+    };
+
+    const confirmRemove = () => {
+        if (deleteModal.index !== null) {
+            if (deleteModal.type === 'REGULAR') {
+                const newList = [...regularList];
+                newList.splice(deleteModal.index, 1);
+                setRegularList(newList);
+            } else {
+                const newList = [...admissionList];
+                newList.splice(deleteModal.index, 1);
+                setAdmissionList(newList);
+            }
+            setDeleteModal({ isOpen: false, index: null, type: 'REGULAR' });
         }
     };
 
@@ -100,7 +116,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                             <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group">
                                 <span className="text-sm font-medium text-slate-700">{item}</span>
                                 <button 
-                                    onClick={() => removeItem(regularList, setRegularList, idx)}
+                                    onClick={() => initiateRemove(idx, 'REGULAR')}
                                     className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <Trash2 size={16} />
@@ -138,7 +154,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                             <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group">
                                 <span className="text-sm font-medium text-slate-700">{item}</span>
                                 <button 
-                                    onClick={() => removeItem(admissionList, setAdmissionList, idx)}
+                                    onClick={() => initiateRemove(idx, 'ADMISSION')}
                                     className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                     <Trash2 size={16} />
@@ -149,6 +165,24 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                 </Card>
 
             </div>
+
+            {/* DELETE CONFIRMATION MODAL */}
+            <Modal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })} title="Confirm Removal">
+                <div className="space-y-4">
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                        <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                        <div>
+                            <p className="font-bold">Remove this category?</p>
+                            <p className="text-xs mt-1">Existing users or content might still display it, but it won't be selectable for new items.</p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                        <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
+                        <Button variant="danger" onClick={confirmRemove}>Remove</Button>
+                    </div>
+                </div>
+            </Modal>
+
         </div>
     );
 };
