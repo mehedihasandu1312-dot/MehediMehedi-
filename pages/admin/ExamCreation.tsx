@@ -5,7 +5,7 @@ import { Exam, Folder } from '../../types';
 import { 
     Plus, Trash2, Clock, Calendar, FileQuestion, 
     Eye, EyeOff, Folder as FolderIcon, Users, FolderPlus, 
-    FolderOpen, ArrowLeft, Edit, Upload, X, Target, AlertTriangle 
+    FolderOpen, ArrowLeft, Edit, Upload, X, Target, AlertTriangle, CheckCircle 
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -14,7 +14,7 @@ interface ExamCreationProps {
     setExams: React.Dispatch<React.SetStateAction<Exam[]>>;
     folders: Folder[];
     setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
-    educationLevels: { REGULAR: string[], ADMISSION: string[] }; // ADDED PROP
+    educationLevels: { REGULAR: string[], ADMISSION: string[] }; 
 }
 
 const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, setFolders, educationLevels }) => {
@@ -32,7 +32,14 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   // Delete State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'EXAM' }>({ isOpen: false, id: null, type: 'EXAM' });
 
+  // Info Modal State
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const showInfo = (title: string, message: string, type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
+      setInfoModal({ isOpen: true, title, message, type });
+  };
 
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
@@ -60,7 +67,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
 
     setExams([newExam, ...exams]);
     setIsCreating(false);
-    alert("Exam created successfully! You can publish it when ready.");
+    showInfo("Success", "Exam created successfully! You can publish it when ready.");
   };
 
   const openCreateFolderModal = () => {
@@ -91,7 +98,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               targetClass: newFolderTargetClass || undefined,
               icon: newFolderIcon || undefined
           } : f));
-          alert("Folder updated!");
+          showInfo("Success", "Folder updated!");
       } else {
           // Create
           const newFolder: Folder = {
@@ -104,7 +111,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
           };
           // UPDATED: Prepend new folder
           setFolders([newFolder, ...folders]);
-          alert("Folder created!");
+          showInfo("Success", "Folder created!");
       }
       
       setNewFolderName('');
@@ -131,7 +138,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
       e.stopPropagation();
       const hasExams = exams.some(e => e.folderId === id);
       if (hasExams) {
-          alert("Cannot delete folder because it contains exams.");
+          showInfo("Cannot Delete", "Cannot delete folder because it contains exams.", "ERROR");
           return;
       }
       setDeleteModal({ isOpen: true, id, type: 'FOLDER' });
@@ -159,7 +166,6 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   // Filter for EXAM type folders only
   const examFolders = folders.filter(f => f.type === 'EXAM');
 
-  // --- GROUPING LOGIC FOR FOLDERS ---
   const foldersByClass = useMemo(() => {
       const groups: Record<string, Folder[]> = {};
       examFolders.forEach(folder => {
@@ -500,6 +506,19 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
                   <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* INFO MODAL */}
+      <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${infoModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                  {infoModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                  <p>{infoModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>

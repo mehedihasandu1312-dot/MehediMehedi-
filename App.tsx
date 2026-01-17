@@ -28,7 +28,8 @@ import { authService } from './services/authService';
 import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS } from './constants';
 import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Modal, Button } from './components/UI';
 
 // Helper to clean data (convert undefined to null) before saving
 const cleanData = (obj: any): any => {
@@ -57,7 +58,6 @@ function useFirestoreCollection<T extends { id: string }>(
       const fetchedData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as T);
       
       // SORT: Latest (Largest ID) First
-      // This works because we use timestamp-based IDs (e.g., folder_170...)
       fetchedData.sort((a, b) => {
           const idA = a.id.toString();
           const idB = b.id.toString();
@@ -77,12 +77,11 @@ function useFirestoreCollection<T extends { id: string }>(
     return () => unsubscribe();
   }, [collectionName]);
 
-  // 2. SEED: Upload Mock Data if Collection is Empty (One-time check)
+  // 2. SEED: Upload Mock Data if Collection is Empty
   useEffect(() => {
     const seedData = async () => {
         if (!initialized || data.length > 0) return;
         
-        // Double check with a get to be sure before writing
         const snap = await getDocs(collection(db, collectionName));
         if (snap.empty && initialMockData.length > 0) {
             console.log(`Seeding ${collectionName} with mock data...`);
@@ -101,20 +100,15 @@ function useFirestoreCollection<T extends { id: string }>(
 
   // 3. WRITE: Smart Setter that syncs changes to Firestore
   const setSyncedData: React.Dispatch<React.SetStateAction<T[]>> = (action) => {
-      // Determine the new state based on action type
       const newState = typeof action === 'function' 
         ? (action as (prevState: T[]) => T[])(data) 
         : action;
 
-      // We don't set local state immediately here because the onSnapshot listener will do it.
-      // Instead, we identify diffs and write to Firestore.
-      
       const sync = async () => {
           try {
               // Identify Additions & Updates
               for (const item of newState) {
                   const oldItem = data.find(i => i.id === item.id);
-                  // If new or changed
                   if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(item)) {
                       await setDoc(doc(db, collectionName, item.id), cleanData(item));
                   }
@@ -133,7 +127,6 @@ function useFirestoreCollection<T extends { id: string }>(
       
       sync();
       
-      // Optimistic update for UI responsiveness (Sorted to match incoming snapshot behavior)
       const sortedState = [...newState].sort((a, b) => {
           const idA = a.id.toString();
           const idB = b.id.toString();
@@ -150,6 +143,9 @@ function useFirestoreCollection<T extends { id: string }>(
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Global Alert Modal State
+  const [globalModal, setGlobalModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
 
   // --- FIRESTORE COLLECTIONS ---
   const [users, setUsers, usersLoading] = useFirestoreCollection<User>('users', MOCK_USERS);
@@ -174,7 +170,6 @@ const App: React.FC = () => {
   // --- LOCAL STATE FOR SEEN NOTICES ---
   const [readNoticeIds, setReadNoticeIds] = useState<string[]>([]);
 
-  // Load read notices from Local Storage on mount
   useEffect(() => {
       if (user) {
           const storedKey = `readNotices_${user.id}`;
@@ -185,7 +180,6 @@ const App: React.FC = () => {
       }
   }, [user]);
 
-  // Function to mark a notice as read
   const handleMarkNoticeRead = (noticeId: string) => {
       if (user && !readNoticeIds.includes(noticeId)) {
           const newIds = [...readNoticeIds, noticeId];
@@ -194,7 +188,6 @@ const App: React.FC = () => {
       }
   };
 
-  // Derive Current Education Levels or Fallback
   const currentEducationLevels = settings.find(s => s.id === 'global_settings')?.educationLevels || DEFAULT_EDUCATION_LEVELS;
 
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
@@ -212,15 +205,13 @@ const App: React.FC = () => {
     setUser(null);
   };
 
-  // Called when a student finishes an MCQ exam
   const handleExamComplete = (result: StudentResult) => {
       setStudentResults(prev => [result, ...prev]);
       
       if (user) {
           const updatedUser = { ...user, points: (user.points || 0) + Math.round(result.score) };
           setUser(updatedUser);
-          authService.updateProfile({ points: updatedUser.points }); // Sync points to Firestore
-          // Also update in global users list
+          authService.updateProfile({ points: updatedUser.points }); 
           setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
       }
   };
@@ -241,20 +232,23 @@ const App: React.FC = () => {
           contentTitle: appealData.contentTitle,
           studentName: user.name,
           text: appealData.text,
-          image: appealData.image, // Supports Image now
+          image: appealData.image, 
           status: 'PENDING',
           timestamp: 'Just now'
       };
 
       setAppeals(prev => [newAppeal, ...prev]);
-      alert("Appeal submitted successfully! Admin will review it shortly.");
+      setGlobalModal({
+          isOpen: true,
+          title: "Appeal Submitted",
+          message: "Appeal submitted successfully! Admin will review it shortly.",
+          type: 'SUCCESS'
+      });
   };
 
   // --- FILTER LOGIC FOR STUDENT VIEW ---
-  // Only show folders, exams, and notices relevant to the student's class
   const getFilteredDataForStudent = () => {
       if (!user || user.role !== UserRole.STUDENT || !user.class) {
-          // If no class set or not student, return all (or empty if strict)
           return { studentFolders: folders, studentExams: exams, studentNotices: notices }; 
       }
 
@@ -263,24 +257,18 @@ const App: React.FC = () => {
       );
 
       const studentExams = exams.filter(e => {
-          // 1. Strict Exam-Level Filter: If exam has a specific class, it must match
           if (e.targetClass && e.targetClass !== user.class) {
               return false;
           }
-
-          // 2. Folder-Level Filter: If exam is in a folder, the folder must be visible
           if (e.folderId) {
               const parentFolder = folders.find(f => f.id === e.folderId);
-              // If folder exists and has a target class, it MUST match
               if (parentFolder?.targetClass && parentFolder.targetClass !== user.class) {
                   return false;
               }
           }
-          
           return true;
       });
 
-      // NOTICE FILTERING: Show General notices OR class-specific notices
       const studentNotices = notices.filter(n => 
           !n.targetClass || n.targetClass === 'ALL' || n.targetClass === user.class
       );
@@ -290,7 +278,6 @@ const App: React.FC = () => {
 
   const { studentFolders, studentExams, studentNotices } = getFilteredDataForStudent();
 
-  // CALCULATE UNSEEN NOTICES
   const unseenNoticeCount = studentNotices.filter(n => !readNoticeIds.includes(n.id)).length;
 
   if (authLoading || (user && globalLoading)) {
@@ -453,6 +440,19 @@ const App: React.FC = () => {
         
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+
+      {/* GLOBAL MODAL RENDERED AT ROOT LEVEL */}
+      <Modal isOpen={globalModal.isOpen} onClose={() => setGlobalModal({ ...globalModal, isOpen: false })} title={globalModal.title}>
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${globalModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                  {globalModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                  <p>{globalModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setGlobalModal({ ...globalModal, isOpen: false })}>OK</Button>
+              </div>
+          </div>
+      </Modal>
     </HashRouter>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -31,6 +31,13 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
 
   // Delete State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'BLOG' }>({ isOpen: false, id: null, type: 'BLOG' });
+
+  // Info Modal State
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
+
+  const showInfo = (title: string, message: string, type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
+      setInfoModal({ isOpen: true, title, message, type });
+  };
 
   // --- NAVIGATION HELPERS ---
   const currentFolder = folders.find(f => f.id === currentFolderId);
@@ -69,6 +76,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       setNewFolderName('');
       setNewFolderDesc('');
       setIsFolderModalOpen(false);
+      showInfo("Success", "Folder created successfully!");
   };
 
   const initiateDeleteFolder = (e: React.MouseEvent, id: string) => {
@@ -76,7 +84,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       // Check for children folders or blogs
       const hasChildren = folders.some(f => f.parentId === id) || blogs.some(b => b.folderId === id);
       if (hasChildren) {
-          alert("Cannot delete folder. It contains sub-folders or blog posts.");
+          showInfo("Cannot Delete", "Cannot delete folder. It contains sub-folders or blog posts.", "ERROR");
           return;
       }
       setDeleteModal({ isOpen: true, id, type: 'FOLDER' });
@@ -85,7 +93,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
   const handleBlogSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentFolderId) {
-        alert("Error: Please select a folder first.");
+        showInfo("Error", "Please select a folder first.", "ERROR");
         return;
     }
 
@@ -104,7 +112,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     setBlogs([newBlog, ...blogs]);
     setFormData({ title: '', author: '', excerpt: '', content: '', thumbnail: '', tags: '' });
     setIsCreatingBlog(false);
-    alert("Blog post published successfully!");
+    showInfo("Success", "Blog post published successfully!");
   };
 
   const initiateDeleteBlog = (id: string) => {
@@ -354,6 +362,19 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
                   <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* INFO MODAL */}
+      <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${infoModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                  {infoModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                  <p>{infoModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>

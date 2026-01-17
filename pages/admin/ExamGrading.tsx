@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { MOCK_SUBMISSIONS } from '../../constants';
 import { ExamSubmission, Exam, User } from '../../types';
-import { CheckSquare, Save, FolderOpen, ChevronDown, ChevronRight, FileCheck, Clock, CheckCircle2, UserCheck, Target, MessageCircle, AlertCircle } from 'lucide-react';
+import { CheckSquare, Save, FolderOpen, ChevronDown, ChevronRight, FileCheck, Clock, CheckCircle2, UserCheck, Target, MessageCircle, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface Props {
-    exams?: Exam[]; // Passed from App.tsx
+    exams?: Exam[]; 
     currentUser?: User | null;
 }
 
@@ -14,13 +14,16 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
     const [selectedSubmission, setSelectedSubmission] = useState<ExamSubmission | null>(null);
     
     // Grading State
-    const [marksInput, setMarksInput] = useState<Record<string, number>>({}); // questionId -> marks
-    const [feedbackInput, setFeedbackInput] = useState<Record<string, string>>({}); // questionId -> feedback text
+    const [marksInput, setMarksInput] = useState<Record<string, number>>({}); 
+    const [feedbackInput, setFeedbackInput] = useState<Record<string, string>>({});
     
     // UI State
     const [expandedClasses, setExpandedClasses] = useState<Record<string, boolean>>({});
     const [expandedExams, setExpandedExams] = useState<Record<string, boolean>>({});
     const [filterClass, setFilterClass] = useState<string>('ALL');
+
+    // Info Modal State
+    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
 
     // --- ANALYTICS DASHBOARD ---
     const stats = useMemo(() => {
@@ -31,14 +34,12 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
     }, [submissions]);
 
     // --- DATA GROUPING LOGIC ---
-    // Group By: Class -> Exam -> Submissions
     const groupedSubmissions = useMemo(() => {
         const groups: Record<string, Record<string, ExamSubmission[]>> = {};
 
         submissions.forEach(sub => {
             const exam = exams.find(e => e.id === sub.examId);
             const className = exam?.targetClass || 'Uncategorized';
-            const examTitle = exam?.title || 'Unknown Exam';
 
             // Filter Check
             if (filterClass !== 'ALL' && className !== filterClass) return;
@@ -85,16 +86,20 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
                 ...s, 
                 status: 'GRADED', 
                 obtainedMarks: totalObtained,
-                gradedBy: currentUser?.name || 'Admin', // Track Admin
+                gradedBy: currentUser?.name || 'Admin', 
                 answers: s.answers.map(ans => ({
                     ...ans,
-                    feedback: feedbackInput[ans.questionId] // Save feedback per question
+                    feedback: feedbackInput[ans.questionId] 
                 }))
               } 
             : s
         ));
 
-        alert(`Grading Complete! Total Marks Given: ${totalObtained}`);
+        setInfoModal({
+            isOpen: true,
+            title: "Grading Complete",
+            message: `Total Marks Given: ${totalObtained}`
+        });
         setSelectedSubmission(null);
     };
 
@@ -363,6 +368,20 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
                     </div>
                 </div>
             )}
+
+            {/* SUCCESS MODAL */}
+            <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+                <div className="space-y-4">
+                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start text-emerald-800">
+                        <CheckCircle size={24} className="mr-3 shrink-0" />
+                        <p>{infoModal.message}</p>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                        <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
+                    </div>
+                </div>
+            </Modal>
+
         </div>
     );
 };

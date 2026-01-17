@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload } from 'lucide-react';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
@@ -24,6 +24,9 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
     const [replyText, setReplyText] = useState('');
     const [replyImage, setReplyImage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Info Modal State
+    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
 
     // Calculate Dashboard Metrics
     const stats = useMemo(() => {
@@ -61,7 +64,12 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
 
     const handleSendReply = () => {
         if (!selectedAppeal || (!replyText.trim() && !replyImage)) {
-            alert("Please enter text or attach an image.");
+            setInfoModal({
+                isOpen: true,
+                title: "Error",
+                message: "Please enter text or attach an image.",
+                type: 'ERROR'
+            });
             return;
         }
 
@@ -71,7 +79,12 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
             : a
         ));
 
-        alert("Reply sent successfully!");
+        setInfoModal({
+            isOpen: true,
+            title: "Success",
+            message: "Reply sent successfully!",
+            type: 'SUCCESS'
+        });
         setSelectedAppeal(null);
     };
 
@@ -325,6 +338,20 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                     </div>
                 )}
             </Modal>
+
+            {/* INFO MODAL */}
+            <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+                <div className="space-y-4">
+                    <div className={`p-4 rounded-lg border flex items-start ${infoModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                        {infoModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                        <p>{infoModal.message}</p>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                        <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
+                    </div>
+                </div>
+            </Modal>
+
         </div>
     );
 };

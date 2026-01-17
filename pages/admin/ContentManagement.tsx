@@ -24,7 +24,8 @@ import {
     Image as ImageIcon,
     X,
     Upload,
-    AlertTriangle
+    AlertTriangle,
+    CheckCircle
 } from 'lucide-react';
 
 // Custom Large Modal for Content Editing
@@ -50,7 +51,7 @@ interface ContentManagementProps {
     setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
     contents: StudyContent[];
     setContents: React.Dispatch<React.SetStateAction<StudyContent[]>>;
-    educationLevels: { REGULAR: string[], ADMISSION: string[] }; // ADDED PROP
+    educationLevels: { REGULAR: string[], ADMISSION: string[] }; 
 }
 
 const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolders, contents, setContents, educationLevels }) => {
@@ -67,6 +68,9 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   // Delete State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'CONTENT' }>({ isOpen: false, id: null, type: 'CONTENT' });
 
+  // Info Modal State
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
+
   // Form Data
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderDesc, setNewFolderDesc] = useState('');
@@ -75,16 +79,19 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper
+  const showInfo = (title: string, message: string, type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
+      setInfoModal({ isOpen: true, title, message, type });
+  };
+
   // --- DASHBOARD STATISTICS ---
   const stats = useMemo(() => {
-    // Filter only CONTENT folders
     const contentFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
     
     const totalFolders = contentFolders.length;
     const totalFiles = contents.filter(c => !c.isDeleted).length;
     const writtenCount = contents.filter(c => !c.isDeleted && c.type === ContentType.WRITTEN).length;
     const mcqCount = contents.filter(c => !c.isDeleted && c.type === ContentType.MCQ).length;
-    // Simulated storage
     const storageUsed = ((writtenCount * 1.5) + (mcqCount * 0.5)).toFixed(1); 
 
     return { totalFolders, totalFiles, writtenCount, mcqCount, storageUsed };
@@ -93,7 +100,6 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   // --- EXPLORER LOGIC ---
   const currentFolder = folders.find(f => f.id === currentFolderId);
 
-  // Recursive Breadcrumbs
   const getBreadcrumbs = (folderId: string | null): Folder[] => {
     if (!folderId) return [];
     const folder = folders.find(f => f.id === folderId);
@@ -103,8 +109,6 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
 
   const breadcrumbs = useMemo(() => getBreadcrumbs(currentFolderId), [currentFolderId, folders]);
 
-  // Filter items for current view
-  // IMPORTANT: Filter by type 'CONTENT' (or undefined for backward compatibility)
   const displayedFolders = folders.filter(f => 
     ((currentFolderId === null && !f.parentId) || f.parentId === currentFolderId) &&
     (!f.type || f.type === 'CONTENT')
@@ -114,7 +118,6 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
     !c.isDeleted && c.folderId === (currentFolderId || 'root_unsupported_in_demo')
   );
 
-  // --- GROUPING LOGIC (Group by Target Class) ---
   const foldersByClass = useMemo(() => {
       const groups: Record<string, Folder[]> = {};
       
@@ -167,7 +170,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             targetClass: newFolderTargetClass || undefined,
             icon: newFolderIcon || undefined
         } : f));
-        alert("Folder updated successfully!");
+        showInfo("Success", "Folder updated successfully!");
     } else {
         // Create
         const newFolder: Folder = {
@@ -179,9 +182,8 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             type: 'CONTENT', // Hardcoded for this page
             icon: newFolderIcon || undefined
         };
-        // UPDATED: Prepend new folder to show it first
         setFolders([newFolder, ...folders]);
-        alert("Folder created successfully!");
+        showInfo("Success", "Folder created successfully!");
     }
 
     setNewFolderName('');
@@ -206,7 +208,6 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   };
 
   const handleSaveContent = (data: any) => {
-    // Determine type based on properties or context
     const isMcq = 'questions' in data || 'questionList' in data;
     
     if (editingContent) {
@@ -223,7 +224,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
               } 
             : c
         ));
-        alert(`${isMcq ? 'MCQ Set' : 'Written Content'} updated successfully!`);
+        showInfo("Success", `${isMcq ? 'MCQ Set' : 'Written Content'} updated successfully!`);
     } else {
         // Create New
         const newContent: StudyContent = {
@@ -233,19 +234,16 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             type: isMcq ? ContentType.MCQ : ContentType.WRITTEN,
             body: data.body,
             questions: data.questions,
-            questionList: data.questionList, // Save detailed questions
+            questionList: data.questionList,
             isDeleted: false
         };
-        // Prepend new content
         setContents([newContent, ...contents]);
         
-        // If we added content to a different folder than current, navigate there or alert
         if (currentFolderId !== data.folderId) {
-            if(confirm("Content added to a different folder. Navigate there now?")) {
-                setCurrentFolderId(data.folderId);
-            }
+            // Just notify success, no confirm to keep UI clean per user request
+             showInfo("Success", `${isMcq ? 'MCQ Set' : 'Written Content'} added to selected folder!`);
         } else {
-            alert(`${isMcq ? 'MCQ Set' : 'Written Content'} added successfully!`);
+            showInfo("Success", `${isMcq ? 'MCQ Set' : 'Written Content'} added successfully!`);
         }
     }
 
@@ -261,16 +259,14 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   const handleCloseContentModal = () => {
       setIsContentModalOpen(false);
       setEditingContent(null);
-      // Reset to default
       setContentTypeToAdd(ContentType.WRITTEN); 
   };
 
   const initiateDeleteFolder = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    // Check for children
     const hasChildren = folders.some(f => f.parentId === id) || contents.some(c => c.folderId === id && !c.isDeleted);
     if (hasChildren) {
-        alert("Cannot delete non-empty folder. Remove contents first.");
+        showInfo("Cannot Delete", "Cannot delete non-empty folder. Remove contents first.", "ERROR");
         return;
     }
     setDeleteModal({ isOpen: true, id, type: 'FOLDER' });
@@ -359,6 +355,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
 
       {/* 1. DASHBOARD STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* ... Stats Cards ... */}
         <Card className="flex items-center p-4 border-l-4 border-l-indigo-500">
             <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600 mr-4">
                 <HardDrive size={24} />
@@ -467,7 +464,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                  </div>
             ) : (
                 <div className="space-y-8">
-                    {/* Render Grouped Folders (Only if there are keys to group by) */}
+                    {/* Render Grouped Folders */}
                     {sortedClassKeys.length > 0 ? (
                         sortedClassKeys.map(className => (
                             <div key={className}>
@@ -480,12 +477,9 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                 </div>
                             </div>
                         ))
-                    ) : (
-                        // Fallback if no folders
-                        null
-                    )}
+                    ) : ( null )}
 
-                    {/* Content Files (Separate Section) */}
+                    {/* Content Files */}
                     {displayedContents.length > 0 && (
                         <div>
                             {displayedFolders.length > 0 && <div className="my-6 border-t border-slate-100"></div>}
@@ -542,7 +536,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         </div>
                     )}
                     
-                    {/* Empty State for current folder */}
+                    {/* Empty State */}
                     {displayedFolders.length === 0 && displayedContents.length === 0 && (
                         <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
                             <p>This folder is empty.</p>
@@ -589,7 +583,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 />
             </div>
 
-            {/* Target Class Selection (Dynamic) */}
+            {/* Target Class Selection */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Target Class / Group</label>
                 <div className="relative">
@@ -661,7 +655,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
       {/* Add/Edit Content Large Modal */}
       <LargeModal isOpen={isContentModalOpen} onClose={handleCloseContentModal} title={editingContent ? "Edit Study Content" : "Add Study Content"}>
         <div className="space-y-6">
-            {/* Type Switcher (Locked if editing) */}
+            {/* Type Switcher */}
             <div className="flex bg-slate-100 p-1 rounded-lg max-w-md mx-auto">
                 <button 
                     disabled={!!editingContent}
@@ -683,17 +677,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 </button>
             </div>
 
-            <div className="text-xs text-indigo-600 bg-indigo-50 p-3 rounded border border-indigo-100 flex items-center justify-center">
-                {editingContent ? (
-                     <>Editing content in: <span className="font-bold ml-1">{folders.find(f => f.id === editingContent.folderId)?.name}</span></>
-                ) : currentFolderId ? (
-                    <>Adding to Folder: <span className="font-bold ml-1">{currentFolder?.name}</span></>
-                ) : (
-                    <>Adding to: <span className="font-bold ml-1">Selected Folder</span> (Choose inside form)</>
-                )}
-            </div>
-
-            {/* Forms - Pass filtered folders (CONTENT Type) */}
+            {/* Forms */}
             {contentTypeToAdd === ContentType.WRITTEN ? (
                 <WrittenContentForm 
                     folders={folders.filter(f => !f.type || f.type === 'CONTENT')} 
@@ -733,6 +717,19 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
                   <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* SUCCESS/INFO MODAL */}
+      <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+          <div className="space-y-4">
+              <div className={`p-4 rounded-lg border flex items-start ${infoModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
+                  {infoModal.type === 'SUCCESS' ? <CheckCircle size={24} className="mr-3 shrink-0" /> : <AlertTriangle size={24} className="mr-3 shrink-0" />}
+                  <p>{infoModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>

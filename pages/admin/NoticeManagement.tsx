@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Notice } from '../../types';
-import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone } from 'lucide-react';
+import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone, CheckCircle } from 'lucide-react';
 
 interface Props {
   notices: Notice[];
   setNotices: React.Dispatch<React.SetStateAction<Notice[]>>;
-  educationLevels: { REGULAR: string[], ADMISSION: string[] }; // ADDED
+  educationLevels: { REGULAR: string[], ADMISSION: string[] }; 
 }
 
 const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevels }) => {
@@ -15,10 +15,12 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
     content: '',
     image: '',
     priority: 'LOW' as 'HIGH' | 'MEDIUM' | 'LOW',
-    targetClass: '' // NEW
+    targetClass: '' 
   });
   
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -29,13 +31,18 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
       content: formData.content,
       image: formData.image || undefined,
       priority: formData.priority,
-      targetClass: formData.targetClass || undefined, // Save target class
+      targetClass: formData.targetClass || undefined, 
       date: new Date().toISOString()
     };
     // Prepend to top
     setNotices([newNotice, ...notices]);
     setFormData({ title: '', content: '', image: '', priority: 'LOW', targetClass: '' });
-    alert("Notice posted successfully!");
+    
+    setInfoModal({
+        isOpen: true,
+        title: 'Success',
+        message: 'Notice posted successfully!'
+    });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,6 +225,19 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <Button variant="outline" onClick={() => setDeleteModal({ isOpen: false, id: null })}>Cancel</Button>
                   <Button variant="danger" onClick={confirmDelete}>Delete Permanently</Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* SUCCESS MODAL */}
+      <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
+          <div className="space-y-4">
+              <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start text-emerald-800">
+                  <CheckCircle size={24} className="mr-3 shrink-0" />
+                  <p>{infoModal.message}</p>
+              </div>
+              <div className="flex justify-end pt-2">
+                  <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
               </div>
           </div>
       </Modal>
