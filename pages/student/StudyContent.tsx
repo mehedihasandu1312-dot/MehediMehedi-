@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
 import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X } from 'lucide-react';
+import AdBanner from '../../components/AdBanner'; // Import Ads
 
 interface StudyContentPageProps {
     folders: Folder[];
@@ -148,7 +149,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     if (selectedContent) {
       // --- CONTENT DETAIL VIEW ---
       return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto pb-10">
           {/* Navigation & Header */}
           <div className="flex items-center justify-between mb-6">
              <Button variant="outline" onClick={() => setSelectedContent(null)} className="flex items-center text-sm bg-white border-slate-300 hover:bg-slate-50">
@@ -184,6 +185,11 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                                      [Content Placeholder: The admin has not added detailed text for this document yet.]
                                  </div>
                              )}
+                        </div>
+                        
+                        {/* IN-CONTENT ADVERTISEMENT */}
+                        <div className="my-8">
+                            <AdBanner slotId="CONTENT_BODY_AD" />
                         </div>
                     </div>
 
@@ -280,6 +286,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                       <Bookmark size={20} className="mx-auto mb-2" />
                       End of Study Set
                   </div>
+                  
+                  {/* BOTTOM AD */}
+                  <AdBanner slotId="STUDY_MCQ_BOTTOM_AD" />
               </div>
           )}
         </div>
@@ -344,7 +353,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in pb-10">
       {!selectedContent && (
         <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-800 flex items-center">

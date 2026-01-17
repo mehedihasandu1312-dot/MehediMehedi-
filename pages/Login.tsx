@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserRole, User } from '../types';
 import { authService } from '../services/authService';
 import { ShieldCheck, Loader2, AlertTriangle, Copy, Lock, Mail } from 'lucide-react';
+import AdModal from '../components/AdModal'; // Import Ad Modal
 
 interface LoginProps {
   setUser: (user: User) => void;
@@ -17,7 +18,29 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminForm, setShowAdminForm] = useState(false);
 
+  // Ad State
+  const [showAd, setShowAd] = useState(false);
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
+
   const navigate = useNavigate();
+
+  // Handle what happens after Ad is closed
+  const handleAdClose = () => {
+      setShowAd(false);
+      if (pendingUser) {
+          setUser(pendingUser); // Set global user state
+          
+          if (pendingUser.role === UserRole.ADMIN) {
+              navigate('/admin/dashboard');
+          } else {
+              if (!pendingUser.profileCompleted) {
+                  navigate('/complete-profile');
+              } else {
+                  navigate('/student/dashboard');
+              }
+          }
+      }
+  };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +53,7 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
     try {
       const user = await authService.loginAdmin(adminEmail, adminPassword);
       if (user) {
+        // Admin login doesn't necessarily need ads, but if you want:
         setUser(user);
         navigate('/admin/dashboard');
       }
@@ -46,15 +70,13 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
     try {
       const user = await authService.loginWithGoogle(UserRole.STUDENT);
       if (user) {
-        setUser(user);
-        if (user.role === UserRole.ADMIN) {
-            navigate('/admin/dashboard');
+        setPendingUser(user); // Store user temporarily
+        if (user.role === UserRole.STUDENT) {
+            setShowAd(true); // TRIGGER AD FOR STUDENTS
         } else {
-            if (!user.profileCompleted) {
-                navigate('/complete-profile');
-            } else {
-                navigate('/student/dashboard');
-            }
+            // Admins skip ads
+            setUser(user);
+            navigate('/admin/dashboard');
         }
       }
     } catch (error: any) {
@@ -76,6 +98,14 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative overflow-hidden">
+      {/* Mandatory Welcome Ad */}
+      <AdModal 
+        isOpen={showAd} 
+        onClose={handleAdClose} 
+        title="Welcome to EduMaster!" 
+        timerSeconds={8} // 8 Seconds forced view
+      />
+
       {/* Decorative Background Blobs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute top-0 right-0 w-96 h-96 bg-brand-100 rounded-full blur-3xl opacity-50 transform translate-x-1/2 -translate-y-1/2"></div>

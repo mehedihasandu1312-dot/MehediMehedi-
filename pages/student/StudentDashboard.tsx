@@ -34,6 +34,7 @@ import {
   Send,
   ArrowRight
 } from 'lucide-react';
+import AdBanner from '../../components/AdBanner'; // Import Ads
 
 interface Props {
   user: User;
@@ -261,6 +262,9 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
         </div>
       </div>
 
+      {/* ADVERTISEMENT SLOT 1 */}
+      <AdBanner slotId="DASHBOARD_HERO_AD" />
+
       {/* SECTION 2: METRICS (UPDATED COLORS) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <Card className="flex flex-col justify-center border-l-4 border-l-brand-500">
@@ -398,6 +402,9 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
               </div>
           </Card>
       </div>
+
+      {/* ADVERTISEMENT SLOT 2 */}
+      <AdBanner slotId="DASHBOARD_BOTTOM_AD" />
 
       {/* PERFORMANCE TREND CHART */}
       <Card className="min-h-[350px] flex flex-col">

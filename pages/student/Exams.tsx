@@ -3,6 +3,7 @@ import { Card, Button, Badge } from '../../components/UI';
 import { Exam, Folder, StudentResult } from '../../types';
 import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen, FileQuestion } from 'lucide-react';
 import ExamLiveInterface from './ExamLiveInterface';
+import AdModal from '../../components/AdModal'; // Import Ad Modal
 
 interface ExamsPageProps {
     exams: Exam[];
@@ -104,13 +105,28 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
   
+  // Ad State
+  const [showExamAd, setShowExamAd] = useState(false);
+  const [pendingExam, setPendingExam] = useState<Exam | null>(null);
+  
   const handleStartExam = (exam: Exam) => {
       const { status } = getExamStatus(exam);
       if (status === 'UPCOMING') {
           alert(`This exam starts at ${new Date(exam.startTime!).toLocaleString()}`);
           return;
       }
-      setActiveExam(exam);
+      
+      // TRIGGER MANDATORY AD BEFORE EXAM
+      setPendingExam(exam);
+      setShowExamAd(true);
+  };
+
+  const onAdComplete = () => {
+      setShowExamAd(false);
+      if (pendingExam) {
+          setActiveExam(pendingExam); // Actually start the exam now
+          setPendingExam(null);
+      }
   };
 
   // If taking an exam, show the interface
@@ -131,6 +147,14 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
   if (!selectedFolderId) {
       return (
           <div className="space-y-6 animate-fade-in pb-10">
+              {/* MANDATORY EXAM AD */}
+              <AdModal 
+                isOpen={showExamAd} 
+                onClose={onAdComplete} 
+                title="Unlock Exam Access" 
+                timerSeconds={5} 
+              />
+
               <h1 className="text-2xl font-bold text-slate-800">Exams & Model Tests</h1>
               <p className="text-slate-500">Select a category to view available Live and General exams.</p>
               
@@ -221,6 +245,14 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete })
 
   return (
       <div className="space-y-6 animate-fade-in">
+          {/* MANDATORY EXAM AD (Render here as well just in case) */}
+          <AdModal 
+            isOpen={showExamAd} 
+            onClose={onAdComplete} 
+            title="Unlock Exam Access" 
+            timerSeconds={5} 
+          />
+
           <div className="flex items-center mb-6">
               <Button variant="outline" onClick={() => setSelectedFolderId(null)} className="mr-4 bg-white hover:bg-slate-50">
                   <ArrowLeft size={16} />
