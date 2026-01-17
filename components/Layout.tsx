@@ -91,7 +91,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
   );
 
   return (
-    <div className="flex h-screen bg-surface overflow-hidden">
+    <div className="flex h-screen w-screen bg-surface overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -133,7 +133,8 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
           </span>
         </div>
 
-        <nav className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar">
+        {/* Sidebar Navigation - Added overscroll-contain */}
+        <nav className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar overscroll-contain">
           {user.role === UserRole.STUDENT ? <StudentLinks /> : <AdminLinks />}
         </nav>
 
@@ -159,7 +160,8 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
           <div className="w-8" /> {/* Spacer */}
         </header>
 
-        <div className="flex-1 overflow-auto p-4 md:p-8">
+        {/* Main Scrollable Area - Added overscroll-contain */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 overscroll-contain">
           <div className="max-w-7xl mx-auto pb-10">
             {children || <Outlet />}
           </div>
