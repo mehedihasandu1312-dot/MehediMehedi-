@@ -28,9 +28,10 @@ interface LayoutProps {
   user: User;
   setUser: (user: User | null) => void;
   children?: React.ReactNode;
+  unseenNoticeCount?: number; // ADDED PROP
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
+const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCount = 0 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,7 +42,8 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
     navigate('/login');
   };
 
-  const NavItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
+  // Updated NavItem to accept badgeCount
+  const NavItem = ({ to, icon: Icon, label, badgeCount }: { to: string; icon: any; label: string; badgeCount?: number }) => {
     const isActive = location.pathname === to;
     return (
       <button
@@ -49,14 +51,21 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
           navigate(to);
           setIsSidebarOpen(false);
         }}
-        className={`flex items-center w-full px-4 py-3 mb-1.5 rounded-xl transition-all duration-200 group ${
+        className={`flex items-center justify-between w-full px-4 py-3 mb-1.5 rounded-xl transition-all duration-200 group ${
           isActive 
             ? 'bg-brand-600 text-white shadow-soft font-bold' 
             : 'text-slate-500 hover:bg-brand-50 hover:text-brand-600 font-medium'
         }`}
       >
-        <Icon size={20} className={`mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-brand-600'}`} />
-        <span className="text-sm tracking-wide">{label}</span>
+        <div className="flex items-center">
+            <Icon size={20} className={`mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-brand-600'}`} />
+            <span className="text-sm tracking-wide">{label}</span>
+        </div>
+        {badgeCount !== undefined && badgeCount > 0 && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white text-brand-600' : 'bg-red-500 text-white'}`}>
+                {badgeCount > 99 ? '99+' : badgeCount}
+            </span>
+        )}
       </button>
     );
   };
@@ -64,7 +73,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
   const StudentLinks = () => (
     <>
       <NavItem to="/student/dashboard" icon={LayoutDashboard} label="Dashboard" />
-      <NavItem to="/student/notice" icon={Bell} label="Notices" />
+      <NavItem to="/student/notice" icon={Bell} label="Notices" badgeCount={unseenNoticeCount} />
       <NavItem to="/student/social" icon={MessageSquare} label="Social Feed" />
       <NavItem to="/student/content" icon={BookOpen} label="Study Content" />
       <NavItem to="/student/exams" icon={FileQuestion} label="Exams" />
@@ -157,11 +166,23 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children }) => {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-surface">
         {/* Mobile Header */}
         <header className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex items-center justify-between shrink-0 sticky top-0 z-30">
-          <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600">
-            <Menu size={28} />
-          </button>
-          <span className="font-extrabold text-lg text-slate-800">Edu<span className="text-brand-600">Master</span></span>
-          <div className="w-8" /> {/* Spacer */}
+          <div className="flex items-center">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 mr-2">
+                <Menu size={28} />
+              </button>
+              <span className="font-extrabold text-lg text-slate-800">Edu<span className="text-brand-600">Master</span></span>
+          </div>
+          {/* Mobile Badge for Notices if count > 0 */}
+          {user.role === UserRole.STUDENT && unseenNoticeCount > 0 && (
+              <div className="flex items-center" onClick={() => navigate('/student/notice')}>
+                  <div className="relative p-2">
+                      <Bell size={24} className="text-slate-600" />
+                      <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[8px] font-bold text-white">
+                          {unseenNoticeCount > 9 ? '9+' : unseenNoticeCount}
+                      </span>
+                  </div>
+              </div>
+          )}
         </header>
 
         {/* Main Scrollable Area - Scrolls independently */}

@@ -5,9 +5,11 @@ import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon, Target
 
 interface Props {
     notices?: NoticeType[];
+    readIds?: string[];
+    onMarkRead?: (id: string) => void;
 }
 
-const Notice: React.FC<Props> = ({ notices = [] }) => {
+const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead }) => {
   const [selectedNotice, setSelectedNotice] = useState<NoticeType | null>(null);
 
   const getPriorityColor = (priority: string) => {
@@ -16,6 +18,13 @@ const Notice: React.FC<Props> = ({ notices = [] }) => {
       case 'MEDIUM': return 'bg-amber-100 text-amber-700 border-amber-200';
       default: return 'bg-blue-100 text-blue-700 border-blue-200';
     }
+  };
+
+  const handleSelectNotice = (notice: NoticeType) => {
+      setSelectedNotice(notice);
+      if (onMarkRead) {
+          onMarkRead(notice.id);
+      }
   };
 
   return (
@@ -38,56 +47,67 @@ const Notice: React.FC<Props> = ({ notices = [] }) => {
                         No notices at the moment.
                     </div>
                  ) : (
-                     notices.map(notice => (
-                        <div 
-                            key={notice.id}
-                            onClick={() => setSelectedNotice(notice)}
-                            className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md group relative overflow-hidden ${
-                                selectedNotice?.id === notice.id 
-                                ? 'bg-white border-indigo-200 shadow-md ring-1 ring-indigo-50 z-10' 
-                                : 'bg-white border-slate-200 hover:border-indigo-300'
-                            }`}
-                        >
-                            {/* Priority Indicator Strip */}
-                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                                 notice.priority === 'HIGH' ? 'bg-red-500' : notice.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
-                            }`}></div>
+                     notices.map(notice => {
+                        const isRead = readIds.includes(notice.id);
+                        return (
+                            <div 
+                                key={notice.id}
+                                onClick={() => handleSelectNotice(notice)}
+                                className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md group relative overflow-hidden ${
+                                    selectedNotice?.id === notice.id 
+                                    ? 'bg-white border-indigo-200 shadow-md ring-1 ring-indigo-50 z-10' 
+                                    : isRead 
+                                        ? 'bg-white border-slate-200 hover:border-indigo-300' 
+                                        : 'bg-white border-indigo-200 shadow-sm ring-1 ring-indigo-50'
+                                }`}
+                            >
+                                {/* Priority Indicator Strip */}
+                                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                                    notice.priority === 'HIGH' ? 'bg-red-500' : notice.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
+                                }`}></div>
 
-                            <div className="pl-3">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h3 className={`font-bold text-base line-clamp-1 ${selectedNotice?.id === notice.id ? 'text-indigo-900' : 'text-slate-800'}`}>
-                                        {notice.title}
-                                    </h3>
-                                    <span className="text-[10px] text-slate-400 shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded">
-                                        {new Date(notice.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                    </span>
-                                </div>
-                                
-                                {notice.targetClass && (
-                                    <div className="mb-2">
-                                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full flex items-center w-fit">
-                                            <Target size={10} className="mr-1" /> {notice.targetClass} Only
+                                <div className="pl-3">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <div className="flex items-center">
+                                            {/* Unread Dot */}
+                                            {!isRead && (
+                                                <span className="w-2 h-2 bg-red-500 rounded-full mr-2 shrink-0 animate-pulse"></span>
+                                            )}
+                                            <h3 className={`text-base line-clamp-1 ${!isRead ? 'font-black text-slate-900' : 'font-semibold text-slate-700'} ${selectedNotice?.id === notice.id ? 'text-indigo-900' : ''}`}>
+                                                {notice.title}
+                                            </h3>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded">
+                                            {new Date(notice.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </span>
                                     </div>
-                                )}
+                                    
+                                    {notice.targetClass && (
+                                        <div className="mb-2">
+                                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full flex items-center w-fit">
+                                                <Target size={10} className="mr-1" /> {notice.targetClass} Only
+                                            </span>
+                                        </div>
+                                    )}
 
-                                <div className="flex items-center text-xs text-slate-500 mb-2">
-                                    <p className="line-clamp-2 leading-relaxed flex-1 mr-2">
-                                        {notice.content}
-                                    </p>
-                                    {notice.image && <ImageIcon size={14} className="text-indigo-400 shrink-0" />}
-                                </div>
-                                <div className="flex items-center justify-between mt-2">
-                                    <Badge color={getPriorityColor(notice.priority)}>
-                                        {notice.priority}
-                                    </Badge>
-                                    <div className={`flex items-center text-xs font-medium transition-colors ${selectedNotice?.id === notice.id ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'}`}>
-                                        Read More <ChevronRight size={14} className="ml-1" />
+                                    <div className="flex items-center text-xs text-slate-500 mb-2">
+                                        <p className={`line-clamp-2 leading-relaxed flex-1 mr-2 ${!isRead ? 'text-slate-600 font-medium' : ''}`}>
+                                            {notice.content}
+                                        </p>
+                                        {notice.image && <ImageIcon size={14} className="text-indigo-400 shrink-0" />}
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <Badge color={getPriorityColor(notice.priority)}>
+                                            {notice.priority}
+                                        </Badge>
+                                        <div className={`flex items-center text-xs font-medium transition-colors ${selectedNotice?.id === notice.id ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'}`}>
+                                            Read More <ChevronRight size={14} className="ml-1" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                     ))
+                        );
+                     })
                  )}
              </div>
           </div>

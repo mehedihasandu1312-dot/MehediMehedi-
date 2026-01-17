@@ -171,6 +171,29 @@ const App: React.FC = () => {
       educationLevels: DEFAULT_EDUCATION_LEVELS
   }]);
 
+  // --- LOCAL STATE FOR SEEN NOTICES ---
+  const [readNoticeIds, setReadNoticeIds] = useState<string[]>([]);
+
+  // Load read notices from Local Storage on mount
+  useEffect(() => {
+      if (user) {
+          const storedKey = `readNotices_${user.id}`;
+          const stored = localStorage.getItem(storedKey);
+          if (stored) {
+              setReadNoticeIds(JSON.parse(stored));
+          }
+      }
+  }, [user]);
+
+  // Function to mark a notice as read
+  const handleMarkNoticeRead = (noticeId: string) => {
+      if (user && !readNoticeIds.includes(noticeId)) {
+          const newIds = [...readNoticeIds, noticeId];
+          setReadNoticeIds(newIds);
+          localStorage.setItem(`readNotices_${user.id}`, JSON.stringify(newIds));
+      }
+  };
+
   // Derive Current Education Levels or Fallback
   const currentEducationLevels = settings.find(s => s.id === 'global_settings')?.educationLevels || DEFAULT_EDUCATION_LEVELS;
 
@@ -267,6 +290,8 @@ const App: React.FC = () => {
 
   const { studentFolders, studentExams, studentNotices } = getFilteredDataForStudent();
 
+  // CALCULATE UNSEEN NOTICES
+  const unseenNoticeCount = studentNotices.filter(n => !readNoticeIds.includes(n.id)).length;
 
   if (authLoading || (user && globalLoading)) {
       return (
@@ -294,7 +319,7 @@ const App: React.FC = () => {
             } 
         />
 
-        <Route element={user ? <Layout user={user} setUser={setUser} /> : <Navigate to="/login" />}>
+        <Route element={user ? <Layout user={user} setUser={setUser} unseenNoticeCount={unseenNoticeCount} /> : <Navigate to="/login" />}>
           <Route path="/" element={<Navigate to={user?.role === UserRole.ADMIN ? "/admin/dashboard" : "/student/dashboard"} />} />
 
           {/* Student Routes */}
@@ -313,7 +338,16 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              <Route path="/student/notice" element={<Notice notices={studentNotices} />} />
+              <Route 
+                path="/student/notice" 
+                element={
+                    <Notice 
+                        notices={studentNotices} 
+                        readIds={readNoticeIds}
+                        onMarkRead={handleMarkNoticeRead}
+                    />
+                } 
+              />
               <Route path="/student/social" element={<SocialPost posts={socialPosts} setPosts={setSocialPosts} />} />
               <Route 
                 path="/student/content" 
