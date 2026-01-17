@@ -26,8 +26,15 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     const [wrongCount, setWrongCount] = useState(0);
     const [negativeDeduction, setNegativeDeduction] = useState(0);
 
-    // Safe Question List
-    const questions = useMemo(() => exam?.questionList || [], [exam]);
+    // --- CRITICAL FIX: Safe Question List Extraction ---
+    // Ensures 'questions' is ALWAYS an array, even if API returns undefined/null/object
+    const questions = useMemo(() => {
+        if (!exam || !exam.questionList) return [];
+        // If it's not an array (e.g. Firebase mapped object), return empty or handle conversion if needed
+        if (!Array.isArray(exam.questionList)) return []; 
+        // Filter out any null/undefined items in the array to prevent render crashes
+        return exam.questionList.filter(q => !!q);
+    }, [exam]);
 
     // Prevent accidental tab close
     useEffect(() => {
@@ -91,7 +98,9 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     // --- HELPER: Parse Rich Text from Admin ---
     const renderFormattedText = (text: string) => {
         if (!text) return { __html: '' };
-        let formatted = text
+        // Basic safety to ensure text is string
+        const safeText = String(text);
+        let formatted = safeText
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\n/g, '<br />');
         return { __html: formatted };
@@ -99,11 +108,16 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
 
     // Handle MCQ Selection
     const handleOptionSelect = (qId: string, optIndex: number) => {
+        if (!qId) return;
         setAnswers(prev => ({ ...prev, [qId]: optIndex }));
     };
 
     // Handle Written Image Upload
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, qId: string) => {
+        if (!qId) {
+            alert("Error: Invalid question ID");
+            return;
+        }
         if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files);
             
@@ -135,6 +149,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     };
 
     const removeImage = (qId: string, index: number) => {
+        if (!qId) return;
         setUploadedFiles(prev => {
             const currentFiles = prev[qId] || [];
             return {
@@ -172,7 +187,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
             obtainedMarks: 0,
             answers: questions.map(q => ({
                 questionId: q.id,
-                writtenImages: uploadedFiles[q.id] || []
+                writtenImages: (q.id && uploadedFiles[q.id]) ? uploadedFiles[q.id] : []
             }))
         };
 
@@ -223,7 +238,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         });
     };
 
-    // --- RESULT VIEW (MCQ) ---
+    // --- RESULT VIEW (MCQ ONLY) ---
     if (isSubmitted && exam.examFormat === 'MCQ') {
         const accuracy = questions.length > 0 
             ? Math.round((correctCount / questions.length) * 100) 
@@ -414,123 +429,140 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
 
              {/* Question Body */}
              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 max-w-4xl mx-auto w-full pb-32">
-                 {questions.map((q, idx) => (
-                     <Card key={q.id || idx} className="relative border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300">
-                         <div className="flex gap-4">
-                             {/* Question Number */}
-                             <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-lg shadow-slate-200">
-                                 {idx + 1}
-                             </div>
-                             
-                             <div className="flex-1">
-                                 {/* Question Content */}
-                                 <div className="mb-6">
-                                     <div 
-                                        className="text-lg text-slate-800 font-medium leading-relaxed"
-                                        dangerouslySetInnerHTML={renderFormattedText(q.text)}
-                                     />
-                                     {q.image && (
-                                         <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-xl inline-block">
-                                             <img src={q.image} alt="Question Reference" className="max-h-80 rounded-lg" />
-                                         </div>
-                                     )}
-                                 </div>
+                 {/* CRITICAL SAFETY: Check if questions array is valid before mapping */}
+                 {questions.length === 0 ? (
+                     <div className="text-center py-20 text-slate-400">
+                         <AlertOctagon size={48} className="mx-auto mb-4 opacity-30" />
+                         <p>No questions loaded. Please contact admin.</p>
+                     </div>
+                 ) : (
+                     questions.map((q, idx) => {
+                         if (!q) return null; // Skip invalid question objects
+                         
+                         // Determine key safely
+                         const questionKey = q.id || `q_${idx}`;
+                         // Get current files safely
+                         const currentFiles = (questionKey && uploadedFiles[questionKey]) ? uploadedFiles[questionKey] : [];
 
-                                 {/* MCQ Options Area */}
-                                 {exam.examFormat === 'MCQ' && (
-                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                         {q.options?.map((opt, optIdx) => (
-                                             <label 
-                                                key={optIdx} 
-                                                className={`group relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                                                    answers[q.id] === optIdx 
-                                                    ? 'bg-indigo-50 border-indigo-600 shadow-md transform scale-[1.01]' 
-                                                    : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50'
-                                                }`}
-                                             >
-                                                 <input 
-                                                    type="radio" 
-                                                    name={`q_${q.id}`} 
-                                                    className="sr-only"
-                                                    checked={answers[q.id] === optIdx}
-                                                    onChange={() => handleOptionSelect(q.id, optIdx)}
-                                                 />
-                                                 
-                                                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-4 shrink-0 transition-colors ${
-                                                     answers[q.id] === optIdx 
-                                                     ? 'border-indigo-600 bg-indigo-600 text-white' 
-                                                     : 'border-slate-300 text-slate-400 group-hover:border-indigo-300'
-                                                 }`}>
-                                                     <span className="text-xs font-bold">{String.fromCharCode(65 + optIdx)}</span>
-                                                 </div>
-                                                 
-                                                 <span className={`text-sm font-medium ${answers[q.id] === optIdx ? 'text-indigo-900' : 'text-slate-600'}`}>
-                                                     {opt}
-                                                 </span>
-
-                                                 {answers[q.id] === optIdx && (
-                                                     <div className="absolute right-4 text-indigo-600">
-                                                         <CheckCircle size={18} />
-                                                     </div>
-                                                 )}
-                                             </label>
-                                         ))}
+                         return (
+                             <Card key={questionKey} className="relative border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                                 <div className="flex gap-4">
+                                     {/* Question Number */}
+                                     <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-lg shadow-slate-200">
+                                         {idx + 1}
                                      </div>
-                                 )}
-
-                                 {/* Written Upload Area */}
-                                 {exam.examFormat === 'WRITTEN' && (
-                                     <div className="space-y-4 mt-2">
-                                         <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-start text-amber-800 text-sm">
-                                             <AlertOctagon size={20} className="mr-3 mt-0.5 shrink-0" />
-                                             <p>Please write your answer on paper, take a clear photo, and upload it here. You can upload multiple images.</p>
-                                         </div>
-                                         
-                                         <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-white hover:bg-indigo-50/30 hover:border-indigo-300 transition-all relative cursor-pointer group">
-                                             <input 
-                                                type="file" 
-                                                multiple 
-                                                accept="image/*"
-                                                onChange={(e) => handleImageUpload(e, q.id)}
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                     
+                                     <div className="flex-1">
+                                         {/* Question Content */}
+                                         <div className="mb-6">
+                                             <div 
+                                                className="text-lg text-slate-800 font-medium leading-relaxed"
+                                                dangerouslySetInnerHTML={renderFormattedText(q.text || '')}
                                              />
-                                             <div className="flex flex-col items-center pointer-events-none">
-                                                 <div className="p-4 bg-indigo-50 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                                                     <Upload size={28} className="text-indigo-600" />
+                                             {q.image && (
+                                                 <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-xl inline-block">
+                                                     <img src={q.image} alt="Question Reference" className="max-h-80 rounded-lg" />
                                                  </div>
-                                                 <p className="text-base font-bold text-slate-700">Click to upload answer images</p>
-                                                 <p className="text-sm text-slate-400 mt-1">Supports JPG, PNG (Max 5MB)</p>
-                                             </div>
+                                             )}
                                          </div>
 
-                                         {uploadedFiles[q.id] && uploadedFiles[q.id].length > 0 && (
-                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4 animate-fade-in">
-                                                 {uploadedFiles[q.id].map((img, imgIdx) => (
-                                                     <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-[3/4] shadow-sm">
-                                                         <img src={img} alt="Answer" className="w-full h-full object-cover" />
-                                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                             <button 
-                                                                onClick={() => removeImage(q.id, imgIdx)}
-                                                                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transform hover:scale-110 transition-all"
-                                                             >
-                                                                 <X size={16} />
-                                                             </button>
+                                         {/* MCQ Options Area */}
+                                         {exam.examFormat === 'MCQ' && q.options && (
+                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                 {q.options.map((opt, optIdx) => (
+                                                     <label 
+                                                        key={optIdx} 
+                                                        className={`group relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                                                            answers[questionKey] === optIdx 
+                                                            ? 'bg-indigo-50 border-indigo-600 shadow-md transform scale-[1.01]' 
+                                                            : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50'
+                                                        }`}
+                                                     >
+                                                         <input 
+                                                            type="radio" 
+                                                            name={`q_${questionKey}`} 
+                                                            className="sr-only"
+                                                            checked={answers[questionKey] === optIdx}
+                                                            onChange={() => handleOptionSelect(questionKey, optIdx)}
+                                                         />
+                                                         
+                                                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-4 shrink-0 transition-colors ${
+                                                             answers[questionKey] === optIdx 
+                                                             ? 'border-indigo-600 bg-indigo-600 text-white' 
+                                                             : 'border-slate-300 text-slate-400 group-hover:border-indigo-300'
+                                                         }`}>
+                                                             <span className="text-xs font-bold">{String.fromCharCode(65 + optIdx)}</span>
                                                          </div>
-                                                     </div>
+                                                         
+                                                         <span className={`text-sm font-medium ${answers[questionKey] === optIdx ? 'text-indigo-900' : 'text-slate-600'}`}>
+                                                             {opt}
+                                                         </span>
+
+                                                         {answers[questionKey] === optIdx && (
+                                                             <div className="absolute right-4 text-indigo-600">
+                                                                 <CheckCircle size={18} />
+                                                             </div>
+                                                         )}
+                                                     </label>
                                                  ))}
                                              </div>
                                          )}
-                                     </div>
-                                 )}
-                             </div>
 
-                             {/* Marks Indicator */}
-                             <div className="absolute top-4 right-4">
-                                 <Badge color="bg-slate-100 text-slate-600 font-bold border border-slate-200">{q.marks} Marks</Badge>
-                             </div>
-                         </div>
-                     </Card>
-                 ))}
+                                         {/* Written Upload Area */}
+                                         {exam.examFormat === 'WRITTEN' && (
+                                             <div className="space-y-4 mt-2">
+                                                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-start text-amber-800 text-sm">
+                                                     <AlertOctagon size={20} className="mr-3 mt-0.5 shrink-0" />
+                                                     <p>Please write your answer on paper, take a clear photo, and upload it here. You can upload multiple images.</p>
+                                                 </div>
+                                                 
+                                                 <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-white hover:bg-indigo-50/30 hover:border-indigo-300 transition-all relative cursor-pointer group">
+                                                     <input 
+                                                        type="file" 
+                                                        multiple 
+                                                        accept="image/*"
+                                                        onChange={(e) => handleImageUpload(e, questionKey)}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                     />
+                                                     <div className="flex flex-col items-center pointer-events-none">
+                                                         <div className="p-4 bg-indigo-50 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                                                             <Upload size={28} className="text-indigo-600" />
+                                                         </div>
+                                                         <p className="text-base font-bold text-slate-700">Click to upload answer images</p>
+                                                         <p className="text-sm text-slate-400 mt-1">Supports JPG, PNG (Max 5MB)</p>
+                                                     </div>
+                                                 </div>
+
+                                                 {currentFiles.length > 0 && (
+                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4 animate-fade-in">
+                                                         {currentFiles.map((img, imgIdx) => (
+                                                             <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-[3/4] shadow-sm">
+                                                                 <img src={img} alt="Answer" className="w-full h-full object-cover" />
+                                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                     <button 
+                                                                        onClick={() => removeImage(questionKey, imgIdx)}
+                                                                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transform hover:scale-110 transition-all"
+                                                                     >
+                                                                         <X size={16} />
+                                                                     </button>
+                                                                 </div>
+                                                             </div>
+                                                         ))}
+                                                     </div>
+                                                 )}
+                                             </div>
+                                         )}
+                                     </div>
+
+                                     {/* Marks Indicator */}
+                                     <div className="absolute top-4 right-4">
+                                         <Badge color="bg-slate-100 text-slate-600 font-bold border border-slate-200">{q.marks} Marks</Badge>
+                                     </div>
+                                 </div>
+                             </Card>
+                         )
+                     })
+                 )}
              </div>
 
              {/* Footer Actions */}
