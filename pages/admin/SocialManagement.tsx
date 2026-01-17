@@ -21,6 +21,10 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
   const [banReason, setBanReason] = useState('');
   const [isBanModalOpen, setIsBanModalOpen] = useState(false);
 
+  // Delete Confirmation State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+
   // --- ANALYTICS ---
   const stats = useMemo(() => {
       const totalPosts = posts.length;
@@ -32,10 +36,17 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
 
   // --- ACTIONS ---
 
-  const handleDeletePost = (id: string) => {
-    if (confirm("Permanently delete this post? This action cannot be undone.")) {
-      setPosts(posts.filter(p => p.id !== id));
-    }
+  const initiateDeletePost = (id: string) => {
+      setPostToDelete(id);
+      setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeletePost = () => {
+      if (postToDelete) {
+          setPosts(posts.filter(p => p.id !== postToDelete));
+          setIsDeleteModalOpen(false);
+          setPostToDelete(null);
+      }
   };
 
   const handleDismissReport = (reportId: string) => {
@@ -228,7 +239,7 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
                                 </div>
                             </div>
                             <button 
-                                onClick={() => handleDeletePost(post.id)} 
+                                onClick={() => initiateDeletePost(post.id)} 
                                 className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"
                                 title="Force Delete Post"
                             >
@@ -249,6 +260,23 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
             </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Confirm Deletion">
+          <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                  <Trash2 size={24} className="mr-3 shrink-0 mt-1" />
+                  <div>
+                      <p className="font-bold">Permanently delete this post?</p>
+                      <p className="text-xs mt-1">This action cannot be undone.</p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                  <Button variant="danger" onClick={confirmDeletePost}>Delete Post</Button>
+              </div>
+          </div>
+      </Modal>
 
       {/* Ban / Punishment Modal */}
       <Modal isOpen={isBanModalOpen} onClose={() => setIsBanModalOpen(false)} title="Take Action">
