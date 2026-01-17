@@ -105,6 +105,7 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onStart }) => {
 };
 
 const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, submissions = [], onSubmissionCreate, currentUser }) => {
+  // --- 1. DEFINE ALL HOOKS FIRST (Order must not change) ---
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'HISTORY'>('AVAILABLE');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
@@ -136,20 +137,9 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       }
   };
 
-  // If taking an exam, show the interface
-  if (activeExam) {
-      return (
-        <ExamLiveInterface 
-            exam={activeExam} 
-            onExit={() => setActiveExam(null)} 
-            onComplete={onExamComplete}
-            onSubmissionCreate={onSubmissionCreate}
-        />
-      );
-  }
-
   // Filter only EXAM type folders
-  const examFolders = folders.filter(f => f.type === 'EXAM');
+  // Using useMemo to prevent recalculation on every render
+  const examFolders = useMemo(() => folders.filter(f => f.type === 'EXAM'), [folders]);
 
   // --- GROUPING LOGIC ---
   const foldersByClass = useMemo(() => {
@@ -164,14 +154,27 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       return groups;
   }, [examFolders]);
 
-  const sortedClassKeys = Object.keys(foldersByClass).sort((a, b) => {
+  const sortedClassKeys = useMemo(() => Object.keys(foldersByClass).sort((a, b) => {
       if (a.includes('General')) return 1;
       if (b.includes('General')) return -1;
       return a.localeCompare(b);
-  });
+  }), [foldersByClass]);
 
   // --- HISTORY LOGIC ---
-  const myHistory = submissions.filter(sub => sub.studentId === currentUser?.id);
+  const myHistory = useMemo(() => submissions.filter(sub => sub.studentId === currentUser?.id), [submissions, currentUser]);
+
+  // --- 2. CONDITIONAL RETURN (AFTER Hooks) ---
+  // If taking an exam, show the interface
+  if (activeExam) {
+      return (
+        <ExamLiveInterface 
+            exam={activeExam} 
+            onExit={() => setActiveExam(null)} 
+            onComplete={onExamComplete}
+            onSubmissionCreate={onSubmissionCreate}
+        />
+      );
+  }
 
   // --- RENDER CONTENT ---
   return (
