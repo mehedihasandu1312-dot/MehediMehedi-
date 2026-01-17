@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Exam, StudentResult } from '../../types';
+import { Exam, StudentResult, ExamSubmission } from '../../types';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Clock, CheckCircle, Upload, X, AlertOctagon, Image as ImageIcon, AlertTriangle, HelpCircle, Check, ArrowLeft, PlayCircle } from 'lucide-react';
 import { authService } from '../../services/authService';
@@ -8,9 +8,10 @@ interface ExamLiveInterfaceProps {
     exam: Exam;
     onExit: () => void;
     onComplete: (result: StudentResult) => void;
+    onSubmissionCreate?: (submission: ExamSubmission) => void; // New Prop for Written Exams
 }
 
-const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onComplete }) => {
+const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onComplete, onSubmissionCreate }) => {
     const [timeLeft, setTimeLeft] = useState(exam.durationMinutes * 60);
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -110,6 +111,32 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         setIsSubmitted(true);
         if (exam.examFormat === 'MCQ') {
             calculateMCQResult();
+        } else {
+            submitWrittenExam();
+        }
+    };
+
+    const submitWrittenExam = () => {
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) return;
+
+        // Create Submission Object
+        const submission: ExamSubmission = {
+            id: `sub_${Date.now()}`,
+            examId: exam.id,
+            studentId: currentUser.id,
+            studentName: currentUser.name,
+            submittedAt: new Date().toISOString(),
+            status: 'PENDING',
+            obtainedMarks: 0,
+            answers: exam.questionList?.map(q => ({
+                questionId: q.id,
+                writtenImages: uploadedFiles[q.id] || []
+            })) || []
+        };
+
+        if (onSubmissionCreate) {
+            onSubmissionCreate(submission);
         }
     };
 
@@ -151,7 +178,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
             score: finalScore,
             totalMarks: exam.totalMarks,
             negativeDeduction: neg,
-            date: new Date().toISOString(), // FIXED: Use ISO String for consistent parsing
+            date: new Date().toISOString(), 
             status: resultStatus
         });
     };

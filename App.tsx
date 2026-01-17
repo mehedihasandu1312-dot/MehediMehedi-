@@ -23,9 +23,9 @@ import NoticeManagement from './pages/admin/NoticeManagement';
 import SocialManagement from './pages/admin/SocialManagement';
 import ExamGrading from './pages/admin/ExamGrading';
 import SystemSettingsPage from './pages/admin/SystemSettings'; // New Import
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings } from './types';
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission } from './types';
 import { authService } from './services/authService';
-import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS } from './constants';
+import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS } from './constants';
 import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -161,6 +161,9 @@ const App: React.FC = () => {
   const [socialReports, setSocialReports, reportsLoading] = useFirestoreCollection<SocialReport>('social_reports', MOCK_REPORTS);
   const [adminLogs, setAdminLogs, logsLoading] = useFirestoreCollection<AdminActivityLog>('admin_logs', MOCK_ADMIN_LOGS);
   
+  // --- SUBMISSIONS COLLECTION (NEW) ---
+  const [submissions, setSubmissions, submissionsLoading] = useFirestoreCollection<ExamSubmission>('submissions', MOCK_SUBMISSIONS);
+
   // --- SETTINGS COLLECTION ---
   const [settings, setSettings, settingsLoading] = useFirestoreCollection<SystemSettings>('settings', [{
       id: 'global_settings',
@@ -192,7 +195,7 @@ const App: React.FC = () => {
 
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
                         blogFoldersLoading || blogsLoading || noticesLoading || appealsLoading || 
-                        socialLoading || reportsLoading || logsLoading || settingsLoading;
+                        socialLoading || reportsLoading || logsLoading || settingsLoading || submissionsLoading;
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -214,6 +217,10 @@ const App: React.FC = () => {
           authService.updateProfile({ points: updatedUser.points }); 
           setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
       }
+  };
+
+  const handleSubmissionCreate = (submission: ExamSubmission) => {
+      setSubmissions(prev => [submission, ...prev]);
   };
 
   const handleBlogView = (blogId: string) => {
@@ -352,7 +359,10 @@ const App: React.FC = () => {
                     <ExamsPage 
                         exams={studentExams} 
                         folders={studentFolders} 
+                        submissions={submissions}
                         onExamComplete={handleExamComplete}
+                        onSubmissionCreate={handleSubmissionCreate}
+                        currentUser={user}
                     />
                 } 
               />
@@ -406,8 +416,18 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              {/* Pass exams and currentUser to Grading */}
-              <Route path="/admin/grading" element={<ExamGrading exams={exams} currentUser={user} />} />
+              {/* Pass submissions, exams and currentUser to Grading */}
+              <Route 
+                path="/admin/grading" 
+                element={
+                    <ExamGrading 
+                        exams={exams} 
+                        currentUser={user} 
+                        submissions={submissions}
+                        setSubmissions={setSubmissions}
+                    />
+                } 
+              />
               <Route 
                 path="/admin/blog" 
                 element={

@@ -1,16 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
-import { MOCK_SUBMISSIONS } from '../../constants';
 import { ExamSubmission, Exam, User } from '../../types';
 import { CheckSquare, Save, FolderOpen, ChevronDown, ChevronRight, FileCheck, Clock, CheckCircle2, UserCheck, Target, MessageCircle, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface Props {
     exams?: Exam[]; 
     currentUser?: User | null;
+    submissions: ExamSubmission[];
+    setSubmissions: React.Dispatch<React.SetStateAction<ExamSubmission[]>>;
 }
 
-const ExamGrading: React.FC<Props> = ({ exams = [], currentUser }) => {
-    const [submissions, setSubmissions] = useState<ExamSubmission[]>(MOCK_SUBMISSIONS);
+const ExamGrading: React.FC<Props> = ({ exams = [], currentUser, submissions, setSubmissions }) => {
     const [selectedSubmission, setSelectedSubmission] = useState<ExamSubmission | null>(null);
     
     // Grading State
