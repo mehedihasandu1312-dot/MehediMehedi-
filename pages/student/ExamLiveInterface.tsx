@@ -8,14 +8,14 @@ interface ExamLiveInterfaceProps {
     exam: Exam;
     onExit: () => void;
     onComplete: (result: StudentResult) => void;
-    onSubmissionCreate?: (submission: ExamSubmission) => void; // New Prop for Written Exams
+    onSubmissionCreate?: (submission: ExamSubmission) => void; 
 }
 
 const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onComplete, onSubmissionCreate }) => {
-    // Safety check if exam prop is missing
-    if (!exam) return <div className="p-8 text-center">Loading Exam Data...</div>;
-
-    const [timeLeft, setTimeLeft] = useState((exam.durationMinutes || 30) * 60);
+    // Hooks must be called unconditionally. We use default values if exam is missing to prevent crashes,
+    // though the parent component should ensure exam is present.
+    const duration = exam?.durationMinutes || 30;
+    const [timeLeft, setTimeLeft] = useState(duration * 60);
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -57,6 +57,20 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         return () => clearInterval(timer);
     }, [isSubmitted]);
 
+    // Calculate Attempted Count
+    const attemptedCount = useMemo(() => {
+        if (!exam) return 0;
+        if (exam.examFormat === 'MCQ') {
+            return Object.keys(answers).length;
+        } else {
+            // For written, count questions that have at least one uploaded file
+            return Object.keys(uploadedFiles).filter(key => uploadedFiles[key] && uploadedFiles[key].length > 0).length;
+        }
+    }, [answers, uploadedFiles, exam]);
+
+    // --- SAFETY CHECK: If exam prop is somehow missing after hooks ---
+    if (!exam) return <div className="p-8 text-center text-slate-500">Loading Exam Data...</div>;
+
     // Format Time
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -82,14 +96,14 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, qId: string) => {
         if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files);
-            // Limit to 5 files per question to prevent heavy load
+            
+            // Validation
             if (files.length > 5) {
                 alert("You can upload maximum 5 images per question.");
                 return;
             }
 
             files.forEach((file: File) => {
-                // Check file size (max 5MB)
                 if (file.size > 5 * 1024 * 1024) {
                     alert(`File ${file.name} is too large. Max 5MB allowed.`);
                     return;
@@ -113,19 +127,9 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     const removeImage = (qId: string, index: number) => {
         setUploadedFiles(prev => ({
             ...prev,
-            [qId]: prev[qId].filter((_, i) => i !== index)
+            [qId]: (prev[qId] || []).filter((_, i) => i !== index)
         }));
     };
-
-    // Calculate Attempted Count
-    const attemptedCount = useMemo(() => {
-        if (exam.examFormat === 'MCQ') {
-            return Object.keys(answers).length;
-        } else {
-            // For written, count questions that have at least one uploaded file
-            return Object.keys(uploadedFiles).filter(key => uploadedFiles[key] && uploadedFiles[key].length > 0).length;
-        }
-    }, [answers, uploadedFiles, exam.examFormat]);
 
     const confirmSubmit = () => {
         setShowConfirmModal(true);
@@ -189,7 +193,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         setNegativeDeduction(neg);
         setScore(finalScore);
 
-        // Notify parent App about the result
         const percentage = (finalScore / exam.totalMarks) * 100;
         const resultStatus = percentage >= 80 ? 'MERIT' : percentage >= 40 ? 'PASSED' : 'FAILED';
         const currentUser = authService.getCurrentUser();
@@ -207,7 +210,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         });
     };
 
-    // --- RESULT VIEW ---
+    // --- RESULT VIEW (MCQ) ---
     if (isSubmitted && exam.examFormat === 'MCQ') {
         const accuracy = exam.questionList && exam.questionList.length > 0 
             ? Math.round((correctCount / exam.questionList.length) * 100) 
@@ -215,7 +218,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
 
         return (
             <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-8 pb-20">
-                {/* Result Summary Card */}
                 <Card className="text-center p-8 border-t-8 border-t-indigo-600 shadow-lg">
                     <div className="mb-6">
                         <h2 className="text-3xl font-bold text-slate-800">Exam Result</h2>
@@ -223,9 +225,14 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                     </div>
                     
                     <div className="flex flex-col md:flex-row justify-center items-center gap-8 mb-8">
-                        {/* Score Circle */}
                         <div className="relative w-40 h-40 flex items-center justify-center">
-                            <svg className="w-full h-full" viewBox="0 0 36 36">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <span className={`text-4xl font-bold ${score >= (exam.totalMarks * 0.4) ? "text-emerald-600" : "text-rose-600"}`}>
+                                    {score.toFixed(1)}
+                                </span>
+                                <span className="text-xs text-slate-400 uppercase font-bold">Total Score</span>
+                            </div>
+                            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                                 <path
                                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                     fill="none"
@@ -240,15 +247,8 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                                     strokeDasharray={`${(score / exam.totalMarks) * 100}, 100`}
                                 />
                             </svg>
-                            <div className="absolute flex flex-col items-center">
-                                <span className={`text-4xl font-bold ${score >= (exam.totalMarks * 0.4) ? "text-emerald-600" : "text-rose-600"}`}>
-                                    {score.toFixed(1)}
-                                </span>
-                                <span className="text-xs text-slate-400 uppercase font-bold">Total Score</span>
-                            </div>
                         </div>
 
-                        {/* Stats Grid */}
                         <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
                             <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center">
                                 <div className="text-2xl font-bold text-emerald-600">{correctCount}</div>
@@ -285,8 +285,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                          const isSkipped = userAnswer === undefined;
                          const isCorrect = userAnswer === q.correctOption;
                          
-                         // Determine Card Style
-                         let cardStyle = "border-l-4 border-slate-300"; // Default Skipped
+                         let cardStyle = "border-l-4 border-slate-300"; 
                          let badge = <Badge color="bg-slate-100 text-slate-600">Skipped</Badge>;
 
                          if (!isSkipped) {
@@ -302,12 +301,9 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                          return (
                              <Card key={q.id} className={`${cardStyle} relative overflow-hidden`}>
                                  <div className="flex gap-4">
-                                     <div className="flex flex-col items-center">
-                                         <span className="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full font-bold text-slate-600 text-sm">
-                                             {idx + 1}
-                                         </span>
+                                     <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-sm text-white shrink-0">
+                                         {idx + 1}
                                      </div>
-                                     
                                      <div className="flex-1">
                                          <div className="flex justify-between items-start mb-3">
                                              <div className="pr-4">
@@ -368,6 +364,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         )
     }
 
+    // --- SUBMISSION CONFIRMATION (WRITTEN) ---
     if (isSubmitted && exam.examFormat === 'WRITTEN') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
@@ -405,7 +402,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
              {/* Question Body */}
              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 max-w-4xl mx-auto w-full pb-32">
                  {exam.questionList?.map((q, idx) => (
-                     <Card key={q.id} className="relative border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                     <Card key={q.id || idx} className="relative border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                          <div className="flex gap-4">
                              {/* Question Number */}
                              <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-lg shadow-slate-200">
@@ -527,7 +524,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
              <div className="bg-white p-4 border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30 fixed bottom-0 w-full md:w-[calc(100%-256px)] right-0">
                  <div className="max-w-4xl mx-auto flex justify-between items-center">
                      <div className="text-sm text-slate-500 font-medium">
-                         <span className="text-indigo-600 font-bold">{attemptedCount}</span> of {exam.questionList?.length} Attempted
+                         <span className="text-indigo-600 font-bold">{attemptedCount}</span> of {exam.questionList?.length || 0} Attempted
                      </div>
                      <Button 
                         size="lg"
@@ -547,7 +544,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                      </div>
                      <h3 className="text-xl font-bold text-slate-800 mb-2">Are you sure?</h3>
                      <p className="text-slate-500 mb-6">
-                         You have answered <strong className="text-indigo-600">{attemptedCount}</strong> out of <strong className="text-slate-800">{exam.questionList?.length}</strong> questions.
+                         You have answered <strong className="text-indigo-600">{attemptedCount}</strong> out of <strong className="text-slate-800">{exam.questionList?.length || 0}</strong> questions.
                          <br/>
                          Once submitted, you cannot change your answers.
                      </p>
