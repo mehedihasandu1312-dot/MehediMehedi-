@@ -228,12 +228,11 @@ const App: React.FC = () => {
   };
 
   // --- FILTER LOGIC FOR STUDENT VIEW ---
-  // Only show folders and exams relevant to the student's class
+  // Only show folders, exams, and notices relevant to the student's class
   const getFilteredDataForStudent = () => {
       if (!user || user.role !== UserRole.STUDENT || !user.class) {
           // If no class set or not student, return all (or empty if strict)
-          // For safety, if class is not set, maybe return nothing or generic
-          return { studentFolders: folders, studentExams: exams }; 
+          return { studentFolders: folders, studentExams: exams, studentNotices: notices }; 
       }
 
       const studentFolders = folders.filter(f => 
@@ -258,10 +257,15 @@ const App: React.FC = () => {
           return true;
       });
 
-      return { studentFolders, studentExams };
+      // NOTICE FILTERING: Show General notices OR class-specific notices
+      const studentNotices = notices.filter(n => 
+          !n.targetClass || n.targetClass === 'ALL' || n.targetClass === user.class
+      );
+
+      return { studentFolders, studentExams, studentNotices };
   };
 
-  const { studentFolders, studentExams } = getFilteredDataForStudent();
+  const { studentFolders, studentExams, studentNotices } = getFilteredDataForStudent();
 
 
   if (authLoading || (user && globalLoading)) {
@@ -309,7 +313,7 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              <Route path="/student/notice" element={<Notice notices={notices} />} />
+              <Route path="/student/notice" element={<Notice notices={studentNotices} />} />
               <Route path="/student/social" element={<SocialPost posts={socialPosts} setPosts={setSocialPosts} />} />
               <Route 
                 path="/student/content" 
@@ -394,7 +398,7 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              <Route path="/admin/notice" element={<NoticeManagement notices={notices} setNotices={setNotices} />} />
+              <Route path="/admin/notice" element={<NoticeManagement notices={notices} setNotices={setNotices} educationLevels={currentEducationLevels} />} />
               <Route 
                 path="/admin/social" 
                 element={

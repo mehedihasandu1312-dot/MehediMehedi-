@@ -168,6 +168,7 @@ export interface Notice {
   content: string;
   image?: string; // Added image support for notices
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  targetClass?: string; // NEW: Audience targeting (All or specific class)
 }
 
 export interface BlogPost {

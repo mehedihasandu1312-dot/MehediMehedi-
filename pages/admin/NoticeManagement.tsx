@@ -1,19 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Notice } from '../../types';
-import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone } from 'lucide-react';
 
 interface Props {
   notices: Notice[];
   setNotices: React.Dispatch<React.SetStateAction<Notice[]>>;
+  educationLevels: { REGULAR: string[], ADMISSION: string[] }; // ADDED
 }
 
-const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
+const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevels }) => {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     image: '',
-    priority: 'LOW' as 'HIGH' | 'MEDIUM' | 'LOW'
+    priority: 'LOW' as 'HIGH' | 'MEDIUM' | 'LOW',
+    targetClass: '' // NEW
   });
   
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
@@ -27,10 +29,12 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
       content: formData.content,
       image: formData.image || undefined,
       priority: formData.priority,
+      targetClass: formData.targetClass || undefined, // Save target class
       date: new Date().toISOString()
     };
+    // Prepend to top
     setNotices([newNotice, ...notices]);
-    setFormData({ title: '', content: '', image: '', priority: 'LOW' });
+    setFormData({ title: '', content: '', image: '', priority: 'LOW', targetClass: '' });
     alert("Notice posted successfully!");
   };
 
@@ -65,8 +69,11 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-800">Notice Management</h1>
+    <div className="space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+          <Megaphone className="mr-3 text-indigo-600" size={28} />
+          Notice Management
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Form */}
@@ -82,14 +89,35 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
                   value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Notice Headline" />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
-                <select className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value as any})}>
-                  <option value="LOW">Low - General Info</option>
-                  <option value="MEDIUM">Medium - Important</option>
-                  <option value="HIGH">High - Critical</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
+                    <select className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value as any})}>
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Audience</label>
+                    <div className="relative">
+                        <Target size={14} className="absolute left-2.5 top-3 text-slate-400" />
+                        <select 
+                            className="w-full pl-8 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                            value={formData.targetClass}
+                            onChange={e => setFormData({...formData, targetClass: e.target.value})}
+                        >
+                            <option value="">All Students</option>
+                            <optgroup label="Regular & Job Prep">
+                                {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                            </optgroup>
+                            <optgroup label="Admission">
+                                {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                            </optgroup>
+                        </select>
+                    </div>
+                  </div>
               </div>
               
               <div>
@@ -141,20 +169,27 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
 
         {/* List */}
         <div className="lg:col-span-2 space-y-4">
-          {notices.length === 0 && <Card className="text-center py-10 text-slate-400">No notices active.</Card>}
+          {notices.length === 0 && <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">No notices active.</div>}
           {notices.map(notice => (
             <Card key={notice.id} className={`flex flex-col border-l-4 ${notice.priority === 'HIGH' ? 'border-l-red-500' : 'border-l-slate-200'}`}>
                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-800 text-lg">{notice.title}</h3>
-                  <div className="flex items-center space-x-2">
-                    <Badge color={getPriorityColor(notice.priority)}>{notice.priority}</Badge>
-                    <button onClick={() => initiateDelete(notice.id)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={16} /></button>
+                  <div>
+                      <h3 className="font-bold text-slate-800 text-lg">{notice.title}</h3>
+                      <div className="flex gap-2 mt-1">
+                          <Badge color={getPriorityColor(notice.priority)}>{notice.priority}</Badge>
+                          {notice.targetClass ? (
+                              <Badge color="bg-indigo-100 text-indigo-700">{notice.targetClass}</Badge>
+                          ) : (
+                              <Badge color="bg-slate-100 text-slate-600">Public (All)</Badge>
+                          )}
+                      </div>
                   </div>
+                  <button onClick={() => initiateDelete(notice.id)} className="text-slate-400 hover:text-red-500 p-1 bg-slate-50 rounded"><Trash2 size={16} /></button>
                </div>
                <p className="text-xs text-slate-400 mb-3 flex items-center">
                  <Calendar size={12} className="mr-1" /> {new Date(notice.date).toLocaleDateString()}
                </p>
-               <p className="text-slate-600 text-sm mb-2">{notice.content}</p>
+               <p className="text-slate-600 text-sm mb-2 whitespace-pre-wrap">{notice.content}</p>
                
                {/* Image Preview in Admin List */}
                {notice.image && (
@@ -162,7 +197,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices }) => {
                        <div className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center">
                            <ImageIcon size={12} className="mr-1" /> Attached Image
                        </div>
-                       <img src={notice.image} alt="Notice Attachment" className="h-20 w-auto rounded border border-slate-200" />
+                       <img src={notice.image} alt="Notice Attachment" className="h-20 w-auto rounded border border-slate-200 object-cover" />
                    </div>
                )}
             </Card>

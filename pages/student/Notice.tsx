@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Badge } from '../../components/UI';
 import { Notice as NoticeType } from '../../types';
-import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon } from 'lucide-react';
+import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon, Target } from 'lucide-react';
 
 interface Props {
     notices?: NoticeType[];
@@ -62,6 +62,15 @@ const Notice: React.FC<Props> = ({ notices = [] }) => {
                                         {new Date(notice.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
+                                
+                                {notice.targetClass && (
+                                    <div className="mb-2">
+                                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full flex items-center w-fit">
+                                            <Target size={10} className="mr-1" /> {notice.targetClass} Only
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="flex items-center text-xs text-slate-500 mb-2">
                                     <p className="line-clamp-2 leading-relaxed flex-1 mr-2">
                                         {notice.content}
@@ -105,10 +114,13 @@ const Notice: React.FC<Props> = ({ notices = [] }) => {
                       {/* Detail Body */}
                       <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
                           <div className="max-w-3xl mx-auto">
-                              <div className="mb-6">
+                              <div className="mb-6 flex gap-2">
                                   <Badge color={getPriorityColor(selectedNotice.priority)}>
                                       {selectedNotice.priority} PRIORITY
                                   </Badge>
+                                  {selectedNotice.targetClass && (
+                                      <Badge color="bg-indigo-100 text-indigo-700">For {selectedNotice.targetClass}</Badge>
+                                  )}
                               </div>
                               
                               <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-6 font-serif leading-tight">
