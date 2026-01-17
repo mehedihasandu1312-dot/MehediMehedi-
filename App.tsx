@@ -55,6 +55,17 @@ function useFirestoreCollection<T extends { id: string }>(
     const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
       // FIX: Ensure ID is included from doc.id, overriding data if necessary
       const fetchedData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as T);
+      
+      // SORT: Latest (Largest ID) First
+      // This works because we use timestamp-based IDs (e.g., folder_170...)
+      fetchedData.sort((a, b) => {
+          const idA = a.id.toString();
+          const idB = b.id.toString();
+          if (idA < idB) return 1; 
+          if (idA > idB) return -1;
+          return 0;
+      });
+
       setData(fetchedData);
       setLoading(false);
       setInitialized(true);
@@ -122,8 +133,15 @@ function useFirestoreCollection<T extends { id: string }>(
       
       sync();
       
-      // Optimistic update for UI responsiveness
-      setData(newState);
+      // Optimistic update for UI responsiveness (Sorted to match incoming snapshot behavior)
+      const sortedState = [...newState].sort((a, b) => {
+          const idA = a.id.toString();
+          const idB = b.id.toString();
+          if (idA < idB) return 1; 
+          if (idA > idB) return -1;
+          return 0;
+      });
+      setData(sortedState);
   };
 
   return [data, setSyncedData, loading];
