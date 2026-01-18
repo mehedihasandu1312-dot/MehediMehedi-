@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Exam, Folder, StudentResult, ExamSubmission, User } from '../../types';
-import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen, FileQuestion, Target, Layers, History, CheckCircle, MessageSquare, X } from 'lucide-react';
+import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen, FileQuestion, Target, Layers, History, CheckCircle, MessageSquare, X, Lock, Crown } from 'lucide-react';
 import ExamLiveInterface from './ExamLiveInterface';
-import AdModal from '../../components/AdModal'; // Import Ad Modal
+import AdModal from '../../components/AdModal'; 
+import { authService } from '../../services/authService';
+import { useNavigate } from 'react-router-dom';
 
 interface ExamsPageProps {
     exams: Exam[];
@@ -14,7 +16,6 @@ interface ExamsPageProps {
     currentUser?: User | null; 
 }
 
-// Helper function moved outside component
 const getExamStatus = (exam: Exam) => {
     if (exam.type === 'GENERAL') return { status: 'OPEN', label: 'Practice', color: 'bg-emerald-100 text-emerald-700' };
     
@@ -33,7 +34,6 @@ const getExamStatus = (exam: Exam) => {
     }
 };
 
-// Helper for deterministic gradient colors
 const getGradientClass = (index: number) => {
     const gradients = [
         'bg-gradient-to-br from-rose-600 to-red-700 shadow-rose-200',       // Red
@@ -50,12 +50,13 @@ const getGradientClass = (index: number) => {
 interface ExamCardProps {
     exam: Exam;
     onStart: (exam: Exam) => void;
+    isLocked: boolean;
 }
 
-const ExamCard: React.FC<ExamCardProps> = ({ exam, onStart }) => {
+const ExamCard: React.FC<ExamCardProps> = ({ exam, onStart, isLocked }) => {
     const { status, label, color } = getExamStatus(exam);
     return (
-      <Card className="relative overflow-hidden hover:shadow-md transition-shadow border border-slate-200">
+      <Card className={`relative overflow-hidden transition-all border border-slate-200 ${isLocked ? 'bg-slate-50 opacity-90' : 'hover:shadow-md'}`}>
           {/* Status Badge */}
           <div className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-lg ${color}`}>
               {label}
@@ -63,9 +64,16 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onStart }) => {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between p-1">
               <div className="mb-4 md:mb-0">
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                      {exam.title}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                      <h3 className={`text-lg font-bold flex items-center ${isLocked ? 'text-slate-500' : 'text-slate-800'}`}>
+                          {exam.title}
+                      </h3>
+                      {exam.isPremium && (
+                          <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center border border-amber-200">
+                              <Crown size={10} className="mr-1" fill="currentColor"/> Premium
+                          </span>
+                      )}
+                  </div>
                   <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
                       <Badge color={exam.examFormat === 'MCQ' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}>
                           {exam.examFormat}
@@ -85,11 +93,15 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onStart }) => {
               </div>
               <div className="flex items-center">
                   <Button 
-                      variant={status === 'UPCOMING' ? "outline" : "primary"}
+                      variant={status === 'UPCOMING' || isLocked ? "outline" : "primary"}
                       onClick={() => onStart(exam)}
-                      className={`w-full md:w-auto ${status === 'LIVE' ? 'bg-red-600 hover:bg-red-700 border-transparent text-white' : ''}`}
+                      className={`w-full md:w-auto ${status === 'LIVE' && !isLocked ? 'bg-red-600 hover:bg-red-700 border-transparent text-white' : ''}`}
                   >
-                      {status === 'UPCOMING' ? (
+                      {isLocked ? (
+                          <span className="flex items-center justify-center text-slate-500">
+                              <Lock size={16} className="mr-2"/> Unlock
+                          </span>
+                      ) : status === 'UPCOMING' ? (
                           <span className="flex items-center justify-center">Wait for Start</span>
                       ) : (
                           <span className="flex items-center justify-center">
@@ -105,24 +117,19 @@ const ExamCard: React.FC<ExamCardProps> = ({ exam, onStart }) => {
 };
 
 const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, submissions = [], onSubmissionCreate, currentUser }) => {
-  // --- 1. DEFINE ALL HOOKS FIRST (Order must not change) ---
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'HISTORY'>('AVAILABLE');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
   
-  // Feedback Modal State
   const [selectedResult, setSelectedResult] = useState<ExamSubmission | null>(null);
-
-  // Ad State
   const [showExamAd, setShowExamAd] = useState(false);
   const [pendingExam, setPendingExam] = useState<Exam | null>(null);
   
-  // --- MEMOIZED VALUES (HOOKS) ---
-  
-  // Filter only EXAM type folders
+  const navigate = useNavigate();
+  const isPro = currentUser?.subscription?.status === 'ACTIVE';
+
   const examFolders = useMemo(() => folders.filter(f => f.type === 'EXAM'), [folders]);
 
-  // Grouping Logic
   const foldersByClass = useMemo(() => {
       const groups: Record<string, Folder[]> = {};
       examFolders.forEach(folder => {
@@ -139,18 +146,23 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       return a.localeCompare(b);
   }), [foldersByClass]);
 
-  // History Logic
   const myHistory = useMemo(() => submissions.filter(sub => sub.studentId === currentUser?.id), [submissions, currentUser]);
 
-  // --- HANDLERS (Not Hooks) ---
   const handleStartExam = (exam: Exam) => {
+      // Check Lock Status
+      if (exam.isPremium && !isPro) {
+          if(confirm("This exam is for Premium Members only. Do you want to upgrade?")) {
+              navigate('/student/subscription');
+          }
+          return;
+      }
+
       const { status } = getExamStatus(exam);
       if (status === 'UPCOMING') {
           alert(`This exam starts at ${new Date(exam.startTime!).toLocaleString()}`);
           return;
       }
       
-      // TRIGGER MANDATORY AD BEFORE EXAM
       setPendingExam(exam);
       setShowExamAd(true);
   };
@@ -158,13 +170,11 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
   const onAdComplete = () => {
       setShowExamAd(false);
       if (pendingExam) {
-          setActiveExam(pendingExam); // Actually start the exam now
+          setActiveExam(pendingExam); 
           setPendingExam(null);
       }
   };
 
-  // --- 2. CONDITIONAL RETURN (MUST BE AFTER ALL HOOKS) ---
-  // If taking an exam, show the interface
   if (activeExam) {
       return (
         <ExamLiveInterface 
@@ -176,11 +186,9 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       );
   }
 
-  // --- RENDER CONTENT ---
   return (
       <div className="space-y-6 animate-fade-in pb-10">
           
-          {/* TAB HEADER */}
           <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-slate-800">Exam Portal</h1>
               
@@ -200,7 +208,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
               </div>
           </div>
 
-          {/* VIEW: AVAILABLE EXAMS */}
           {activeTab === 'AVAILABLE' && (
               <>
                   <AdModal 
@@ -210,7 +217,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                     timerSeconds={5} 
                   />
 
-                  {/* FOLDER LEVEL */}
                   {!selectedFolderId && (
                       <div className="space-y-8">
                           {examFolders.length === 0 ? (
@@ -263,7 +269,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                       </div>
                   )}
 
-                  {/* EXAM LIST LEVEL */}
                   {selectedFolderId && (
                       <div className="space-y-6">
                           <div className="flex items-center mb-6">
@@ -285,9 +290,10 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                           ) : (
                               <div className="space-y-8">
                                   <div className="grid gap-4">
-                                      {exams.filter(e => e.folderId === selectedFolderId && e.isPublished).map(exam => (
-                                          <ExamCard key={exam.id} exam={exam} onStart={handleStartExam} />
-                                      ))}
+                                      {exams.filter(e => e.folderId === selectedFolderId && e.isPublished).map(exam => {
+                                          const isLocked = exam.isPremium && !isPro;
+                                          return <ExamCard key={exam.id} exam={exam} onStart={handleStartExam} isLocked={isLocked} />;
+                                      })}
                                   </div>
                               </div>
                           )}
@@ -296,7 +302,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
               </>
           )}
 
-          {/* VIEW: MY HISTORY (RESULTS) */}
           {activeTab === 'HISTORY' && (
               <div className="space-y-6">
                   {myHistory.length === 0 ? (
@@ -351,7 +356,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
               </div>
           )}
 
-          {/* FEEDBACK MODAL */}
           <Modal isOpen={!!selectedResult} onClose={() => setSelectedResult(null)} title="Exam Feedback">
               {selectedResult && (
                   <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
@@ -379,7 +383,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                       </div>
                                       
                                       <div className="p-4 space-y-3">
-                                          {/* Student Answer Images */}
                                           {ans.writtenImages && ans.writtenImages.length > 0 ? (
                                               <div className="flex gap-2 overflow-x-auto pb-2">
                                                   {ans.writtenImages.map((img, i) => (
@@ -392,7 +395,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                               <p className="text-xs text-slate-400 italic">No image answer uploaded.</p>
                                           )}
 
-                                          {/* Teacher Feedback */}
                                           {ans.feedback && (
                                               <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 text-sm">
                                                   <strong className="text-emerald-700 block text-xs uppercase mb-1">Teacher's Remark:</strong>

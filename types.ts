@@ -111,6 +111,7 @@ export interface StudyContent {
   questions?: number; // Count for MCQ (Legacy/Summary)
   questionList?: MCQQuestion[]; // Detailed MCQ data
   isDeleted?: boolean; // Soft delete
+  isPremium?: boolean; // NEW: Granular Lock
 }
 
 export interface Folder {
@@ -161,6 +162,7 @@ export interface Exam {
   isPublished: boolean;
   questionList?: ExamQuestion[]; // Detailed questions
   attempts?: number; // Track how many students took this
+  isPremium?: boolean; // NEW: Granular Lock
 }
 
 export interface ExamSubmission {
@@ -222,6 +224,7 @@ export interface BlogPost {
   thumbnail?: string;
   tags: string[];
   views: number; // New field for tracking views
+  isPremium?: boolean; // NEW: Granular Lock
 }
 
 export interface SocialPost {

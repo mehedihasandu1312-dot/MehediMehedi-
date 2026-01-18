@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, Newspaper } from 'lucide-react';
+import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, Newspaper, Lock, Crown } from 'lucide-react';
+import { authService } from '../../services/authService';
+import { useNavigate } from 'react-router-dom';
 
 interface BlogProps {
     folders: Folder[];
@@ -13,10 +15,12 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [readingBlog, setReadingBlog] = useState<BlogPost | null>(null);
 
-  // --- NAVIGATION HELPERS ---
+  const navigate = useNavigate();
+  const user = authService.getCurrentUser();
+  const isPro = user?.subscription?.status === 'ACTIVE';
+
   const currentFolder = folders.find(f => f.id === currentFolderId);
 
-  // Recursive Breadcrumbs
   const getBreadcrumbs = (folderId: string | null): Folder[] => {
     if (!folderId) return [];
     const folder = folders.find(f => f.id === folderId);
@@ -26,7 +30,6 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
 
   const breadcrumbs = useMemo(() => getBreadcrumbs(currentFolderId), [currentFolderId, folders]);
 
-  // Filter Items
   const displayedFolders = folders.filter(f => 
     (currentFolderId === null && !f.parentId) || f.parentId === currentFolderId
   );
@@ -34,6 +37,14 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
   const displayedBlogs = blogs.filter(b => b.folderId === (currentFolderId || 'root_unsupported'));
 
   const handleReadBlog = (blog: BlogPost) => {
+      // PREMIUM CHECK
+      if (blog.isPremium && !isPro) {
+          if(confirm("This article is for Premium Subscribers only. Upgrade now to read?")) {
+              navigate('/student/subscription');
+          }
+          return;
+      }
+
       setReadingBlog(blog);
       if (onViewBlog) {
           onViewBlog(blog.id);
@@ -48,12 +59,10 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
       }
   };
 
-  // VIEW: BLOG READING MODAL
   if (readingBlog) {
       return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-                  {/* Header */}
                   <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
                       <div className="flex items-center space-x-3">
                           <Badge color="bg-indigo-100 text-indigo-700">BLOG</Badge>
@@ -66,9 +75,8 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                       </button>
                   </div>
 
-                  {/* Scrollable Content */}
                   <div className="flex-1 overflow-y-auto">
-                      <div className="w-full h-64 md:h-80 bg-slate-200">
+                      <div className="w-full h-64 md:h-80 bg-slate-200 relative">
                           <img src={readingBlog.thumbnail} alt={readingBlog.title} className="w-full h-full object-cover" />
                       </div>
                       
@@ -86,7 +94,6 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                               <div className="whitespace-pre-wrap">{readingBlog.content}</div>
                           </div>
 
-                          {/* Tags Footer */}
                           <div className="mt-12 pt-6 border-t border-slate-100">
                               <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Related Topics</h4>
                               <div className="flex gap-2">
@@ -102,11 +109,9 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
       );
   }
 
-  // VIEW: EXPLORER
   return (
     <div className="space-y-6 animate-fade-in">
         
-        {/* Header */}
         <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-slate-800 flex items-center">
             <BookOpen className="mr-3 text-indigo-600" size={28} />
@@ -114,7 +119,6 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
             </h1>
         </div>
 
-        {/* Breadcrumbs Navigation */}
         <div className="flex items-center space-x-2 border-b border-slate-100 pb-4 overflow-x-auto">
             {currentFolderId !== null && (
                 <button 
@@ -148,7 +152,6 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
             </div>
         </div>
 
-        {/* SECTION: FOLDERS */}
         {displayedFolders.length > 0 && (
             <div>
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
@@ -156,7 +159,6 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {displayedFolders.map(folder => {
-                        // Count sub-items roughly (optional)
                         const subCount = folders.filter(f => f.parentId === folder.id).length + blogs.filter(b => b.folderId === folder.id).length;
                         return (
                             <div 
@@ -176,7 +178,6 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
             </div>
         )}
 
-        {/* SECTION: BLOGS */}
         <div>
             {displayedFolders.length > 0 && displayedBlogs.length > 0 && (
                 <div className="border-t border-slate-100 my-6"></div>
@@ -196,55 +197,80 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                 )
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {displayedBlogs.map(blog => (
-                        <Card key={blog.id} className="flex flex-col h-full overflow-hidden p-0 hover:shadow-lg transition-all group">
-                            <div className="h-48 overflow-hidden bg-slate-200 relative">
-                                <img 
-                                    src={blog.thumbnail} 
-                                    alt={blog.title} 
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
-                                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm flex items-center">
-                                    <Eye size={10} className="mr-1"/> {blog.views?.toLocaleString() || 0}
-                                </div>
-                            </div>
-                            
-                            <div className="p-5 flex flex-col flex-1">
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    {blog.tags.slice(0, 2).map(tag => (
-                                        <Badge key={tag} color="bg-indigo-50 text-indigo-600">#{tag}</Badge>
-                                    ))}
-                                </div>
-
-                                <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
-                                    {blog.title}
-                                </h3>
-                                
-                                <p className="text-slate-500 text-sm mb-4 line-clamp-3 flex-1">
-                                    {blog.excerpt}
-                                </p>
-                                
-                                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                                    <div className="flex items-center text-xs text-slate-500">
-                                        <User size={12} className="mr-1" /> {blog.author}
+                    {displayedBlogs.map(blog => {
+                        const isLocked = blog.isPremium && !isPro;
+                        return (
+                            <Card 
+                                key={blog.id} 
+                                className={`flex flex-col h-full overflow-hidden p-0 hover:shadow-lg transition-all group cursor-pointer ${isLocked ? 'opacity-80 hover:opacity-100' : ''}`}
+                                onClick={() => !isLocked && handleReadBlog(blog)} // Only click if unlocked, otherwise button handles it
+                            >
+                                <div className="h-48 overflow-hidden bg-slate-200 relative">
+                                    {blog.isPremium && (
+                                        <div className="absolute top-2 left-2 bg-amber-400 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md z-10 flex items-center">
+                                            <Crown size={10} className="mr-1" fill="currentColor"/> PREMIUM
+                                        </div>
+                                    )}
+                                    <img 
+                                        src={blog.thumbnail} 
+                                        alt={blog.title} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                    {isLocked && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
+                                            <div className="bg-white/20 p-3 rounded-full backdrop-blur-md border border-white/30">
+                                                <Lock className="text-white" size={32} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm flex items-center">
+                                        <Eye size={10} className="mr-1"/> {blog.views?.toLocaleString() || 0}
                                     </div>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        className="text-xs group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent transition-all"
-                                        onClick={() => handleReadBlog(blog)}
-                                    >
-                                        Read <ArrowRight size={12} className="ml-1" />
-                                    </Button>
                                 </div>
-                            </div>
-                        </Card>
-                    ))}
+                                
+                                <div className="p-5 flex flex-col flex-1">
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {blog.tags.slice(0, 2).map(tag => (
+                                            <Badge key={tag} color="bg-indigo-50 text-indigo-600">#{tag}</Badge>
+                                        ))}
+                                    </div>
+
+                                    <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                                        {blog.title}
+                                    </h3>
+                                    
+                                    <p className="text-slate-500 text-sm mb-4 line-clamp-3 flex-1">
+                                        {blog.excerpt}
+                                    </p>
+                                    
+                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                                        <div className="flex items-center text-xs text-slate-500">
+                                            <User size={12} className="mr-1" /> {blog.author}
+                                        </div>
+                                        <Button 
+                                            variant={isLocked ? 'outline' : 'outline'}
+                                            size="sm"
+                                            className={`text-xs transition-all ${isLocked ? 'border-amber-400 text-amber-600 hover:bg-amber-50' : 'group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent'}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleReadBlog(blog);
+                                            }}
+                                        >
+                                            {isLocked ? (
+                                                <span className="flex items-center"><Lock size={10} className="mr-1"/> Unlock</span>
+                                            ) : (
+                                                <span className="flex items-center">Read <ArrowRight size={12} className="ml-1" /></span>
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
         </div>
         
-        {/* Empty Root State */}
         {currentFolderId === null && displayedFolders.length === 0 && displayedBlogs.length === 0 && (
              <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">
                 <BookOpen size={48} className="mx-auto mb-4 opacity-20" />

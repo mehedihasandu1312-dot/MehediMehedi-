@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Badge } from './UI';
 import { Folder, MCQQuestion } from '../types';
-import { Plus, Trash2, CheckCircle, AlertCircle, Save } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, AlertCircle, Save, Crown } from 'lucide-react';
 
 interface McqContentFormProps {
   folders: Folder[];
   fixedFolderId?: string;
-  initialData?: { title: string; folderId: string; questionList?: MCQQuestion[] };
-  onSubmit: (data: { title: string; folderId: string; questions: number; questionList: MCQQuestion[] }) => void;
+  initialData?: { title: string; folderId: string; questionList?: MCQQuestion[]; isPremium?: boolean };
+  onSubmit: (data: { title: string; folderId: string; questions: number; questionList: MCQQuestion[]; isPremium: boolean }) => void;
 }
 
 const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId, initialData, onSubmit }) => {
   // Basic Info
   const [title, setTitle] = useState('');
   const [folderId, setFolderId] = useState(fixedFolderId || '');
+  const [isPremium, setIsPremium] = useState(false);
 
   // Question Builder State
   const [questions, setQuestions] = useState<MCQQuestion[]>([
@@ -24,6 +25,7 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
     if (initialData) {
       setTitle(initialData.title);
       setFolderId(initialData.folderId);
+      setIsPremium(initialData.isPremium || false);
       if (initialData.questionList && initialData.questionList.length > 0) {
         setQuestions(initialData.questionList);
       } else {
@@ -33,6 +35,7 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
     } else {
       setTitle('');
       setFolderId(fixedFolderId || '');
+      setIsPremium(false);
       setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
     }
   }, [initialData, fixedFolderId]);
@@ -101,20 +104,22 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
         title,
         folderId,
         questions: questions.length,
-        questionList: questions
+        questionList: questions,
+        isPremium
     });
 
     if (!initialData) {
         // Reset only if creating new
         setTitle('');
         setQuestions([{ id: `q_${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+        setIsPremium(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in h-[70vh] flex flex-col">
       {/* 1. Header Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">MCQ Set Title</label>
             <input 
@@ -127,22 +132,46 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
             />
         </div>
         
-        {!fixedFolderId && (
-            <div>
+        <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Select Folder</label>
-            <select 
-                required
-                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                value={folderId}
-                onChange={e => setFolderId(e.target.value)}
-            >
-                <option value="">Choose a folder...</option>
-                {folders.map(folder => (
-                <option key={folder.id} value={folder.id}>{folder.name}</option>
-                ))}
-            </select>
-            </div>
-        )}
+            {fixedFolderId ? (
+                <div className="w-full p-2 border border-slate-200 bg-slate-50 rounded-lg text-slate-600 truncate">
+                    {folders.find(f => f.id === fixedFolderId)?.name || 'Selected Folder'}
+                </div>
+            ) : (
+                <select 
+                    required
+                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    value={folderId}
+                    onChange={e => setFolderId(e.target.value)}
+                >
+                    <option value="">Choose a folder...</option>
+                    {folders.map(folder => (
+                    <option key={folder.id} value={folder.id}>{folder.name}</option>
+                    ))}
+                </select>
+            )}
+        </div>
+
+        {/* Premium Toggle */}
+        <div className="flex items-end">
+            <label className={`w-full flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${isPremium ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                <div className="flex items-center">
+                    <div className={`p-1 rounded-full mr-2 ${isPremium ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                        <Crown size={16} fill={isPremium ? "currentColor" : "none"} />
+                    </div>
+                    <span className={`text-sm font-bold ${isPremium ? 'text-amber-700' : 'text-slate-500'}`}>
+                        {isPremium ? 'Premium / Paid' : 'Free Content'}
+                    </span>
+                </div>
+                <input 
+                    type="checkbox" 
+                    className="w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
+                    checked={isPremium}
+                    onChange={e => setIsPremium(e.target.checked)}
+                />
+            </label>
+        </div>
       </div>
 
       <div className="border-t border-slate-200 my-2"></div>

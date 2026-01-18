@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
-import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X } from 'lucide-react';
-import AdBanner from '../../components/AdBanner'; // Import Ads
+import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown } from 'lucide-react';
+import AdBanner from '../../components/AdBanner'; 
+import { authService } from '../../services/authService';
+import { useNavigate } from 'react-router-dom';
 
 interface StudyContentPageProps {
     folders: Folder[];
@@ -10,7 +12,7 @@ interface StudyContentPageProps {
     onAppealSubmit?: (data: { contentId: string; contentTitle: string; text: string; image?: string }) => void;
 }
 
-// Helper for deterministic gradient colors (Consistent with Exams Page)
+// Helper for deterministic gradient colors
 const getGradientClass = (index: number) => {
     const gradients = [
         'bg-gradient-to-br from-rose-600 to-red-700 shadow-rose-200',       // Red
@@ -32,14 +34,17 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
   const [appealTarget, setAppealTarget] = useState<{ id: string, title: string } | null>(null);
   const [appealText, setAppealText] = useState('');
-  const [appealImage, setAppealImage] = useState<string>(''); // Base64 string for image
+  const [appealImage, setAppealImage] = useState<string>(''); 
 
-  // --- HELPER: Generate Dummy Questions if none exist (For Demo Purposes) ---
+  const navigate = useNavigate();
+  const user = authService.getCurrentUser();
+  const isPro = user?.subscription?.status === 'ACTIVE';
+
+  // --- HELPER: Generate Dummy Questions ---
   const getDisplayQuestions = (content: StudyContent): MCQQuestion[] => {
     if (content.questionList && content.questionList.length > 0) {
       return content.questionList;
     }
-    // Fallback for legacy data that only had 'questions: 20' count
     return Array.from({ length: 5 }).map((_, i) => ({
       id: `demo_q_${i}`,
       questionText: `This is a sample question #${i + 1} for '${content.title}'. In a real scenario, the admin enters this text.`,
@@ -85,18 +90,25 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         setIsAppealModalOpen(false);
         setAppealTarget(null);
     } else {
-        // Fallback if no handler passed
         alert(`Appeal submitted for: ${appealTarget?.title}\nIssue: ${appealText}`);
         setIsAppealModalOpen(false);
         setAppealTarget(null);
     }
   };
 
-  // Filter folders for CONTENT type only
+  const handleContentClick = (item: StudyContent) => {
+      if (item.isPremium && !isPro) {
+          if (confirm("This content is Premium. Would you like to upgrade your plan?")) {
+              navigate('/student/subscription');
+          }
+          return;
+      }
+      setSelectedContent(item);
+  };
+
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
 
   const FolderList = () => (
-    // UPDATED GRID: grid-cols-2 on mobile
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
       {displayFolders.map((folder, index) => {
         const itemCount = contents.filter(c => c.folderId === folder.id).length;
@@ -150,22 +162,18 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       // --- CONTENT DETAIL VIEW ---
       return (
         <div className="max-w-4xl mx-auto pb-10">
-          {/* Navigation & Header */}
           <div className="flex items-center justify-between mb-6">
              <Button variant="outline" onClick={() => setSelectedContent(null)} className="flex items-center text-sm bg-white border-slate-300 hover:bg-slate-50">
                 <ArrowLeft size={16} className="mr-2" /> Back to Folder
               </Button>
           </div>
 
-          {/* VIEW: WRITTEN CONTENT */}
           {selectedContent.type === ContentType.WRITTEN && (
             <div className="animate-fade-in space-y-4">
                 <div className="bg-white rounded-none md:rounded-lg shadow-xl border border-slate-200 min-h-[80vh] relative overflow-hidden">
-                    {/* Decorative Header Bar */}
                     <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-600 w-full"></div>
                     
                     <div className="p-8 md:p-12 pb-24">
-                        {/* Title Section */}
                         <div className="border-b-2 border-slate-100 pb-6 mb-8">
                             <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-2 font-serif">{selectedContent.title}</h1>
                             <div className="flex items-center space-x-2">
@@ -174,33 +182,28 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             </div>
                         </div>
 
-                        {/* Body Content */}
                         <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
-                             {/* Simulating paragraph breaks for demo if it's a short string */}
                              {selectedContent.body?.split('\n').map((paragraph, idx) => (
                                  <p key={idx}>{paragraph}</p>
                              ))}
                              {(!selectedContent.body || selectedContent.body.length < 50) && (
                                  <div className="text-slate-400 italic">
-                                     [Content Placeholder: The admin has not added detailed text for this document yet.]
+                                     [Content Placeholder]
                                  </div>
                              )}
                         </div>
                         
-                        {/* IN-CONTENT ADVERTISEMENT */}
                         <div className="my-8">
                             <AdBanner slotId="CONTENT_BODY_AD" />
                         </div>
                     </div>
 
-                    {/* Footer / Page Number Effect */}
                     <div className="absolute bottom-0 w-full bg-slate-50 border-t border-slate-100 py-2 px-8 flex justify-between text-xs text-slate-400">
                         <span>EduMaster Content</span>
                         <span>Page 1 of 1</span>
                     </div>
                 </div>
 
-                {/* Appeal Button for Written Content (At Bottom) */}
                 <div className="flex justify-center">
                     <button 
                         onClick={() => openAppealModal(selectedContent.id, `Document: ${selectedContent.title}`)}
@@ -212,7 +215,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
             </div>
           )}
 
-          {/* VIEW: MCQ STUDY MODE */}
           {selectedContent.type === ContentType.MCQ && (
               <div className="space-y-8 animate-fade-in pb-10">
                   <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl p-8 text-white shadow-lg mb-8">
@@ -226,7 +228,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
                   {getDisplayQuestions(selectedContent).map((q, index) => (
                       <Card key={q.id || index} className="p-0 overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                          {/* Question Header */}
                           <div className="bg-slate-50 p-5 border-b border-slate-200 flex items-start gap-4">
                               <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-slate-800 text-white font-bold rounded-lg text-sm">
                                   {index + 1}
@@ -236,7 +237,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                               </h3>
                           </div>
 
-                          {/* Options Grid */}
                           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                               {q.options.map((opt, optIdx) => {
                                   const isCorrect = q.correctOptionIndex === optIdx;
@@ -270,7 +270,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                               })}
                           </div>
                           
-                          {/* Footer with Appeal Button for this specific Question */}
                           <div className="bg-slate-50 p-2 border-t border-slate-100 flex justify-end">
                               <button 
                                 onClick={() => openAppealModal(q.id, `Question #${index+1}: ${q.questionText.substring(0, 30)}...`)}
@@ -287,7 +286,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                       End of Study Set
                   </div>
                   
-                  {/* BOTTOM AD */}
                   <AdBanner slotId="STUDY_MCQ_BOTTOM_AD" />
               </div>
           )}
@@ -318,34 +316,50 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {items.map(item => (
-              <div 
-                key={item.id} 
-                onClick={() => setSelectedContent(item)}
-                className="group flex items-center justify-between p-5 bg-white border border-slate-200 rounded-xl hover:shadow-md hover:border-indigo-400 cursor-pointer transition-all"
-              >
-                <div className="flex items-center space-x-5">
-                  <div className={`p-3 rounded-xl ${
-                    item.type === ContentType.WRITTEN 
-                    ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' 
-                    : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'
-                  } transition-colors`}>
-                    {item.type === ContentType.WRITTEN ? <FileText size={24} /> : <CheckSquare size={24} />}
+            {items.map(item => {
+                const isLocked = item.isPremium && !isPro;
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => handleContentClick(item)}
+                    className={`group flex items-center justify-between p-5 border rounded-xl transition-all cursor-pointer ${
+                        isLocked 
+                        ? 'bg-slate-50 border-slate-200 opacity-80 hover:border-amber-300' 
+                        : 'bg-white border-slate-200 hover:shadow-md hover:border-indigo-400'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-5">
+                      <div className={`p-3 rounded-xl transition-colors ${
+                        isLocked 
+                        ? 'bg-amber-100 text-amber-600'
+                        : item.type === ContentType.WRITTEN 
+                            ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' 
+                            : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'
+                      }`}>
+                        {isLocked ? <Lock size={24} /> : (item.type === ContentType.WRITTEN ? <FileText size={24} /> : <CheckSquare size={24} />)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                            <h4 className={`font-bold text-lg transition-colors ${isLocked ? 'text-slate-500' : 'text-slate-800 group-hover:text-indigo-700'}`}>{item.title}</h4>
+                            {item.isPremium && (
+                                <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center border border-amber-200">
+                                    <Crown size={10} className="mr-1" fill="currentColor"/> Premium
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-sm text-slate-500 capitalize flex items-center mt-1">
+                            {item.type === ContentType.WRITTEN ? 'Document' : 'MCQ Set'} 
+                            <span className="mx-2 text-slate-300">•</span>
+                            {item.type === ContentType.WRITTEN ? 'Read Only' : `${item.questions || 'Multiple'} Questions`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-slate-300 group-hover:text-indigo-500 transition-colors transform group-hover:translate-x-1">
+                      {isLocked ? <Lock size={20} className="text-slate-400" /> : <ArrowLeft className="rotate-180" size={20} />}
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors">{item.title}</h4>
-                    <p className="text-sm text-slate-500 capitalize flex items-center mt-1">
-                        {item.type === ContentType.WRITTEN ? 'Document' : 'MCQ Set'} 
-                        <span className="mx-2 text-slate-300">•</span>
-                        {item.type === ContentType.WRITTEN ? 'Read Only' : `${item.questions || 'Multiple'} Questions`}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-slate-300 group-hover:text-indigo-500 transition-colors transform group-hover:translate-x-1">
-                  <ArrowLeft className="rotate-180" size={20} />
-                </div>
-              </div>
-            ))}
+                );
+            })}
           </div>
         )}
       </div>

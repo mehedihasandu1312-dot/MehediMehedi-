@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle, Crown } from 'lucide-react';
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -26,7 +26,8 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     excerpt: '',
     content: '',
     thumbnail: '',
-    tags: ''
+    tags: '',
+    isPremium: false // NEW
   });
 
   // Delete State
@@ -107,10 +108,11 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       thumbnail: formData.thumbnail || 'https://picsum.photos/400/250',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-      views: 0
+      views: 0,
+      isPremium: formData.isPremium // NEW
     };
     setBlogs([newBlog, ...blogs]);
-    setFormData({ title: '', author: '', excerpt: '', content: '', thumbnail: '', tags: '' });
+    setFormData({ title: '', author: '', excerpt: '', content: '', thumbnail: '', tags: '', isPremium: false });
     setIsCreatingBlog(false);
     showInfo("Success", "Blog post published successfully!");
   };
@@ -161,6 +163,28 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                             <input required type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
                             value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Article Title" />
                         </div>
+                        
+                        {/* Premium Toggle */}
+                        <div>
+                            <label className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.isPremium ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                                <div className="flex items-center">
+                                    <Crown size={20} className={`mr-2 ${formData.isPremium ? 'text-amber-600' : 'text-slate-400'}`} fill={formData.isPremium ? "currentColor" : "none"} />
+                                    <div>
+                                        <span className={`block font-bold text-sm ${formData.isPremium ? 'text-amber-800' : 'text-slate-600'}`}>
+                                            Premium Article
+                                        </span>
+                                        <span className="text-xs text-slate-500">Only accessible to paid subscribers</span>
+                                    </div>
+                                </div>
+                                <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
+                                    checked={formData.isPremium}
+                                    onChange={e => setFormData({...formData, isPremium: e.target.checked})}
+                                />
+                            </label>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Author</label>
                             <input required type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
@@ -287,7 +311,12 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                   ) : (
                       <div className="grid grid-cols-1 gap-4">
                           {displayedBlogs.map(blog => (
-                              <div key={blog.id} className="flex flex-col md:flex-row gap-4 p-4 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-slate-50 transition-all group">
+                              <div key={blog.id} className="flex flex-col md:flex-row gap-4 p-4 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-slate-50 transition-all group relative">
+                                  {blog.isPremium && (
+                                      <div className="absolute top-0 left-0 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-tl-xl rounded-br-lg z-10 flex items-center shadow-sm">
+                                          <Crown size={10} className="mr-1" fill="currentColor"/> PREMIUM
+                                      </div>
+                                  )}
                                   <img src={blog.thumbnail} alt={blog.title} className="w-full md:w-32 h-24 object-cover rounded-lg bg-slate-200" />
                                   <div className="flex-1">
                                       <div className="flex justify-between items-start">

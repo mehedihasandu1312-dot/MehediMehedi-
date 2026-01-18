@@ -3,21 +3,22 @@ import { Button } from './UI';
 import { Folder } from '../types';
 import { 
   Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignRight, 
-  Link as LinkIcon, Image as ImageIcon, Type, Save, FileText, ChevronDown
+  Link as LinkIcon, Image as ImageIcon, Type, Save, FileText, ChevronDown, Crown
 } from 'lucide-react';
 
 interface WrittenContentFormProps {
   folders: Folder[];
   fixedFolderId?: string;
-  initialData?: { title: string; folderId: string; body: string };
-  onSubmit: (data: { title: string; folderId: string; body: string }) => void;
+  initialData?: { title: string; folderId: string; body: string; isPremium?: boolean };
+  onSubmit: (data: { title: string; folderId: string; body: string; isPremium: boolean }) => void;
 }
 
 const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedFolderId, initialData, onSubmit }) => {
   const [formData, setFormData] = useState({
     title: '',
     folderId: fixedFolderId || '',
-    body: ''
+    body: '',
+    isPremium: false
   });
 
   useEffect(() => {
@@ -25,13 +26,15 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       setFormData({
         title: initialData.title,
         folderId: initialData.folderId,
-        body: initialData.body || ''
+        body: initialData.body || '',
+        isPremium: initialData.isPremium || false
       });
     } else {
       setFormData({
         title: '',
         folderId: fixedFolderId || '',
-        body: ''
+        body: '',
+        isPremium: false
       });
     }
   }, [initialData, fixedFolderId]);
@@ -45,7 +48,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     onSubmit(formData);
     // Only reset if not editing, or handle reset in parent
     if (!initialData) {
-        setFormData({ title: '', folderId: fixedFolderId || '', body: '' }); 
+        setFormData({ title: '', folderId: fixedFolderId || '', body: '', isPremium: false }); 
     }
   };
 
@@ -58,8 +61,8 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   return (
     <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in flex flex-col h-[70vh]">
       {/* 1. Header Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-1">
           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Document Title</label>
           <input
             type="text"
@@ -71,22 +74,46 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           />
         </div>
 
-        {!fixedFolderId && (
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Save In Folder</label>
-            <select
-              required
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              value={formData.folderId}
-              onChange={e => setFormData({ ...formData, folderId: e.target.value })}
-            >
-              <option value="">Choose a folder...</option>
-              {folders.map(folder => (
-                <option key={folder.id} value={folder.id}>{folder.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="md:col-span-1">
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Save In Folder</label>
+          {fixedFolderId ? (
+              <div className="w-full p-2 border border-slate-200 bg-slate-50 rounded-lg text-slate-600 truncate">
+                  {folders.find(f => f.id === fixedFolderId)?.name || 'Selected Folder'}
+              </div>
+          ) : (
+              <select
+                required
+                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={formData.folderId}
+                onChange={e => setFormData({ ...formData, folderId: e.target.value })}
+              >
+                <option value="">Choose a folder...</option>
+                {folders.map(folder => (
+                  <option key={folder.id} value={folder.id}>{folder.name}</option>
+                ))}
+              </select>
+          )}
+        </div>
+
+        {/* Premium Toggle */}
+        <div className="md:col-span-1 flex items-end">
+            <label className={`w-full flex items-center justify-between p-2 rounded-lg border-2 cursor-pointer transition-all ${formData.isPremium ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                <div className="flex items-center">
+                    <div className={`p-1 rounded-full mr-2 ${formData.isPremium ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                        <Crown size={16} fill={formData.isPremium ? "currentColor" : "none"} />
+                    </div>
+                    <span className={`text-sm font-bold ${formData.isPremium ? 'text-amber-700' : 'text-slate-500'}`}>
+                        {formData.isPremium ? 'Premium / Paid' : 'Free Content'}
+                    </span>
+                </div>
+                <input 
+                    type="checkbox" 
+                    className="w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
+                    checked={formData.isPremium}
+                    onChange={e => setFormData({...formData, isPremium: e.target.checked})}
+                />
+            </label>
+        </div>
       </div>
 
       {/* 2. MS Word Style Editor Container */}

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Badge } from './UI';
 import { Exam, ExamQuestion, Folder } from '../types';
-import { Plus, Trash2, CheckCircle, Save, FileText, List, AlertOctagon, Image as ImageIcon, Type, Bold, Divide, Target } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Save, FileText, List, AlertOctagon, Image as ImageIcon, Type, Bold, Divide, Target, Crown } from 'lucide-react';
 
 interface ExamCreationFormProps {
   onSubmit: (data: Omit<Exam, 'id'>) => void;
   folders: Folder[];
   fixedFolderId?: string;
-  educationLevels: { REGULAR: string[], ADMISSION: string[] }; // Added Prop
+  educationLevels: { REGULAR: string[], ADMISSION: string[] }; 
 }
 
 const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, fixedFolderId, educationLevels }) => {
@@ -20,7 +20,8 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
     examFormat: 'MCQ' as 'MCQ' | 'WRITTEN',
     durationMinutes: 30,
     startTime: '',
-    negativeMarks: 0.25 // Only applies to MCQ usually
+    negativeMarks: 0.25,
+    isPremium: false // NEW
   });
 
   // --- QUESTIONS STATE ---
@@ -141,6 +142,7 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
       questionsCount,
       questionList: questions,
       isPublished: false,
+      isPremium: basicInfo.isPremium // Pass premium flag
     });
   };
 
@@ -181,24 +183,44 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
                   )}
               </div>
 
-              {/* Target Class Selection */}
-              <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Target Audience (Class)</label>
-                  <div className="relative">
-                      <Target size={16} className="absolute left-3 top-3 text-slate-400" />
-                      <select 
-                          className="w-full pl-9 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                          value={basicInfo.targetClass}
-                          onChange={e => setBasicInfo({...basicInfo, targetClass: e.target.value})}
-                      >
-                          <option value="">-- Same as Folder / Public --</option>
-                          <optgroup label="Regular & Job Prep">
-                              {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
-                          </optgroup>
-                          <optgroup label="Admission">
-                              {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
-                          </optgroup>
-                      </select>
+              {/* Target Class & Premium Toggle Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Target Audience</label>
+                      <div className="relative">
+                          <Target size={16} className="absolute left-3 top-3 text-slate-400" />
+                          <select 
+                              className="w-full pl-9 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                              value={basicInfo.targetClass}
+                              onChange={e => setBasicInfo({...basicInfo, targetClass: e.target.value})}
+                          >
+                              <option value="">-- Public --</option>
+                              <optgroup label="Regular & Job Prep">
+                                  {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                              </optgroup>
+                              <optgroup label="Admission">
+                                  {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                              </optgroup>
+                          </select>
+                      </div>
+                  </div>
+
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Access Type</label>
+                      <label className={`w-full flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${basicInfo.isPremium ? 'border-amber-400 bg-amber-50' : 'border-slate-300 bg-white'}`}>
+                            <div className="flex items-center">
+                                <Crown size={16} className={`mr-2 ${basicInfo.isPremium ? 'text-amber-600' : 'text-slate-400'}`} fill={basicInfo.isPremium ? "currentColor" : "none"} />
+                                <span className={`text-xs font-bold ${basicInfo.isPremium ? 'text-amber-700' : 'text-slate-600'}`}>
+                                    {basicInfo.isPremium ? 'Premium Only' : 'Free Access'}
+                                </span>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                                checked={basicInfo.isPremium}
+                                onChange={e => setBasicInfo({...basicInfo, isPremium: e.target.checked})}
+                            />
+                        </label>
                   </div>
               </div>
 
