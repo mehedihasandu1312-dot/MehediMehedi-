@@ -36,13 +36,16 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
 
     // Get Pricing for User's Class
     const pricing = useMemo(() => {
-        const userClass = user.class || 'Default';
-        const defaultPrice = { monthly: 50, yearly: 500 };
+        const userClass = user.class;
+        if (!settings || !settings.pricing || !userClass) return null;
         
-        if (settings && settings.pricing && settings.pricing[userClass]) {
-            return settings.pricing[userClass];
+        const classPrice = settings.pricing[userClass];
+        
+        // Return price only if configured (greater than 0)
+        if (classPrice && (classPrice.monthly > 0 || classPrice.yearly > 0)) {
+            return classPrice;
         }
-        return defaultPrice;
+        return null;
     }, [settings, user.class]);
 
     // Mock Merchant Numbers (Replace with real ones)
@@ -60,7 +63,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
 
     const handlePaymentSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if(!selectedPlan) return;
+        if(!selectedPlan || !pricing) return;
 
         setIsProcessing(true);
         
@@ -128,9 +131,9 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center mt-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mt-10">
                 
-                {/* FREE PLAN */}
+                {/* FREE PLAN (Always Visible) */}
                 <Card className="p-8 border-2 border-slate-100 hover:border-slate-200 transition-all h-full flex flex-col">
                     <div className="mb-4">
                         <h3 className="text-xl font-bold text-slate-700">Free</h3>
@@ -145,137 +148,152 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                     <Button variant="outline" className="w-full" disabled>Current Plan</Button>
                 </Card>
 
-                {/* MONTHLY PLAN */}
-                <Card className="p-8 border-2 border-indigo-100 bg-indigo-50/50 hover:shadow-lg transition-all h-full flex flex-col relative transform hover:-translate-y-1">
-                    <div className="mb-4">
-                        <h3 className="text-xl font-bold text-indigo-900">Monthly</h3>
-                        <p className="text-3xl font-black text-indigo-600 mt-2">৳{pricing.monthly}<span className="text-sm font-medium text-slate-400">/mo</span></p>
-                    </div>
-                    <ul className="space-y-3 mb-8 flex-1">
-                        <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Remove All Ads</li>
-                        <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Premium Content</li>
-                        <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Pro Badge on Profile</li>
-                        <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Priority Support</li>
-                    </ul>
-                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => handleSelectPlan('MONTHLY')}>Get Monthly</Button>
-                </Card>
+                {/* PAID PLANS (Conditionally Visible) */}
+                {pricing ? (
+                    <>
+                        {/* MONTHLY PLAN */}
+                        <Card className="p-8 border-2 border-indigo-100 bg-indigo-50/50 hover:shadow-lg transition-all h-full flex flex-col relative transform hover:-translate-y-1">
+                            <div className="mb-4">
+                                <h3 className="text-xl font-bold text-indigo-900">Monthly</h3>
+                                <p className="text-3xl font-black text-indigo-600 mt-2">৳{pricing.monthly}<span className="text-sm font-medium text-slate-400">/mo</span></p>
+                            </div>
+                            <ul className="space-y-3 mb-8 flex-1">
+                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Remove All Ads</li>
+                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Premium Content</li>
+                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Pro Badge on Profile</li>
+                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Priority Support</li>
+                            </ul>
+                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => handleSelectPlan('MONTHLY')}>Get Monthly</Button>
+                        </Card>
 
-                {/* YEARLY PLAN */}
-                <Card className="p-8 border-4 border-yellow-400 bg-white shadow-xl h-full flex flex-col relative transform scale-105 z-10">
-                    <div className="absolute top-0 right-0 bg-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
-                        Best Value
+                        {/* YEARLY PLAN */}
+                        <Card className="p-8 border-4 border-yellow-400 bg-white shadow-xl h-full flex flex-col relative transform scale-105 z-10">
+                            <div className="absolute top-0 right-0 bg-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
+                                Best Value
+                            </div>
+                            <div className="mb-4">
+                                <h3 className="text-xl font-bold text-slate-800 flex items-center"><Crown size={20} className="text-yellow-500 mr-2" fill="currentColor"/> Yearly</h3>
+                                <p className="text-3xl font-black text-slate-800 mt-2">৳{pricing.yearly}<span className="text-sm font-medium text-slate-400">/yr</span></p>
+                                <p className="text-xs text-green-600 font-bold mt-1">Save on long term!</p>
+                            </div>
+                            <ul className="space-y-3 mb-8 flex-1">
+                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Remove All Ads Forever</li>
+                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Gold Crown Profile Badge</li>
+                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Access to Live Exams</li>
+                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Early Access Features</li>
+                            </ul>
+                            <Button className="w-full bg-slate-900 hover:bg-black text-white" onClick={() => handleSelectPlan('YEARLY')}>Get Yearly</Button>
+                        </Card>
+                    </>
+                ) : (
+                    <div className="md:col-span-2 flex flex-col items-center justify-center p-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 h-full">
+                        <ShieldCheck size={48} className="text-slate-300 mb-3" />
+                        <h3 className="text-lg font-bold text-slate-600">No Premium Plans Yet</h3>
+                        <p className="text-slate-500 text-center max-w-xs mt-2">
+                            Subscription packages for <strong>{user.class}</strong> have not been configured by the admin yet.
+                        </p>
                     </div>
-                    <div className="mb-4">
-                        <h3 className="text-xl font-bold text-slate-800 flex items-center"><Crown size={20} className="text-yellow-500 mr-2" fill="currentColor"/> Yearly</h3>
-                        <p className="text-3xl font-black text-slate-800 mt-2">৳{pricing.yearly}<span className="text-sm font-medium text-slate-400">/yr</span></p>
-                        <p className="text-xs text-green-600 font-bold mt-1">Save on long term!</p>
-                    </div>
-                    <ul className="space-y-3 mb-8 flex-1">
-                        <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Remove All Ads Forever</li>
-                        <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Gold Crown Profile Badge</li>
-                        <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Access to Live Exams</li>
-                        <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Early Access Features</li>
-                    </ul>
-                    <Button className="w-full bg-slate-900 hover:bg-black text-white" onClick={() => handleSelectPlan('YEARLY')}>Get Yearly</Button>
-                </Card>
+                )}
 
             </div>
 
             {/* PAYMENT MODAL (MANUAL TRX ID) */}
-            <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Complete Payment">
-                <form onSubmit={handlePaymentSubmit} className="space-y-6">
-                    <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-200">
-                        <p className="text-sm text-slate-500">You are paying for</p>
-                        <h3 className="text-xl font-bold text-slate-800 mt-1">{selectedPlan === 'MONTHLY' ? `Monthly Plan (৳${pricing.monthly})` : `Yearly Plan (৳${pricing.yearly})`}</h3>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">Select Method</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                type="button"
-                                onClick={() => setPaymentMethod('bKash')}
-                                className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${paymentMethod === 'bKash' ? 'border-pink-500 bg-pink-50' : 'border-slate-200 hover:border-pink-200'}`}
-                            >
-                                <span className="text-pink-600 font-black text-lg">bKash</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setPaymentMethod('Nagad')}
-                                className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${paymentMethod === 'Nagad' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-orange-200'}`}
-                            >
-                                <span className="text-orange-600 font-black text-lg">Nagad</span>
-                            </button>
+            {pricing && (
+                <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Complete Payment">
+                    <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                        <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-200">
+                            <p className="text-sm text-slate-500">You are paying for</p>
+                            <h3 className="text-xl font-bold text-slate-800 mt-1">{selectedPlan === 'MONTHLY' ? `Monthly Plan (৳${pricing.monthly})` : `Yearly Plan (৳${pricing.yearly})`}</h3>
                         </div>
-                    </div>
 
-                    {/* Instruction Box */}
-                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                        <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
-                            <AlertTriangle size={16} className="mr-1.5"/> How to Pay
-                        </h4>
-                        <ol className="text-xs text-amber-900 space-y-1.5 list-decimal pl-4">
-                            <li>Open your {paymentMethod} App.</li>
-                            <li>Select <strong>Send Money</strong> option.</li>
-                            <li>Send <strong>৳{selectedPlan === 'MONTHLY' ? pricing.monthly : pricing.yearly}</strong> to:</li>
-                        </ol>
-                        
-                        <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded mt-2">
-                            <span className="font-mono font-bold text-slate-700 text-lg">{MERCHANT_NUMBERS[paymentMethod]}</span>
-                            <button 
-                                type="button"
-                                onClick={() => navigator.clipboard.writeText(MERCHANT_NUMBERS[paymentMethod])}
-                                className="text-amber-600 hover:text-amber-800 p-1"
-                            >
-                                <Copy size={16} />
-                            </button>
-                        </div>
-                        <p className="text-[10px] text-amber-700 mt-2">After sending, copy the <strong>Transaction ID (TrxID)</strong> and paste below.</p>
-                    </div>
-
-                    <div className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your {paymentMethod} Number</label>
-                            <input 
-                                type="tel" 
-                                required
-                                placeholder="017..." 
-                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none"
-                                value={senderNumber}
-                                onChange={e => setSenderNumber(e.target.value)}
-                            />
+                            <label className="block text-sm font-bold text-slate-700 mb-3">Select Method</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentMethod('bKash')}
+                                    className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${paymentMethod === 'bKash' ? 'border-pink-500 bg-pink-50' : 'border-slate-200 hover:border-pink-200'}`}
+                                >
+                                    <span className="text-pink-600 font-black text-lg">bKash</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentMethod('Nagad')}
+                                    className={`p-4 border-2 rounded-xl flex flex-col items-center transition-all ${paymentMethod === 'Nagad' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-orange-200'}`}
+                                >
+                                    <span className="text-orange-600 font-black text-lg">Nagad</span>
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Transaction ID (TrxID)</label>
-                            <input 
-                                type="text" 
-                                required
-                                placeholder="e.g. 9H7G6F5D" 
-                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none uppercase font-mono"
-                                value={trxId}
-                                onChange={e => setTrxId(e.target.value.toUpperCase())}
-                            />
+
+                        {/* Instruction Box */}
+                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                            <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
+                                <AlertTriangle size={16} className="mr-1.5"/> How to Pay
+                            </h4>
+                            <ol className="text-xs text-amber-900 space-y-1.5 list-decimal pl-4">
+                                <li>Open your {paymentMethod} App.</li>
+                                <li>Select <strong>Send Money</strong> option.</li>
+                                <li>Send <strong>৳{selectedPlan === 'MONTHLY' ? pricing.monthly : pricing.yearly}</strong> to:</li>
+                            </ol>
+                            
+                            <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded mt-2">
+                                <span className="font-mono font-bold text-slate-700 text-lg">{MERCHANT_NUMBERS[paymentMethod]}</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => navigator.clipboard.writeText(MERCHANT_NUMBERS[paymentMethod])}
+                                    className="text-amber-600 hover:text-amber-800 p-1"
+                                >
+                                    <Copy size={16} />
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-amber-700 mt-2">After sending, copy the <strong>Transaction ID (TrxID)</strong> and paste below.</p>
                         </div>
-                    </div>
 
-                    <div className="flex items-center text-xs text-slate-400 bg-slate-50 p-2 rounded">
-                        <ShieldCheck size={14} className="mr-1.5" />
-                        Admin will verify TrxID before activation.
-                    </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your {paymentMethod} Number</label>
+                                <input 
+                                    type="tel" 
+                                    required
+                                    placeholder="017..." 
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none"
+                                    value={senderNumber}
+                                    onChange={e => setSenderNumber(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Transaction ID (TrxID)</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    placeholder="e.g. 9H7G6F5D" 
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none uppercase font-mono"
+                                    value={trxId}
+                                    onChange={e => setTrxId(e.target.value.toUpperCase())}
+                                />
+                            </div>
+                        </div>
 
-                    <Button type="submit" className="w-full py-3 flex items-center justify-center" disabled={isProcessing}>
-                        {isProcessing ? (
-                            <>
-                                <Loader2 size={18} className="animate-spin mr-2" /> Submitting...
-                            </>
-                        ) : (
-                            <>
-                                Submit Request <Zap size={18} className="ml-2 fill-current" />
-                            </>
-                        )}
-                    </Button>
-                </form>
-            </Modal>
+                        <div className="flex items-center text-xs text-slate-400 bg-slate-50 p-2 rounded">
+                            <ShieldCheck size={14} className="mr-1.5" />
+                            Admin will verify TrxID before activation.
+                        </div>
+
+                        <Button type="submit" className="w-full py-3 flex items-center justify-center" disabled={isProcessing}>
+                            {isProcessing ? (
+                                <>
+                                    <Loader2 size={18} className="animate-spin mr-2" /> Submitting...
+                                </>
+                            ) : (
+                                <>
+                                    Submit Request <Zap size={18} className="ml-2 fill-current" />
+                                </>
+                            )}
+                        </Button>
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 };
