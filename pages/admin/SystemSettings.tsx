@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { SystemSettings, ClassPrice, PremiumFeature } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard, Lock, Unlock } from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore'; // Import Firestore functions
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard, Lock, Unlock, Crown } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore'; 
 import { db } from '../../services/firebase';
 
 interface Props {
@@ -10,12 +10,12 @@ interface Props {
     setSettings: React.Dispatch<React.SetStateAction<SystemSettings[]>>;
 }
 
-const AVAILABLE_FEATURES: { id: PremiumFeature; label: string }[] = [
-    { id: 'NO_ADS', label: 'Ad-Free Experience' },
-    { id: 'EXAMS', label: 'Premium Exams Access' },
-    { id: 'CONTENT', label: 'Study Materials (PDFs/Notes)' },
-    { id: 'LEADERBOARD', label: 'Leaderboard Ranking' },
-    { id: 'SOCIAL', label: 'Social Community Access' }
+const AVAILABLE_FEATURES: { id: PremiumFeature; label: string; icon: any }[] = [
+    { id: 'NO_ADS', label: 'Ad-Free Experience', icon: Crown },
+    { id: 'EXAMS', label: 'Exams & Quizzes', icon: BookOpen },
+    { id: 'CONTENT', label: 'PDF Notes & Suggestions', icon: Sliders },
+    { id: 'LEADERBOARD', label: 'Leaderboard Ranking', icon: Lock },
+    { id: 'SOCIAL', label: 'Social Community', icon: Lock }
 ];
 
 const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
@@ -35,7 +35,6 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const [lockedFeaturesMap, setLockedFeaturesMap] = useState<Record<string, PremiumFeature[]>>({});
     const [paymentNumbers, setPaymentNumbers] = useState({ bKash: '', Nagad: '' });
     
-    // Load data on mount or change
     useEffect(() => {
         setRegularList(currentSettings.educationLevels.REGULAR || []);
         setAdmissionList(currentSettings.educationLevels.ADMISSION || []);
@@ -46,15 +45,15 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
     const [newRegular, setNewRegular] = useState('');
     const [newAdmission, setNewAdmission] = useState('');
-
     const [editingItem, setEditingItem] = useState<{ index: number; type: 'REGULAR' | 'ADMISSION'; value: string } | null>(null);
     
-    // Pricing & Feature Edit State
+    // --- NEW CONFIG STATE ---
     const [editingConfig, setEditingConfig] = useState<{ 
         className: string; 
+        type: 'FREE' | 'PAID';
         monthly: number; 
         yearly: number;
-        features: PremiumFeature[];
+        features: PremiumFeature[]; // Features that are PAID (Locked)
     } | null>(null);
 
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; index: number | null; type: 'REGULAR' | 'ADMISSION' }>({ 
@@ -75,7 +74,6 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             paymentNumbers: paymentNumbers
         };
 
-        // Update local state optimistic
         if (settings.length === 0) {
             setSettings([updatedSettings]);
         } else {
@@ -83,9 +81,8 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         }
         
         try {
-            // Save to Firestore
             await setDoc(doc(db, "settings", "global_settings"), updatedSettings);
-            setInfoModal({ isOpen: true, title: "Success", message: "System settings and payment numbers saved successfully!" });
+            setInfoModal({ isOpen: true, title: "Success", message: "System settings saved successfully!" });
         } catch (error) {
             console.error("Error saving settings:", error);
             setInfoModal({ isOpen: true, title: "Error", message: "Failed to save settings to cloud." });
@@ -96,9 +93,8 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         if (item.trim() && !list.includes(item.trim())) {
             const newItem = item.trim();
             setList([...list, newItem]);
-            // Set default pricing to 0
+            // Default to Free
             setPricingMap(prev => ({ ...prev, [newItem]: { monthly: 0, yearly: 0 } }));
-            // Set default features to empty (free)
             setLockedFeaturesMap(prev => ({ ...prev, [newItem]: [] }));
             setItem('');
         }
@@ -124,7 +120,6 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             setAdmissionList(newList);
         }
 
-        // Migrate pricing and features key if name changed
         if (oldName !== editingItem.value.trim()) {
             const newPricing = { ...pricingMap };
             newPricing[editingItem.value.trim()] = newPricing[oldName] || { monthly: 0, yearly: 0 };
@@ -158,12 +153,10 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                 newList.splice(deleteModal.index, 1);
                 setAdmissionList(newList);
             }
-            // Remove from pricing
             const newPricing = { ...pricingMap };
             delete newPricing[removedName];
             setPricingMap(newPricing);
             
-            // Remove from features
             const newFeatures = { ...lockedFeaturesMap };
             delete newFeatures[removedName];
             setLockedFeaturesMap(newFeatures);
@@ -172,12 +165,15 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         }
     };
 
-    // Configuration (Price + Features) Edit Logic
+    // --- NEW CONFIG LOGIC ---
     const openConfigEdit = (className: string) => {
         const currentPrice = pricingMap[className] || { monthly: 0, yearly: 0 };
         const currentFeatures = lockedFeaturesMap[className] || [];
+        const isPaid = currentPrice.monthly > 0 || currentPrice.yearly > 0;
+
         setEditingConfig({ 
             className, 
+            type: isPaid ? 'PAID' : 'FREE',
             monthly: currentPrice.monthly, 
             yearly: currentPrice.yearly,
             features: currentFeatures
@@ -196,10 +192,28 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
     const saveConfigEdit = () => {
         if (!editingConfig) return;
+        
+        let finalMonthly = editingConfig.monthly;
+        let finalYearly = editingConfig.yearly;
+
+        // If user sets to FREE, force prices to 0
+        if (editingConfig.type === 'FREE') {
+            finalMonthly = 0;
+            finalYearly = 0;
+        }
+
         setPricingMap(prev => ({
             ...prev,
-            [editingConfig.className]: { monthly: editingConfig.monthly, yearly: editingConfig.yearly }
+            [editingConfig.className]: { monthly: finalMonthly, yearly: finalYearly }
         }));
+        
+        // If FREE, clear locked features (everything is free) OR keep them if you want a "Freemium" model
+        // For simplicity based on prompt: If FREE, user usually wants everything free. 
+        // But the prompt says "select features". So we save the features regardless.
+        // If Type is FREE but features are locked, those features become inaccessible? 
+        // No, let's stick to: Locked Features = Require Subscription. 
+        // If Price is 0, Subscription is Free.
+        
         setLockedFeaturesMap(prev => ({
             ...prev,
             [editingConfig.className]: editingConfig.features
@@ -210,8 +224,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const renderListItem = (item: string, index: number, type: 'REGULAR' | 'ADMISSION') => {
         const isEditing = editingItem?.index === index && editingItem?.type === type;
         const price = pricingMap[item];
-        const features = lockedFeaturesMap[item] || [];
-        const hasPrice = price && (price.monthly > 0 || price.yearly > 0);
+        const isPaid = price && (price.monthly > 0 || price.yearly > 0);
 
         return (
             <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-lg border border-slate-200 group mb-2 hover:shadow-sm transition-all">
@@ -225,64 +238,40 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                             onChange={(e) => setEditingItem({ ...editingItem, value: e.target.value })}
                             onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
                         />
-                        <button onClick={saveEdit} className="text-emerald-600 bg-emerald-50 p-2 rounded hover:bg-emerald-100">
-                            <Check size={18} />
-                        </button>
-                        <button onClick={() => setEditingItem(null)} className="text-red-500 bg-red-50 p-2 rounded hover:bg-red-100">
-                            <X size={18} />
-                        </button>
+                        <button onClick={saveEdit} className="text-emerald-600 bg-emerald-50 p-2 rounded hover:bg-emerald-100"><Check size={18} /></button>
+                        <button onClick={() => setEditingItem(null)} className="text-red-500 bg-red-50 p-2 rounded hover:bg-red-100"><X size={18} /></button>
                     </div>
                 ) : (
                     <>
                         <div className="flex items-center mb-2 sm:mb-0">
-                            <span className="text-sm font-bold text-slate-700 mr-3">{item}</span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                    onClick={() => initiateEdit(index, type, item)}
-                                    className="text-indigo-400 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50"
-                                    title="Rename"
-                                >
-                                    <Edit2 size={14} />
-                                </button>
-                                <button 
-                                    onClick={() => initiateRemove(index, type)}
-                                    className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
-                                    title="Remove"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
+                            <span className="text-sm font-bold text-slate-700 mr-2">{item}</span>
+                            
+                            {/* STATUS BADGE */}
+                            {isPaid ? (
+                                <Badge color="bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                                    <Crown size={10} fill="currentColor"/> PREMIUM
+                                </Badge>
+                            ) : (
+                                <Badge color="bg-emerald-100 text-emerald-700 border border-emerald-200">FREE</Badge>
+                            )}
+
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                <button onClick={() => initiateEdit(index, type, item)} className="text-slate-400 hover:text-indigo-600 p-1"><Edit2 size={14} /></button>
+                                <button onClick={() => initiateRemove(index, type)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={14} /></button>
                             </div>
                         </div>
                         
-                        {/* CONFIG BUTTON - RENAMED FOR CLARITY */}
-                        <div className="flex items-center gap-2">
-                            {hasPrice && (
-                                <div className="hidden sm:flex text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 items-center mr-2">
-                                    <Lock size={10} className="mr-1" /> {features.length} Locked Features
-                                </div>
-                            )}
-                            <button 
-                                onClick={() => openConfigEdit(item)}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
-                                    hasPrice 
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
-                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300'
-                                }`}
-                                title="Set Fees & Select Locked Features"
-                            >
-                                {hasPrice ? (
-                                    <>
-                                        <CheckCircle size={14} className="text-emerald-600" />
-                                        <span>Manage Plan</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Settings size={14} />
-                                        <span>Setup Subscription</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                        <button 
+                            onClick={() => openConfigEdit(item)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                                isPaid 
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' 
+                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                            }`}
+                        >
+                            <Settings size={14} />
+                            <span>Configure Plan</span>
+                        </button>
                     </>
                 )}
             </div>
@@ -295,193 +284,160 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center">
                         <Sliders className="mr-3 text-indigo-600" size={28} />
-                        Class & Pricing Settings
+                        Class & Subscription Manager
                     </h1>
-                    <p className="text-slate-500 text-sm">Configure fees and select which features require subscription.</p>
+                    <p className="text-slate-500 text-sm">Define classes and set which ones are Free vs Paid.</p>
                 </div>
                 <Button onClick={handleSave} className="flex items-center shadow-lg shadow-indigo-200">
-                    <Save size={18} className="mr-2" /> Save All Changes
+                    <Save size={18} className="mr-2" /> Save Changes
                 </Button>
             </div>
 
-            {/* PAYMENT CONFIGURATION SECTION */}
+            {/* PAYMENT NUMBERS */}
             <Card className="border-t-4 border-t-pink-500 mb-8">
-                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                     <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-pink-100 rounded text-pink-600">
-                            <CreditCard size={20} />
-                        </div>
+                        <div className="p-2 bg-pink-100 rounded text-pink-600"><CreditCard size={20} /></div>
                         <div>
-                            <h3 className="font-bold text-slate-800">Payment Numbers</h3>
-                            <p className="text-xs text-slate-400">Update these numbers instantly if limit reaches.</p>
+                            <h3 className="font-bold text-slate-800">Merchant Numbers</h3>
+                            <p className="text-xs text-slate-400">Students will send money to these numbers.</p>
                         </div>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">bKash Personal Number</label>
-                        <input 
-                            type="text" 
-                            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
-                            placeholder="017xxxxxxxx"
-                            value={paymentNumbers.bKash}
-                            onChange={e => setPaymentNumbers({...paymentNumbers, bKash: e.target.value})}
-                        />
+                        <label className="block text-sm font-bold text-slate-700 mb-1">bKash Personal</label>
+                        <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg" placeholder="017xxxxxxxx"
+                            value={paymentNumbers.bKash} onChange={e => setPaymentNumbers({...paymentNumbers, bKash: e.target.value})} />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">Nagad Personal Number</label>
-                        <input 
-                            type="text" 
-                            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-                            placeholder="018xxxxxxxx"
-                            value={paymentNumbers.Nagad}
-                            onChange={e => setPaymentNumbers({...paymentNumbers, Nagad: e.target.value})}
-                        />
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Nagad Personal</label>
+                        <input type="text" className="w-full p-2.5 border border-slate-300 rounded-lg" placeholder="018xxxxxxxx"
+                            value={paymentNumbers.Nagad} onChange={e => setPaymentNumbers({...paymentNumbers, Nagad: e.target.value})} />
                     </div>
                 </div>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
                 {/* REGULAR CLASSES */}
                 <Card className="border-t-4 border-t-indigo-500">
-                    <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                         <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-indigo-100 rounded text-indigo-700">
-                                <BookOpen size={20} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-800">Regular Classes</h3>
-                                <p className="text-xs text-slate-400">Class 6-12, Job Prep, etc.</p>
-                            </div>
+                            <div className="p-2 bg-indigo-100 rounded text-indigo-700"><BookOpen size={20} /></div>
+                            <h3 className="font-bold text-slate-800">Regular Classes</h3>
                         </div>
                     </div>
-                    
                     <div className="flex gap-2 mb-6">
-                        <input 
-                            type="text" 
-                            className="flex-1 p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            placeholder="e.g. Class 9"
-                            value={newRegular}
-                            onChange={e => setNewRegular(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addItem(regularList, setRegularList, newRegular, setNewRegular)}
-                        />
-                        <Button size="sm" onClick={() => addItem(regularList, setRegularList, newRegular, setNewRegular)}>
-                            <Plus size={18} /> Add
-                        </Button>
+                        <input type="text" className="flex-1 p-2.5 border rounded-lg text-sm" placeholder="e.g. Class 9"
+                            value={newRegular} onChange={e => setNewRegular(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addItem(regularList, setRegularList, newRegular, setNewRegular)} />
+                        <Button size="sm" onClick={() => addItem(regularList, setRegularList, newRegular, setNewRegular)}><Plus size={18} /> Add</Button>
                     </div>
-
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 bg-slate-50 p-2 rounded-xl">
-                        {regularList.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No classes added yet.</p>}
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                        {regularList.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No classes added.</p>}
                         {regularList.map((item, idx) => renderListItem(item, idx, 'REGULAR'))}
                     </div>
                 </Card>
 
                 {/* ADMISSION CATEGORIES */}
                 <Card className="border-t-4 border-t-emerald-500">
-                    <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                         <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-emerald-100 rounded text-emerald-700">
-                                <GraduationCap size={20} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-800">Admission Categories</h3>
-                                <p className="text-xs text-slate-400">University, Medical, etc.</p>
-                            </div>
+                            <div className="p-2 bg-emerald-100 rounded text-emerald-700"><GraduationCap size={20} /></div>
+                            <h3 className="font-bold text-slate-800">Admission Batches</h3>
                         </div>
                     </div>
-                    
                     <div className="flex gap-2 mb-6">
-                        <input 
-                            type="text" 
-                            className="flex-1 p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                            placeholder="e.g. Medical Admission"
-                            value={newAdmission}
-                            onChange={e => setNewAdmission(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}
-                        />
-                        <Button size="sm" variant="secondary" className="bg-emerald-600 text-white hover:bg-emerald-700 border-transparent" onClick={() => addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}>
-                            <Plus size={18} /> Add
-                        </Button>
+                        <input type="text" className="flex-1 p-2.5 border rounded-lg text-sm" placeholder="e.g. Medical Admission"
+                            value={newAdmission} onChange={e => setNewAdmission(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)} />
+                        <Button size="sm" variant="secondary" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}><Plus size={18} /> Add</Button>
                     </div>
-
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 bg-slate-50 p-2 rounded-xl">
-                        {admissionList.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No categories added yet.</p>}
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                        {admissionList.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No categories added.</p>}
                         {admissionList.map((item, idx) => renderListItem(item, idx, 'ADMISSION'))}
                     </div>
                 </Card>
-
             </div>
 
-            {/* CONFIG MODAL (PRICE + FEATURES) */}
+            {/* CONFIG MODAL */}
             <Modal isOpen={!!editingConfig} onClose={() => setEditingConfig(null)} title={`Configure: ${editingConfig?.className}`}>
                 <div className="space-y-6">
-                    <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-800 border border-blue-100 flex items-start">
-                        <Settings size={20} className="mr-2 mt-0.5 shrink-0" />
-                        <div>
-                            <p className="font-bold text-base mb-1">Subscription Configuration</p>
-                            <p>Set fees and choose which features should be <strong>Locked</strong> behind the subscription. Unchecked features will be free.</p>
-                        </div>
-                    </div>
-                    
-                    {/* Fees Section */}
+                    {/* 1. Plan Type Selector */}
                     <div>
-                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">Subscription Fees</h4>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Access Type</label>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly Fee (৳)</label>
-                                <input 
-                                    type="number" 
-                                    min="0"
-                                    className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
-                                    placeholder="0"
-                                    value={editingConfig?.monthly}
-                                    onChange={e => setEditingConfig(prev => prev ? { ...prev, monthly: Number(e.target.value) } : null)}
-                                />
-                            </div>
-                            <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Yearly Fee (৳)</label>
-                                <input 
-                                    type="number" 
-                                    min="0"
-                                    className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
-                                    placeholder="0"
-                                    value={editingConfig?.yearly}
-                                    onChange={e => setEditingConfig(prev => prev ? { ...prev, yearly: Number(e.target.value) } : null)}
-                                />
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditingConfig(prev => prev ? { ...prev, type: 'FREE' } : null)}
+                                className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center transition-all ${
+                                    editingConfig?.type === 'FREE' 
+                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500' 
+                                    : 'border-slate-200 text-slate-500 hover:border-emerald-200'
+                                }`}
+                            >
+                                <Unlock size={24} className="mb-2" />
+                                <span className="font-bold">Free Access</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setEditingConfig(prev => prev ? { ...prev, type: 'PAID' } : null)}
+                                className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center transition-all ${
+                                    editingConfig?.type === 'PAID' 
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500' 
+                                    : 'border-slate-200 text-slate-500 hover:border-indigo-200'
+                                }`}
+                            >
+                                <Crown size={24} className="mb-2" />
+                                <span className="font-bold">Paid Subscription</span>
+                            </button>
                         </div>
                     </div>
 
-                    {/* Features Section */}
+                    {/* 2. Pricing Inputs (Only if PAID) */}
+                    {editingConfig?.type === 'PAID' && (
+                        <div className="animate-fade-in p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">Subscription Cost</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly (৳)</label>
+                                    <input type="number" min="0" className="w-full p-2 border rounded font-bold text-slate-800"
+                                        value={editingConfig.monthly}
+                                        onChange={e => setEditingConfig(prev => prev ? { ...prev, monthly: Number(e.target.value) } : null)} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Yearly (৳)</label>
+                                    <input type="number" min="0" className="w-full p-2 border rounded font-bold text-slate-800"
+                                        value={editingConfig.yearly}
+                                        onChange={e => setEditingConfig(prev => prev ? { ...prev, yearly: Number(e.target.value) } : null)} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 3. Feature Locking */}
                     <div>
-                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1 flex items-center justify-between">
-                            <span>Locked Features (Premium Only)</span>
-                            <span className="text-xs font-normal text-slate-400">Check to Lock</span>
+                        <h4 className="font-bold text-slate-700 mb-3 flex items-center justify-between">
+                            <span>Select Paid Facilities</span>
+                            <span className="text-xs font-normal text-slate-400">Checked = Requires Subscription</span>
                         </h4>
-                        <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-1 gap-2">
                             {AVAILABLE_FEATURES.map(feat => {
                                 const isChecked = editingConfig?.features.includes(feat.id);
                                 return (
-                                    <label key={feat.id} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isChecked ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center mr-3 border transition-colors ${isChecked ? 'bg-red-500 border-red-500' : 'bg-white border-slate-300'}`}>
-                                            {isChecked && <Check size={14} className="text-white" />}
+                                    <label key={feat.id} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isChecked ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                        <input type="checkbox" className="hidden"
+                                            checked={isChecked} onChange={() => toggleFeature(feat.id)} />
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center mr-3 border transition-colors ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
+                                            {isChecked && <Check size={12} className="text-white" />}
                                         </div>
-                                        <input 
-                                            type="checkbox" 
-                                            className="hidden"
-                                            checked={isChecked}
-                                            onChange={() => toggleFeature(feat.id)}
-                                        />
-                                        <span className={`text-sm font-medium flex-1 ${isChecked ? 'text-red-800' : 'text-slate-600'}`}>
-                                            {feat.label}
-                                        </span>
-                                        {isChecked ? <Lock size={16} className="text-red-400" /> : <Unlock size={16} className="text-slate-300" />}
+                                        <feat.icon size={16} className={`mr-2 ${isChecked ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                        <span className={`text-sm font-medium flex-1 ${isChecked ? 'text-indigo-800' : 'text-slate-600'}`}>{feat.label}</span>
+                                        {isChecked ? <Lock size={14} className="text-indigo-400" /> : <Unlock size={14} className="text-slate-300" />}
                                     </label>
                                 );
                             })}
                         </div>
-                        <p className="text-xs text-slate-400 mt-2 text-center">Unchecked items will remain available to free users (with ads).</p>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -491,36 +447,31 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                 </div>
             </Modal>
 
-            {/* DELETE CONFIRMATION MODAL */}
+            {/* INFO & DELETE MODALS */}
             <Modal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })} title="Confirm Removal">
                 <div className="space-y-4">
                     <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
-                        <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
+                        <AlertTriangle size={24} className="mr-3 shrink-0" />
                         <div>
-                            <p className="font-bold">Remove this class/category?</p>
-                            <p className="text-xs mt-1">This will prevent new students from selecting it. Existing data might be affected.</p>
+                            <p className="font-bold">Remove this class?</p>
+                            <p className="text-xs">This will remove it from the student selection list.</p>
                         </div>
                     </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <div className="flex justify-end gap-3 pt-4">
                         <Button variant="outline" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>Cancel</Button>
                         <Button variant="danger" onClick={confirmRemove}>Remove</Button>
                     </div>
                 </div>
             </Modal>
 
-            {/* INFO MODAL */}
             <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({ ...infoModal, isOpen: false })} title={infoModal.title}>
                 <div className="space-y-4">
-                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 flex items-start text-emerald-800">
-                        <CheckCircle size={24} className="mr-3 shrink-0" />
-                        <p>{infoModal.message}</p>
+                    <div className="bg-emerald-50 p-4 rounded-lg text-emerald-800 flex items-center">
+                        <CheckCircle size={24} className="mr-3" /> <p>{infoModal.message}</p>
                     </div>
-                    <div className="flex justify-end pt-2">
-                        <Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button>
-                    </div>
+                    <div className="flex justify-end"><Button onClick={() => setInfoModal({ ...infoModal, isOpen: false })}>OK</Button></div>
                 </div>
             </Modal>
-
         </div>
     );
 };
