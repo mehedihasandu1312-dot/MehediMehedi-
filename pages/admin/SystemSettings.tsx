@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal } from '../../components/UI';
 import { SystemSettings, ClassPrice } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '../../services/firebase';
 
 interface Props {
     settings: SystemSettings[];
@@ -12,7 +14,8 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const defaultSettings: SystemSettings = {
         id: 'global_settings',
         educationLevels: { REGULAR: [], ADMISSION: [] },
-        pricing: {}
+        pricing: {},
+        paymentNumbers: { bKash: '', Nagad: '' }
     };
 
     const currentSettings = settings.find(s => s.id === 'global_settings') || defaultSettings;
@@ -20,12 +23,14 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const [regularList, setRegularList] = useState<string[]>([]);
     const [admissionList, setAdmissionList] = useState<string[]>([]);
     const [pricingMap, setPricingMap] = useState<Record<string, ClassPrice>>({});
+    const [paymentNumbers, setPaymentNumbers] = useState({ bKash: '', Nagad: '' });
     
     // Load data on mount or change
     useEffect(() => {
         setRegularList(currentSettings.educationLevels.REGULAR || []);
         setAdmissionList(currentSettings.educationLevels.ADMISSION || []);
         setPricingMap(currentSettings.pricing || {});
+        setPaymentNumbers(currentSettings.paymentNumbers || { bKash: '', Nagad: '' });
     }, [currentSettings]);
 
     const [newRegular, setNewRegular] = useState('');
@@ -40,14 +45,15 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const updatedSettings: SystemSettings = {
             id: 'global_settings',
             educationLevels: {
                 REGULAR: regularList,
                 ADMISSION: admissionList
             },
-            pricing: pricingMap
+            pricing: pricingMap,
+            paymentNumbers: paymentNumbers
         };
 
         // Update local state optimistic
@@ -57,8 +63,14 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             setSettings(settings.map(s => s.id === 'global_settings' ? updatedSettings : s));
         }
         
-        // In a real app with Firestore hook, this setSettings should trigger the sync
-        setInfoModal({ isOpen: true, title: "Success", message: "System settings and class pricing saved successfully!" });
+        try {
+            // Save to Firestore
+            await setDoc(doc(db, "settings", "global_settings"), updatedSettings);
+            setInfoModal({ isOpen: true, title: "Success", message: "System settings and payment numbers saved successfully!" });
+        } catch (error) {
+            console.error("Error saving settings:", error);
+            setInfoModal({ isOpen: true, title: "Error", message: "Failed to save settings to cloud." });
+        }
     };
 
     const addItem = (list: string[], setList: (l: string[]) => void, item: string, setItem: (s: string) => void) => {
@@ -230,12 +242,49 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                         <Sliders className="mr-3 text-indigo-600" size={28} />
                         Class & Pricing Settings
                     </h1>
-                    <p className="text-slate-500 text-sm">Create classes and assign subscription fees for each.</p>
+                    <p className="text-slate-500 text-sm">Create classes, assign fees, and manage payment numbers.</p>
                 </div>
                 <Button onClick={handleSave} className="flex items-center shadow-lg shadow-indigo-200">
                     <Save size={18} className="mr-2" /> Save All Changes
                 </Button>
             </div>
+
+            {/* PAYMENT CONFIGURATION SECTION */}
+            <Card className="border-t-4 border-t-pink-500 mb-8">
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-pink-100 rounded text-pink-600">
+                            <CreditCard size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-800">Payment Numbers</h3>
+                            <p className="text-xs text-slate-400">Update these numbers instantly if limit reaches.</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">bKash Personal Number</label>
+                        <input 
+                            type="text" 
+                            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
+                            placeholder="017xxxxxxxx"
+                            value={paymentNumbers.bKash}
+                            onChange={e => setPaymentNumbers({...paymentNumbers, bKash: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Nagad Personal Number</label>
+                        <input 
+                            type="text" 
+                            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+                            placeholder="018xxxxxxxx"
+                            value={paymentNumbers.Nagad}
+                            onChange={e => setPaymentNumbers({...paymentNumbers, Nagad: e.target.value})}
+                        />
+                    </div>
+                </div>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 

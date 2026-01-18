@@ -21,7 +21,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
     const [trxId, setTrxId] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Fetch Settings for Pricing
+    // Fetch Settings for Pricing & Numbers
     const [settings, setSettings] = useState<SystemSettings | null>(null);
 
     React.useEffect(() => {
@@ -48,11 +48,13 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
         return null;
     }, [settings, user.class]);
 
-    // Mock Merchant Numbers (Replace with real ones)
-    const MERCHANT_NUMBERS = {
-        bKash: "01700000000",
-        Nagad: "01800000000"
-    };
+    // Get Dynamic Merchant Numbers
+    const merchantNumbers = useMemo(() => {
+        return {
+            bKash: settings?.paymentNumbers?.bKash || "Not Set",
+            Nagad: settings?.paymentNumbers?.Nagad || "Not Set"
+        };
+    }, [settings]);
 
     const isPro = user.subscription?.status === 'ACTIVE';
 
@@ -274,10 +276,10 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                             </ol>
                             
                             <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded mt-2">
-                                <span className="font-mono font-bold text-slate-700 text-lg">{MERCHANT_NUMBERS[paymentMethod]}</span>
+                                <span className="font-mono font-bold text-slate-700 text-lg">{merchantNumbers[paymentMethod]}</span>
                                 <button 
                                     type="button"
-                                    onClick={() => navigator.clipboard.writeText(MERCHANT_NUMBERS[paymentMethod])}
+                                    onClick={() => navigator.clipboard.writeText(merchantNumbers[paymentMethod])}
                                     className="text-amber-600 hover:text-amber-800 p-1"
                                 >
                                     <Copy size={16} />

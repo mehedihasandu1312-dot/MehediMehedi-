@@ -19,6 +19,11 @@ export interface SystemSettings {
   };
   // NEW: Map class name to pricing structure
   pricing?: Record<string, ClassPrice>;
+  // NEW: Admin configured payment numbers
+  paymentNumbers?: {
+      bKash: string;
+      Nagad: string;
+  };
 }
 
 export interface User {
