@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
-import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2, Copy, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2, Copy, AlertTriangle, Star } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { User, PaymentRequest, SystemSettings } from '../../types';
 import { db } from '../../services/firebase';
@@ -125,77 +125,113 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
     return (
         <div className="max-w-5xl mx-auto animate-fade-in space-y-8 pb-10">
             <div className="text-center space-y-4">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800">Upgrade Your Learning</h1>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800">Your Study Plan</h1>
                 <p className="text-slate-500 max-w-lg mx-auto">
-                    Pricing for <span className="font-bold text-indigo-600">{user.class || 'General Student'}</span>. Unlock ad-free experience.
+                    {pricing 
+                        ? `Upgrade to unlock premium features for ${user.class || 'your class'}.`
+                        : `Current status for ${user.class || 'your class'}.`
+                    }
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mt-10">
-                
-                {/* FREE PLAN (Always Visible) */}
-                <Card className="p-8 border-2 border-slate-100 hover:border-slate-200 transition-all h-full flex flex-col">
-                    <div className="mb-4">
-                        <h3 className="text-xl font-bold text-slate-700">Free</h3>
-                        <p className="text-3xl font-black text-slate-800 mt-2">৳0<span className="text-sm font-medium text-slate-400">/mo</span></p>
-                    </div>
-                    <ul className="space-y-3 mb-8 flex-1">
-                        <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> Access Free Content</li>
-                        <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> Basic Exams</li>
-                        <li className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> Ad-Free Experience</li>
-                        <li className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> Premium Badges</li>
-                    </ul>
-                    <Button variant="outline" className="w-full" disabled>Current Plan</Button>
-                </Card>
+            {pricing ? (
+                /* PAID PLANS GRID */
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mt-10">
+                    
+                    {/* FREE PLAN */}
+                    <Card className="p-8 border-2 border-slate-100 hover:border-slate-200 transition-all h-full flex flex-col">
+                        <div className="mb-4">
+                            <h3 className="text-xl font-bold text-slate-700">Free</h3>
+                            <p className="text-3xl font-black text-slate-800 mt-2">৳0<span className="text-sm font-medium text-slate-400">/mo</span></p>
+                        </div>
+                        <ul className="space-y-3 mb-8 flex-1">
+                            <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> Access Free Content</li>
+                            <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> Basic Exams</li>
+                            <li className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> Ad-Free Experience</li>
+                            <li className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> Premium Badges</li>
+                        </ul>
+                        <Button variant="outline" className="w-full" disabled>Current Plan</Button>
+                    </Card>
 
-                {/* PAID PLANS (Conditionally Visible) */}
-                {pricing ? (
-                    <>
-                        {/* MONTHLY PLAN */}
-                        <Card className="p-8 border-2 border-indigo-100 bg-indigo-50/50 hover:shadow-lg transition-all h-full flex flex-col relative transform hover:-translate-y-1">
-                            <div className="mb-4">
-                                <h3 className="text-xl font-bold text-indigo-900">Monthly</h3>
-                                <p className="text-3xl font-black text-indigo-600 mt-2">৳{pricing.monthly}<span className="text-sm font-medium text-slate-400">/mo</span></p>
-                            </div>
-                            <ul className="space-y-3 mb-8 flex-1">
-                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Remove All Ads</li>
-                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Premium Content</li>
-                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Pro Badge on Profile</li>
-                                <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Priority Support</li>
-                            </ul>
-                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => handleSelectPlan('MONTHLY')}>Get Monthly</Button>
-                        </Card>
+                    {/* MONTHLY PLAN */}
+                    <Card className="p-8 border-2 border-indigo-100 bg-indigo-50/50 hover:shadow-lg transition-all h-full flex flex-col relative transform hover:-translate-y-1">
+                        <div className="mb-4">
+                            <h3 className="text-xl font-bold text-indigo-900">Monthly</h3>
+                            <p className="text-3xl font-black text-indigo-600 mt-2">৳{pricing.monthly}<span className="text-sm font-medium text-slate-400">/mo</span></p>
+                        </div>
+                        <ul className="space-y-3 mb-8 flex-1">
+                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Remove All Ads</li>
+                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Premium Content</li>
+                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Pro Badge on Profile</li>
+                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Priority Support</li>
+                        </ul>
+                        <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => handleSelectPlan('MONTHLY')}>Get Monthly</Button>
+                    </Card>
 
-                        {/* YEARLY PLAN */}
-                        <Card className="p-8 border-4 border-yellow-400 bg-white shadow-xl h-full flex flex-col relative transform scale-105 z-10">
-                            <div className="absolute top-0 right-0 bg-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
-                                Best Value
-                            </div>
-                            <div className="mb-4">
-                                <h3 className="text-xl font-bold text-slate-800 flex items-center"><Crown size={20} className="text-yellow-500 mr-2" fill="currentColor"/> Yearly</h3>
-                                <p className="text-3xl font-black text-slate-800 mt-2">৳{pricing.yearly}<span className="text-sm font-medium text-slate-400">/yr</span></p>
-                                <p className="text-xs text-green-600 font-bold mt-1">Save on long term!</p>
-                            </div>
-                            <ul className="space-y-3 mb-8 flex-1">
-                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Remove All Ads Forever</li>
-                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Gold Crown Profile Badge</li>
-                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Access to Live Exams</li>
-                                <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Early Access Features</li>
-                            </ul>
-                            <Button className="w-full bg-slate-900 hover:bg-black text-white" onClick={() => handleSelectPlan('YEARLY')}>Get Yearly</Button>
-                        </Card>
-                    </>
-                ) : (
-                    <div className="md:col-span-2 flex flex-col items-center justify-center p-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 h-full">
-                        <ShieldCheck size={48} className="text-slate-300 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-600">No Premium Plans Yet</h3>
-                        <p className="text-slate-500 text-center max-w-xs mt-2">
-                            Subscription packages for <strong>{user.class}</strong> have not been configured by the admin yet.
-                        </p>
-                    </div>
-                )}
+                    {/* YEARLY PLAN */}
+                    <Card className="p-8 border-4 border-yellow-400 bg-white shadow-xl h-full flex flex-col relative transform scale-105 z-10">
+                        <div className="absolute top-0 right-0 bg-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
+                            Best Value
+                        </div>
+                        <div className="mb-4">
+                            <h3 className="text-xl font-bold text-slate-800 flex items-center"><Crown size={20} className="text-yellow-500 mr-2" fill="currentColor"/> Yearly</h3>
+                            <p className="text-3xl font-black text-slate-800 mt-2">৳{pricing.yearly}<span className="text-sm font-medium text-slate-400">/yr</span></p>
+                            <p className="text-xs text-green-600 font-bold mt-1">Save on long term!</p>
+                        </div>
+                        <ul className="space-y-3 mb-8 flex-1">
+                            <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Remove All Ads Forever</li>
+                            <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Gold Crown Profile Badge</li>
+                            <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Access to Live Exams</li>
+                            <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Early Access Features</li>
+                        </ul>
+                        <Button className="w-full bg-slate-900 hover:bg-black text-white" onClick={() => handleSelectPlan('YEARLY')}>Get Yearly</Button>
+                    </Card>
+                </div>
+            ) : (
+                /* NO PRICING / FREE FULL ACCESS */
+                <div className="max-w-lg mx-auto mt-10">
+                    <Card className="p-8 border-2 border-emerald-100 bg-emerald-50/30 text-center shadow-lg relative overflow-hidden">
+                        {/* Decorative Background */}
+                        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-emerald-100 rounded-full blur-2xl opacity-50"></div>
+                        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-blue-100 rounded-full blur-2xl opacity-50"></div>
 
-            </div>
+                        <div className="relative z-10">
+                            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-600 shadow-md">
+                                <Star size={40} fill="currentColor" className="animate-pulse-slow" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-800 mb-2">Full Access Unlocked</h3>
+                            <p className="text-slate-600 mb-8 leading-relaxed">
+                                Great news! All study materials and exams for <strong>{user.class}</strong> are currently free. No subscription required.
+                            </p>
+
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-100 text-left space-y-4 mb-8">
+                                <div className="flex items-center">
+                                    <div className="bg-emerald-100 p-1.5 rounded-full mr-3 text-emerald-600">
+                                        <CheckCircle size={16} />
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-700">Unlimited Content Access</span>
+                                </div>
+                                <div className="flex items-center">
+                                    <div className="bg-emerald-100 p-1.5 rounded-full mr-3 text-emerald-600">
+                                        <CheckCircle size={16} />
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-700">Participate in All Exams</span>
+                                </div>
+                                <div className="flex items-center">
+                                    <div className="bg-amber-100 p-1.5 rounded-full mr-3 text-amber-600">
+                                        <AlertTriangle size={16} />
+                                    </div>
+                                    <span className="text-sm font-medium text-slate-500">Ad-Supported Experience</span>
+                                </div>
+                            </div>
+
+                            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white pointer-events-none">
+                                Active Plan
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
 
             {/* PAYMENT MODAL (MANUAL TRX ID) */}
             {pricing && (
