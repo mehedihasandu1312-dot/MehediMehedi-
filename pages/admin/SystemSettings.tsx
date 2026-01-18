@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { SystemSettings, ClassPrice, PremiumFeature } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard, Lock } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard, Lock, Unlock } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore'; // Import Firestore functions
 import { db } from '../../services/firebase';
 
@@ -254,29 +254,35 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                             </div>
                         </div>
                         
-                        {/* CONFIG BUTTON */}
-                        <button 
-                            onClick={() => openConfigEdit(item)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                                hasPrice 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
-                                : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300'
-                            }`}
-                            title="Configure Fees & Features"
-                        >
-                            {hasPrice ? (
-                                <>
-                                    <CheckCircle size={14} className="text-emerald-600" />
-                                    <span>৳{price.monthly}/mo • {features.length} Features</span>
-                                </>
-                            ) : (
-                                <>
-                                    <DollarSign size={14} />
-                                    <span>Set Subscription</span>
-                                </>
+                        {/* CONFIG BUTTON - RENAMED FOR CLARITY */}
+                        <div className="flex items-center gap-2">
+                            {hasPrice && (
+                                <div className="hidden sm:flex text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 items-center mr-2">
+                                    <Lock size={10} className="mr-1" /> {features.length} Locked Features
+                                </div>
                             )}
-                            <Settings size={12} className="ml-1 opacity-50" />
-                        </button>
+                            <button 
+                                onClick={() => openConfigEdit(item)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                                    hasPrice 
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300'
+                                }`}
+                                title="Set Fees & Select Locked Features"
+                            >
+                                {hasPrice ? (
+                                    <>
+                                        <CheckCircle size={14} className="text-emerald-600" />
+                                        <span>Manage Plan</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Settings size={14} />
+                                        <span>Setup Subscription</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </>
                 )}
             </div>
@@ -449,22 +455,31 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
                     {/* Features Section */}
                     <div>
-                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">Locked Features (Premium Only)</h4>
+                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1 flex items-center justify-between">
+                            <span>Locked Features (Premium Only)</span>
+                            <span className="text-xs font-normal text-slate-400">Check to Lock</span>
+                        </h4>
                         <div className="grid grid-cols-1 gap-3">
-                            {AVAILABLE_FEATURES.map(feat => (
-                                <label key={feat.id} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${editingConfig?.features.includes(feat.id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                                    <input 
-                                        type="checkbox" 
-                                        className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 mr-3"
-                                        checked={editingConfig?.features.includes(feat.id)}
-                                        onChange={() => toggleFeature(feat.id)}
-                                    />
-                                    <span className={`text-sm font-medium ${editingConfig?.features.includes(feat.id) ? 'text-indigo-800' : 'text-slate-600'}`}>
-                                        {feat.label}
-                                    </span>
-                                    {editingConfig?.features.includes(feat.id) && <Lock size={14} className="ml-auto text-indigo-400" />}
-                                </label>
-                            ))}
+                            {AVAILABLE_FEATURES.map(feat => {
+                                const isChecked = editingConfig?.features.includes(feat.id);
+                                return (
+                                    <label key={feat.id} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isChecked ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center mr-3 border transition-colors ${isChecked ? 'bg-red-500 border-red-500' : 'bg-white border-slate-300'}`}>
+                                            {isChecked && <Check size={14} className="text-white" />}
+                                        </div>
+                                        <input 
+                                            type="checkbox" 
+                                            className="hidden"
+                                            checked={isChecked}
+                                            onChange={() => toggleFeature(feat.id)}
+                                        />
+                                        <span className={`text-sm font-medium flex-1 ${isChecked ? 'text-red-800' : 'text-slate-600'}`}>
+                                            {feat.label}
+                                        </span>
+                                        {isChecked ? <Lock size={16} className="text-red-400" /> : <Unlock size={16} className="text-slate-300" />}
+                                    </label>
+                                );
+                            })}
                         </div>
                         <p className="text-xs text-slate-400 mt-2 text-center">Unchecked items will remain available to free users (with ads).</p>
                     </div>
