@@ -291,7 +291,8 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                               <div className="space-y-8">
                                   <div className="grid gap-4">
                                       {exams.filter(e => e.folderId === selectedFolderId && e.isPublished).map(exam => {
-                                          const isLocked = exam.isPremium && !isPro;
+                                          // FIX: Ensure isLocked is strictly boolean
+                                          const isLocked = (exam.isPremium || false) && !isPro;
                                           return <ExamCard key={exam.id} exam={exam} onStart={handleStartExam} isLocked={isLocked} />;
                                       })}
                                   </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 
-export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl shadow-card border border-slate-100/50 p-6 transition-all hover:shadow-lg ${className}`}>
+export const Card: React.FC<React.HTMLAttributes<HTMLDivElement> & { children: React.ReactNode; className?: string }> = ({ children, className = '', ...props }) => (
+  <div className={`bg-white rounded-2xl shadow-card border border-slate-100/50 p-6 transition-all hover:shadow-lg ${className}`} {...props}>
     {children}
   </div>
 );
