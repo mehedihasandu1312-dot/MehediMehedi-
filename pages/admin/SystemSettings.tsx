@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal } from '../../components/UI';
 import { SystemSettings, ClassPrice } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings } from 'lucide-react';
 
 interface Props {
     settings: SystemSettings[];
@@ -58,16 +58,17 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         }
         
         // In a real app with Firestore hook, this setSettings should trigger the sync
-        setInfoModal({ isOpen: true, title: "Success", message: "System settings and pricing saved successfully!" });
+        setInfoModal({ isOpen: true, title: "Success", message: "System settings and class pricing saved successfully!" });
     };
 
     const addItem = (list: string[], setList: (l: string[]) => void, item: string, setItem: (s: string) => void) => {
         if (item.trim() && !list.includes(item.trim())) {
-            setList([...list, item.trim()]);
-            // Set default pricing for new item
+            const newItem = item.trim();
+            setList([...list, newItem]);
+            // Set default pricing for new item to 0 so admin notices they need to change it
             setPricingMap(prev => ({
                 ...prev,
-                [item.trim()]: { monthly: 100, yearly: 1000 }
+                [newItem]: { monthly: 0, yearly: 0 }
             }));
             setItem('');
         }
@@ -93,10 +94,10 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             setAdmissionList(newList);
         }
 
-        // Migrate pricing key
+        // Migrate pricing key if name changed
         if (oldName !== editingItem.value.trim()) {
             const newPricing = { ...pricingMap };
-            newPricing[editingItem.value.trim()] = newPricing[oldName] || { monthly: 100, yearly: 1000 };
+            newPricing[editingItem.value.trim()] = newPricing[oldName] || { monthly: 0, yearly: 0 };
             delete newPricing[oldName];
             setPricingMap(newPricing);
         }
@@ -133,7 +134,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
     // Pricing Edit Logic
     const openPriceEdit = (className: string) => {
-        const currentPrice = pricingMap[className] || { monthly: 100, yearly: 1000 };
+        const currentPrice = pricingMap[className] || { monthly: 0, yearly: 0 };
         setEditingPrice({ className, monthly: currentPrice.monthly, yearly: currentPrice.yearly });
     };
 
@@ -148,59 +149,74 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
     const renderListItem = (item: string, index: number, type: 'REGULAR' | 'ADMISSION') => {
         const isEditing = editingItem?.index === index && editingItem?.type === type;
-        const price = pricingMap[item] || { monthly: 0, yearly: 0 };
+        const price = pricingMap[item];
+        const hasPrice = price && (price.monthly > 0 || price.yearly > 0);
 
         return (
-            <div key={index} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 group">
+            <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white rounded-lg border border-slate-200 group mb-2 hover:shadow-sm transition-all">
                 {isEditing ? (
-                    <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 w-full">
                         <input 
                             type="text" 
                             autoFocus
-                            className="flex-1 p-1 px-2 text-sm border border-indigo-300 rounded outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="flex-1 p-2 text-sm border border-indigo-300 rounded outline-none focus:ring-2 focus:ring-indigo-500"
                             value={editingItem.value}
                             onChange={(e) => setEditingItem({ ...editingItem, value: e.target.value })}
                             onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
                         />
-                        <button onClick={saveEdit} className="text-emerald-600 hover:text-emerald-700 p-1 rounded hover:bg-emerald-50">
-                            <Check size={16} />
+                        <button onClick={saveEdit} className="text-emerald-600 bg-emerald-50 p-2 rounded hover:bg-emerald-100">
+                            <Check size={18} />
                         </button>
-                        <button onClick={() => setEditingItem(null)} className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50">
-                            <X size={16} />
+                        <button onClick={() => setEditingItem(null)} className="text-red-500 bg-red-50 p-2 rounded hover:bg-red-100">
+                            <X size={18} />
                         </button>
                     </div>
                 ) : (
-                    <div className="flex-1 flex items-center justify-between">
-                        <div className="flex items-center">
-                            <span className="text-sm font-medium text-slate-700 mr-3">{item}</span>
+                    <>
+                        <div className="flex items-center mb-2 sm:mb-0">
+                            <span className="text-sm font-bold text-slate-700 mr-3">{item}</span>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button 
                                     onClick={() => initiateEdit(index, type, item)}
                                     className="text-indigo-400 hover:text-indigo-600 p-1 rounded hover:bg-indigo-50"
                                     title="Rename"
                                 >
-                                    <Edit2 size={12} />
+                                    <Edit2 size={14} />
                                 </button>
                                 <button 
                                     onClick={() => initiateRemove(index, type)}
                                     className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50"
                                     title="Remove"
                                 >
-                                    <Trash2 size={12} />
+                                    <Trash2 size={14} />
                                 </button>
                             </div>
                         </div>
                         
-                        {/* Price Badge / Edit Trigger */}
+                        {/* PRICE BUTTON - NOW VERY OBVIOUS */}
                         <button 
                             onClick={() => openPriceEdit(item)}
-                            className="flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded text-xs text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
-                            title="Edit Pricing"
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                                hasPrice 
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                                : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300'
+                            }`}
+                            title="Set Subscription Fee"
                         >
-                            <DollarSign size={12} />
-                            <span>Mo: {price.monthly} / Yr: {price.yearly}</span>
+                            {hasPrice ? (
+                                <>
+                                    <CheckCircle size={14} className="text-emerald-600" />
+                                    <span>Mo: ৳{price.monthly} / Yr: ৳{price.yearly}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <DollarSign size={14} />
+                                    <span>Set Fee</span>
+                                </>
+                            )}
+                            <Settings size={12} className="ml-1 opacity-50" />
                         </button>
-                    </div>
+                    </>
                 )}
             </div>
         );
@@ -208,73 +224,85 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
     return (
         <div className="space-y-6 animate-fade-in pb-20">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center">
                         <Sliders className="mr-3 text-indigo-600" size={28} />
-                        System Settings & Pricing
+                        Class & Pricing Settings
                     </h1>
-                    <p className="text-slate-500 text-sm">Manage class lists and set subscription fees.</p>
+                    <p className="text-slate-500 text-sm">Create classes and assign subscription fees for each.</p>
                 </div>
-                <Button onClick={handleSave} className="flex items-center">
-                    <Save size={18} className="mr-2" /> Save Changes
+                <Button onClick={handleSave} className="flex items-center shadow-lg shadow-indigo-200">
+                    <Save size={18} className="mr-2" /> Save All Changes
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
                 {/* REGULAR CLASSES */}
-                <Card>
-                    <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 pb-2">
-                        <div className="p-2 bg-indigo-100 rounded text-indigo-700">
-                            <BookOpen size={20} />
+                <Card className="border-t-4 border-t-indigo-500">
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-indigo-100 rounded text-indigo-700">
+                                <BookOpen size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800">Regular Classes</h3>
+                                <p className="text-xs text-slate-400">Class 6-12, Job Prep, etc.</p>
+                            </div>
                         </div>
-                        <h3 className="font-bold text-slate-800">Regular Classes / Job Sectors</h3>
                     </div>
                     
-                    <div className="flex gap-2 mb-4">
+                    <div className="flex gap-2 mb-6">
                         <input 
                             type="text" 
-                            className="flex-1 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            placeholder="e.g. Class 13 / BCS"
+                            className="flex-1 p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="e.g. Class 9"
                             value={newRegular}
                             onChange={e => setNewRegular(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && addItem(regularList, setRegularList, newRegular, setNewRegular)}
                         />
                         <Button size="sm" onClick={() => addItem(regularList, setRegularList, newRegular, setNewRegular)}>
-                            <Plus size={16} />
+                            <Plus size={18} /> Add
                         </Button>
                     </div>
 
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 bg-slate-50 p-2 rounded-xl">
+                        {regularList.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No classes added yet.</p>}
                         {regularList.map((item, idx) => renderListItem(item, idx, 'REGULAR'))}
                     </div>
                 </Card>
 
                 {/* ADMISSION CATEGORIES */}
-                <Card>
-                    <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 pb-2">
-                        <div className="p-2 bg-emerald-100 rounded text-emerald-700">
-                            <GraduationCap size={20} />
+                <Card className="border-t-4 border-t-emerald-500">
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-emerald-100 rounded text-emerald-700">
+                                <GraduationCap size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800">Admission Categories</h3>
+                                <p className="text-xs text-slate-400">University, Medical, etc.</p>
+                            </div>
                         </div>
-                        <h3 className="font-bold text-slate-800">Admission Categories</h3>
                     </div>
                     
-                    <div className="flex gap-2 mb-4">
+                    <div className="flex gap-2 mb-6">
                         <input 
                             type="text" 
-                            className="flex-1 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                            placeholder="e.g. Dental / Nursing"
+                            className="flex-1 p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                            placeholder="e.g. Medical Admission"
                             value={newAdmission}
                             onChange={e => setNewAdmission(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}
                         />
-                        <Button size="sm" variant="secondary" onClick={() => addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}>
-                            <Plus size={16} />
+                        <Button size="sm" variant="secondary" className="bg-emerald-600 text-white hover:bg-emerald-700 border-transparent" onClick={() => addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}>
+                            <Plus size={18} /> Add
                         </Button>
                     </div>
 
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 bg-slate-50 p-2 rounded-xl">
+                        {admissionList.length === 0 && <p className="text-center text-slate-400 text-sm py-4">No categories added yet.</p>}
                         {admissionList.map((item, idx) => renderListItem(item, idx, 'ADMISSION'))}
                     </div>
                 </Card>
@@ -283,31 +311,43 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
             {/* PRICE EDIT MODAL */}
             <Modal isOpen={!!editingPrice} onClose={() => setEditingPrice(null)} title={`Set Pricing: ${editingPrice?.className}`}>
-                <div className="space-y-4">
-                    <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 border border-blue-100">
-                        Set the subscription fees for students in <strong>{editingPrice?.className}</strong>.
+                <div className="space-y-6">
+                    <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-800 border border-blue-100 flex items-start">
+                        <DollarSign size={20} className="mr-2 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="font-bold text-base mb-1">Fee Configuration</p>
+                            <p>Set the subscription amount for students in <strong>{editingPrice?.className}</strong>. Set to 0 to make it free.</p>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Fee (৳)</label>
-                        <input 
-                            type="number" 
-                            className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none"
-                            value={editingPrice?.monthly || 0}
-                            onChange={e => setEditingPrice(prev => prev ? { ...prev, monthly: Number(e.target.value) } : null)}
-                        />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly Fee (৳)</label>
+                            <input 
+                                type="number" 
+                                min="0"
+                                className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
+                                placeholder="0"
+                                value={editingPrice?.monthly}
+                                onChange={e => setEditingPrice(prev => prev ? { ...prev, monthly: Number(e.target.value) } : null)}
+                            />
+                        </div>
+                        <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Yearly Fee (৳)</label>
+                            <input 
+                                type="number" 
+                                min="0"
+                                className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
+                                placeholder="0"
+                                value={editingPrice?.yearly}
+                                onChange={e => setEditingPrice(prev => prev ? { ...prev, yearly: Number(e.target.value) } : null)}
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Yearly Fee (৳)</label>
-                        <input 
-                            type="number" 
-                            className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none"
-                            value={editingPrice?.yearly || 0}
-                            onChange={e => setEditingPrice(prev => prev ? { ...prev, yearly: Number(e.target.value) } : null)}
-                        />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                         <Button variant="outline" onClick={() => setEditingPrice(null)}>Cancel</Button>
-                        <Button onClick={savePriceEdit}>Update Pricing</Button>
+                        <Button onClick={savePriceEdit} className="px-6">Update Fees</Button>
                     </div>
                 </div>
             </Modal>
@@ -318,8 +358,8 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                     <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
                         <AlertTriangle size={24} className="mr-3 shrink-0 mt-1" />
                         <div>
-                            <p className="font-bold">Remove this category?</p>
-                            <p className="text-xs mt-1">Existing users or content might still display it, but it won't be selectable for new items.</p>
+                            <p className="font-bold">Remove this class/category?</p>
+                            <p className="text-xs mt-1">This will prevent new students from selecting it. Existing data might be affected.</p>
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
