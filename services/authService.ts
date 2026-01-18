@@ -1,4 +1,4 @@
-import { User, UserRole } from '../types';
+import { User, UserRole, PaymentRequest } from '../types';
 import { MOCK_USERS, MASTER_ADMIN_EMAIL } from '../constants';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
@@ -156,41 +156,40 @@ export const authService = {
     return updatedUser;
   },
 
-  // NEW: Handle Subscription
-  upgradeSubscription: async (plan: 'MONTHLY' | 'YEARLY'): Promise<User> => {
-      const stored = sessionStorage.getItem('currentUser');
-      if (!stored) throw new Error("No user found");
-      const user = JSON.parse(stored);
+  // NEW: Submit Payment Request (Student Side)
+  submitPaymentRequest: async (request: PaymentRequest): Promise<void> => {
+      try {
+          await setDoc(doc(db, "payment_requests", request.id), request);
+      } catch (e) {
+          console.error("Failed to submit payment request", e);
+          throw e;
+      }
+  },
 
+  // NEW: Approve Payment & Upgrade (Admin Side)
+  approvePayment: async (request: PaymentRequest): Promise<void> => {
       const now = new Date();
       const expiry = new Date();
       
-      if (plan === 'MONTHLY') {
+      if (request.plan === 'MONTHLY') {
           expiry.setMonth(expiry.getMonth() + 1);
       } else {
           expiry.setFullYear(expiry.getFullYear() + 1);
       }
 
       const subscription = {
-          plan,
+          plan: request.plan,
           status: 'ACTIVE',
           startedAt: now.toISOString(),
           expiryDate: expiry.toISOString()
       };
 
-      const updatedUser = { ...user, subscription };
-      
-      // Update Session
-      sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      // 1. Update User Record
+      const userRef = doc(db, "users", request.userId);
+      await setDoc(userRef, { subscription }, { merge: true });
 
-      // Update Cloud
-      try {
-          const userRef = doc(db, "users", user.id);
-          await setDoc(userRef, { subscription }, { merge: true });
-      } catch (e) {
-          console.error("Cloud sync failed for subscription", e);
-      }
-
-      return updatedUser;
+      // 2. Update Request Status
+      const requestRef = doc(db, "payment_requests", request.id);
+      await setDoc(requestRef, { status: 'APPROVED' }, { merge: true });
   }
 };

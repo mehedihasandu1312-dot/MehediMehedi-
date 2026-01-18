@@ -47,6 +47,21 @@ export interface User {
   };
 }
 
+// NEW: Payment Request Interface
+export interface PaymentRequest {
+    id: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    amount: number;
+    method: 'bKash' | 'Nagad';
+    plan: 'MONTHLY' | 'YEARLY';
+    senderNumber: string;
+    trxId: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    timestamp: string;
+}
+
 export interface AdminActivityLog {
   id: string;
   adminId: string;

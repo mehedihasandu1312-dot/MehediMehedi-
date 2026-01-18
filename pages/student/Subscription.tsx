@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
-import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2 } from 'lucide-react';
+import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2, Copy, AlertTriangle } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { User } from '../../types';
+import { User, PaymentRequest } from '../../types';
 
 interface SubscriptionPageProps {
     user: User;
@@ -13,9 +13,17 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
     const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'YEARLY' | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<'bKash' | 'Nagad'>('bKash');
-    const [mobileNumber, setMobileNumber] = useState('');
-    const [pin, setPin] = useState('');
+    
+    // Inputs
+    const [senderNumber, setSenderNumber] = useState('');
+    const [trxId, setTrxId] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Mock Merchant Numbers (Replace with real ones)
+    const MERCHANT_NUMBERS = {
+        bKash: "01700000000",
+        Nagad: "01800000000"
+    };
 
     const isPro = user.subscription?.status === 'ACTIVE';
 
@@ -24,25 +32,43 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
         setIsPaymentModalOpen(true);
     };
 
-    const handlePayment = async (e: React.FormEvent) => {
+    const handlePaymentSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if(!selectedPlan) return;
 
         setIsProcessing(true);
         
-        // SIMULATE API DELAY
-        setTimeout(async () => {
-            try {
-                const updatedUser = await authService.upgradeSubscription(selectedPlan);
-                setUser(updatedUser);
-                setIsPaymentModalOpen(false);
-                alert(`Payment Successful! Welcome to Pro.`);
-            } catch (error) {
-                alert("Payment Failed. Try again.");
-            } finally {
-                setIsProcessing(false);
-            }
-        }, 2000);
+        try {
+            const amount = selectedPlan === 'MONTHLY' ? 50 : 500;
+            
+            const request: PaymentRequest = {
+                id: `pay_${Date.now()}`,
+                userId: user.id,
+                userName: user.name,
+                userEmail: user.email,
+                amount: amount,
+                method: paymentMethod,
+                plan: selectedPlan,
+                senderNumber: senderNumber,
+                trxId: trxId,
+                status: 'PENDING',
+                timestamp: new Date().toISOString()
+            };
+
+            await authService.submitPaymentRequest(request);
+            
+            setIsPaymentModalOpen(false);
+            alert("Payment Request Submitted! \nPlease wait for admin approval (usually within 30 mins).");
+            
+            // Clear Form
+            setSenderNumber('');
+            setTrxId('');
+
+        } catch (error) {
+            alert("Submission Failed. Please check internet connection.");
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     if (isPro) {
@@ -128,16 +154,16 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
 
             </div>
 
-            {/* PAYMENT MODAL (MOCK) */}
-            <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Secure Payment">
-                <form onSubmit={handlePayment} className="space-y-6">
+            {/* PAYMENT MODAL (MANUAL TRX ID) */}
+            <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Complete Payment">
+                <form onSubmit={handlePaymentSubmit} className="space-y-6">
                     <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-200">
                         <p className="text-sm text-slate-500">You are paying for</p>
                         <h3 className="text-xl font-bold text-slate-800 mt-1">{selectedPlan === 'MONTHLY' ? 'Monthly Plan (৳50)' : 'Yearly Plan (৳500)'}</h3>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-3">Select Payment Method</label>
+                        <label className="block text-sm font-bold text-slate-700 mb-3">Select Method</label>
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 type="button"
@@ -156,44 +182,68 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                         </div>
                     </div>
 
+                    {/* Instruction Box */}
+                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
+                            <AlertTriangle size={16} className="mr-1.5"/> How to Pay
+                        </h4>
+                        <ol className="text-xs text-amber-900 space-y-1.5 list-decimal pl-4">
+                            <li>Open your {paymentMethod} App.</li>
+                            <li>Select <strong>Send Money</strong> option.</li>
+                            <li>Send <strong>৳{selectedPlan === 'MONTHLY' ? '50' : '500'}</strong> to:</li>
+                        </ol>
+                        
+                        <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded mt-2">
+                            <span className="font-mono font-bold text-slate-700 text-lg">{MERCHANT_NUMBERS[paymentMethod]}</span>
+                            <button 
+                                type="button"
+                                onClick={() => navigator.clipboard.writeText(MERCHANT_NUMBERS[paymentMethod])}
+                                className="text-amber-600 hover:text-amber-800 p-1"
+                            >
+                                <Copy size={16} />
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-amber-700 mt-2">After sending, copy the <strong>Transaction ID (TrxID)</strong> and paste below.</p>
+                    </div>
+
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{paymentMethod} Number</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your {paymentMethod} Number</label>
                             <input 
                                 type="tel" 
                                 required
                                 placeholder="017..." 
                                 className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none"
-                                value={mobileNumber}
-                                onChange={e => setMobileNumber(e.target.value)}
+                                value={senderNumber}
+                                onChange={e => setSenderNumber(e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">PIN</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Transaction ID (TrxID)</label>
                             <input 
-                                type="password" 
+                                type="text" 
                                 required
-                                placeholder="****" 
-                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none"
-                                value={pin}
-                                onChange={e => setPin(e.target.value)}
+                                placeholder="e.g. 9H7G6F5D" 
+                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none uppercase font-mono"
+                                value={trxId}
+                                onChange={e => setTrxId(e.target.value.toUpperCase())}
                             />
                         </div>
                     </div>
 
                     <div className="flex items-center text-xs text-slate-400 bg-slate-50 p-2 rounded">
                         <ShieldCheck size={14} className="mr-1.5" />
-                        100% Secure Payment via {paymentMethod} Gateway
+                        Admin will verify TrxID before activation.
                     </div>
 
                     <Button type="submit" className="w-full py-3 flex items-center justify-center" disabled={isProcessing}>
                         {isProcessing ? (
                             <>
-                                <Loader2 size={18} className="animate-spin mr-2" /> Processing...
+                                <Loader2 size={18} className="animate-spin mr-2" /> Submitting...
                             </>
                         ) : (
                             <>
-                                Pay Now <Zap size={18} className="ml-2 fill-current" />
+                                Submit Request <Zap size={18} className="ml-2 fill-current" />
                             </>
                         )}
                     </Button>

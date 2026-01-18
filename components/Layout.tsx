@@ -92,6 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
   const AdminLinks = () => (
     <>
       <NavItem to="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
+      <NavItem to="/admin/payments" icon={CreditCard} label="Payments" /> {/* NEW */}
       <NavItem to="/admin/settings" icon={Sliders} label="System Settings" />
       <NavItem to="/admin/users" icon={Users} label="Student Mgmt" />
       <NavItem to="/admin/content" icon={FolderPlus} label="Content Mgmt" />
