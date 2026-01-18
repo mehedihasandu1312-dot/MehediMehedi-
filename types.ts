@@ -5,12 +5,20 @@ export enum UserRole {
   STUDENT = 'STUDENT'
 }
 
+// Updated System Settings to support Pricing
+export interface ClassPrice {
+    monthly: number;
+    yearly: number;
+}
+
 export interface SystemSettings {
   id: string; // usually 'global_settings'
   educationLevels: {
     REGULAR: string[];
     ADMISSION: string[];
   };
+  // NEW: Map class name to pricing structure
+  pricing?: Record<string, ClassPrice>;
 }
 
 export interface User {
@@ -53,6 +61,7 @@ export interface PaymentRequest {
     userId: string;
     userName: string;
     userEmail: string;
+    studentClass: string; // NEW: Track class for analytics
     amount: number;
     method: 'bKash' | 'Nagad';
     plan: 'MONTHLY' | 'YEARLY';

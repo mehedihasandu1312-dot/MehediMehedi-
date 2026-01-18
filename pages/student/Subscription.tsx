@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2, Copy, AlertTriangle } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { User, PaymentRequest } from '../../types';
+import { User, PaymentRequest, SystemSettings } from '../../types';
+import { db } from '../../services/firebase';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
 
 interface SubscriptionPageProps {
     user: User;
@@ -18,6 +20,30 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
     const [senderNumber, setSenderNumber] = useState('');
     const [trxId, setTrxId] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Fetch Settings for Pricing
+    const [settings, setSettings] = useState<SystemSettings | null>(null);
+
+    React.useEffect(() => {
+        // Simple fetch of settings for pricing
+        const unsubscribe = onSnapshot(doc(db, "settings", "global_settings"), (doc) => {
+            if(doc.exists()) {
+                setSettings({ id: doc.id, ...doc.data() } as SystemSettings);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Get Pricing for User's Class
+    const pricing = useMemo(() => {
+        const userClass = user.class || 'Default';
+        const defaultPrice = { monthly: 50, yearly: 500 };
+        
+        if (settings && settings.pricing && settings.pricing[userClass]) {
+            return settings.pricing[userClass];
+        }
+        return defaultPrice;
+    }, [settings, user.class]);
 
     // Mock Merchant Numbers (Replace with real ones)
     const MERCHANT_NUMBERS = {
@@ -39,13 +65,14 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
         setIsProcessing(true);
         
         try {
-            const amount = selectedPlan === 'MONTHLY' ? 50 : 500;
+            const amount = selectedPlan === 'MONTHLY' ? pricing.monthly : pricing.yearly;
             
             const request: PaymentRequest = {
                 id: `pay_${Date.now()}`,
                 userId: user.id,
                 userName: user.name,
                 userEmail: user.email,
+                studentClass: user.class || 'Unknown',
                 amount: amount,
                 method: paymentMethod,
                 plan: selectedPlan,
@@ -97,7 +124,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
             <div className="text-center space-y-4">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800">Upgrade Your Learning</h1>
                 <p className="text-slate-500 max-w-lg mx-auto">
-                    Unlock the full potential of EduMaster with our Pro plans. No interruptions, just pure learning.
+                    Pricing for <span className="font-bold text-indigo-600">{user.class || 'General Student'}</span>. Unlock ad-free experience.
                 </p>
             </div>
 
@@ -122,7 +149,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                 <Card className="p-8 border-2 border-indigo-100 bg-indigo-50/50 hover:shadow-lg transition-all h-full flex flex-col relative transform hover:-translate-y-1">
                     <div className="mb-4">
                         <h3 className="text-xl font-bold text-indigo-900">Monthly</h3>
-                        <p className="text-3xl font-black text-indigo-600 mt-2">৳50<span className="text-sm font-medium text-slate-400">/mo</span></p>
+                        <p className="text-3xl font-black text-indigo-600 mt-2">৳{pricing.monthly}<span className="text-sm font-medium text-slate-400">/mo</span></p>
                     </div>
                     <ul className="space-y-3 mb-8 flex-1">
                         <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Remove All Ads</li>
@@ -140,8 +167,8 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                     </div>
                     <div className="mb-4">
                         <h3 className="text-xl font-bold text-slate-800 flex items-center"><Crown size={20} className="text-yellow-500 mr-2" fill="currentColor"/> Yearly</h3>
-                        <p className="text-3xl font-black text-slate-800 mt-2">৳500<span className="text-sm font-medium text-slate-400">/yr</span></p>
-                        <p className="text-xs text-green-600 font-bold mt-1">Save ৳100 per year!</p>
+                        <p className="text-3xl font-black text-slate-800 mt-2">৳{pricing.yearly}<span className="text-sm font-medium text-slate-400">/yr</span></p>
+                        <p className="text-xs text-green-600 font-bold mt-1">Save on long term!</p>
                     </div>
                     <ul className="space-y-3 mb-8 flex-1">
                         <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Remove All Ads Forever</li>
@@ -159,7 +186,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                 <form onSubmit={handlePaymentSubmit} className="space-y-6">
                     <div className="bg-slate-50 p-4 rounded-lg text-center border border-slate-200">
                         <p className="text-sm text-slate-500">You are paying for</p>
-                        <h3 className="text-xl font-bold text-slate-800 mt-1">{selectedPlan === 'MONTHLY' ? 'Monthly Plan (৳50)' : 'Yearly Plan (৳500)'}</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mt-1">{selectedPlan === 'MONTHLY' ? `Monthly Plan (৳${pricing.monthly})` : `Yearly Plan (৳${pricing.yearly})`}</h3>
                     </div>
 
                     <div>
@@ -190,7 +217,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                         <ol className="text-xs text-amber-900 space-y-1.5 list-decimal pl-4">
                             <li>Open your {paymentMethod} App.</li>
                             <li>Select <strong>Send Money</strong> option.</li>
-                            <li>Send <strong>৳{selectedPlan === 'MONTHLY' ? '50' : '500'}</strong> to:</li>
+                            <li>Send <strong>৳{selectedPlan === 'MONTHLY' ? pricing.monthly : pricing.yearly}</strong> to:</li>
                         </ol>
                         
                         <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded mt-2">
