@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
-import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2, Copy, AlertTriangle, Star } from 'lucide-react';
+import { CheckCircle, Zap, Crown, ShieldCheck, X, Loader2, Copy, AlertTriangle, Star, Unlock } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { User, PaymentRequest, SystemSettings } from '../../types';
+import { User, PaymentRequest, SystemSettings, PremiumFeature } from '../../types';
 import { db } from '../../services/firebase';
 import { collection, onSnapshot, doc } from 'firebase/firestore';
 
@@ -10,6 +10,16 @@ interface SubscriptionPageProps {
     user: User;
     setUser: (user: User) => void;
 }
+
+const FEATURE_LABELS: Record<PremiumFeature, string> = {
+    'NO_ADS': 'Ad-Free Experience',
+    'EXAMS': 'Premium Exams Access',
+    'CONTENT': 'Study Materials & Notes',
+    'LEADERBOARD': 'Leaderboard Ranking',
+    'SOCIAL': 'Social Community'
+};
+
+const DEFAULT_PREMIUM_FEATURES: PremiumFeature[] = ['NO_ADS', 'EXAMS', 'CONTENT'];
 
 const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
     const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'YEARLY' | null>(null);
@@ -21,11 +31,10 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
     const [trxId, setTrxId] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Fetch Settings for Pricing & Numbers
+    // Fetch Settings
     const [settings, setSettings] = useState<SystemSettings | null>(null);
 
     React.useEffect(() => {
-        // Simple fetch of settings for pricing
         const unsubscribe = onSnapshot(doc(db, "settings", "global_settings"), (doc) => {
             if(doc.exists()) {
                 setSettings({ id: doc.id, ...doc.data() } as SystemSettings);
@@ -40,8 +49,6 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
         if (!settings || !settings.pricing || !userClass) return null;
         
         const classPrice = settings.pricing[userClass];
-        
-        // Return price only if configured (greater than 0)
         if (classPrice && (classPrice.monthly > 0 || classPrice.yearly > 0)) {
             return classPrice;
         }
@@ -55,6 +62,16 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
             Nagad: settings?.paymentNumbers?.Nagad || "Not Set"
         };
     }, [settings]);
+
+    // Get Locked Features for this Class
+    const lockedFeatures = useMemo(() => {
+        if (!settings || !user.class) return DEFAULT_PREMIUM_FEATURES;
+        // If lockedFeatures map exists and has entry for class, use it. Else fallback to default if pricing exists.
+        if (settings.lockedFeatures && settings.lockedFeatures[user.class]) {
+            return settings.lockedFeatures[user.class];
+        }
+        return pricing ? DEFAULT_PREMIUM_FEATURES : [];
+    }, [settings, user.class, pricing]);
 
     const isPro = user.subscription?.status === 'ACTIVE';
 
@@ -92,7 +109,6 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
             setIsPaymentModalOpen(false);
             alert("Payment Request Submitted! \nPlease wait for admin approval (usually within 30 mins).");
             
-            // Clear Form
             setSenderNumber('');
             setTrxId('');
 
@@ -101,6 +117,39 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    const renderFeatureList = (isPremiumCard: boolean) => {
+        // If no features are locked, everything is free.
+        if (lockedFeatures.length === 0) {
+             if (isPremiumCard) return <p className="text-sm text-slate-500">All features are currently free!</p>;
+             return (
+                 <>
+                    <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-emerald-500 mr-2" /> All Content Access</li>
+                    <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-emerald-500 mr-2" /> All Exams</li>
+                    <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-emerald-500 mr-2" /> Ad-Supported</li>
+                 </>
+             );
+        }
+
+        return Object.entries(FEATURE_LABELS).map(([key, label]) => {
+            const isLocked = lockedFeatures.includes(key as PremiumFeature);
+            
+            if (isPremiumCard) {
+                // Premium Card: Show locked features as checked
+                if (isLocked) {
+                    return <li key={key} className="flex items-center text-sm text-slate-700 font-bold"><CheckCircle size={16} className="text-indigo-500 mr-2" /> {label}</li>;
+                }
+                return null;
+            } else {
+                // Free Card: Show unlocked as checked, locked as crossed
+                if (isLocked) {
+                    return <li key={key} className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> {label}</li>;
+                } else {
+                    return <li key={key} className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> {label}</li>;
+                }
+            }
+        });
     };
 
     if (isPro) {
@@ -147,10 +196,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                             <p className="text-3xl font-black text-slate-800 mt-2">৳0<span className="text-sm font-medium text-slate-400">/mo</span></p>
                         </div>
                         <ul className="space-y-3 mb-8 flex-1">
-                            <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> Access Free Content</li>
-                            <li className="flex items-center text-sm text-slate-600"><CheckCircle size={16} className="text-slate-400 mr-2" /> Basic Exams</li>
-                            <li className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> Ad-Free Experience</li>
-                            <li className="flex items-center text-sm text-slate-400 line-through decoration-slate-300"><X size={16} className="text-slate-300 mr-2" /> Premium Badges</li>
+                            {renderFeatureList(false)}
                         </ul>
                         <Button variant="outline" className="w-full" disabled>Current Plan</Button>
                     </Card>
@@ -162,9 +208,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                             <p className="text-3xl font-black text-indigo-600 mt-2">৳{pricing.monthly}<span className="text-sm font-medium text-slate-400">/mo</span></p>
                         </div>
                         <ul className="space-y-3 mb-8 flex-1">
-                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Remove All Ads</li>
-                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Premium Content</li>
-                            <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Pro Badge on Profile</li>
+                            {renderFeatureList(true)}
                             <li className="flex items-center text-sm text-slate-700 font-medium"><CheckCircle size={16} className="text-indigo-500 mr-2" /> Priority Support</li>
                         </ul>
                         <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => handleSelectPlan('MONTHLY')}>Get Monthly</Button>
@@ -181,9 +225,8 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                             <p className="text-xs text-green-600 font-bold mt-1">Save on long term!</p>
                         </div>
                         <ul className="space-y-3 mb-8 flex-1">
-                            <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Remove All Ads Forever</li>
+                            {renderFeatureList(true)}
                             <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Gold Crown Profile Badge</li>
-                            <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Access to Live Exams</li>
                             <li className="flex items-center text-sm text-slate-800 font-bold"><CheckCircle size={16} className="text-yellow-500 mr-2" /> Early Access Features</li>
                         </ul>
                         <Button className="w-full bg-slate-900 hover:bg-black text-white" onClick={() => handleSelectPlan('YEARLY')}>Get Yearly</Button>
@@ -209,15 +252,9 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-100 text-left space-y-4 mb-8">
                                 <div className="flex items-center">
                                     <div className="bg-emerald-100 p-1.5 rounded-full mr-3 text-emerald-600">
-                                        <CheckCircle size={16} />
+                                        <Unlock size={16} />
                                     </div>
-                                    <span className="text-sm font-bold text-slate-700">Unlimited Content Access</span>
-                                </div>
-                                <div className="flex items-center">
-                                    <div className="bg-emerald-100 p-1.5 rounded-full mr-3 text-emerald-600">
-                                        <CheckCircle size={16} />
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-700">Participate in All Exams</span>
+                                    <span className="text-sm font-bold text-slate-700">Unlimited Content & Exams</span>
                                 </div>
                                 <div className="flex items-center">
                                     <div className="bg-amber-100 p-1.5 rounded-full mr-3 text-amber-600">
@@ -235,7 +272,7 @@ const Subscription: React.FC<SubscriptionPageProps> = ({ user, setUser }) => {
                 </div>
             )}
 
-            {/* PAYMENT MODAL (MANUAL TRX ID) */}
+            {/* PAYMENT MODAL */}
             {pricing && (
                 <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Complete Payment">
                     <form onSubmit={handlePaymentSubmit} className="space-y-6">

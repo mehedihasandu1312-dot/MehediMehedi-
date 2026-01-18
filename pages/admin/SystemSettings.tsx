@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal } from '../../components/UI';
-import { SystemSettings, ClassPrice } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard } from 'lucide-react';
+import { Card, Button, Modal, Badge } from '../../components/UI';
+import { SystemSettings, ClassPrice, PremiumFeature } from '../../types';
+import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard, Lock } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore'; // Import Firestore functions
 import { db } from '../../services/firebase';
 
@@ -10,11 +10,20 @@ interface Props {
     setSettings: React.Dispatch<React.SetStateAction<SystemSettings[]>>;
 }
 
+const AVAILABLE_FEATURES: { id: PremiumFeature; label: string }[] = [
+    { id: 'NO_ADS', label: 'Ad-Free Experience' },
+    { id: 'EXAMS', label: 'Premium Exams Access' },
+    { id: 'CONTENT', label: 'Study Materials (PDFs/Notes)' },
+    { id: 'LEADERBOARD', label: 'Leaderboard Ranking' },
+    { id: 'SOCIAL', label: 'Social Community Access' }
+];
+
 const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const defaultSettings: SystemSettings = {
         id: 'global_settings',
         educationLevels: { REGULAR: [], ADMISSION: [] },
         pricing: {},
+        lockedFeatures: {},
         paymentNumbers: { bKash: '', Nagad: '' }
     };
 
@@ -23,6 +32,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const [regularList, setRegularList] = useState<string[]>([]);
     const [admissionList, setAdmissionList] = useState<string[]>([]);
     const [pricingMap, setPricingMap] = useState<Record<string, ClassPrice>>({});
+    const [lockedFeaturesMap, setLockedFeaturesMap] = useState<Record<string, PremiumFeature[]>>({});
     const [paymentNumbers, setPaymentNumbers] = useState({ bKash: '', Nagad: '' });
     
     // Load data on mount or change
@@ -30,6 +40,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         setRegularList(currentSettings.educationLevels.REGULAR || []);
         setAdmissionList(currentSettings.educationLevels.ADMISSION || []);
         setPricingMap(currentSettings.pricing || {});
+        setLockedFeaturesMap(currentSettings.lockedFeatures || {});
         setPaymentNumbers(currentSettings.paymentNumbers || { bKash: '', Nagad: '' });
     }, [currentSettings]);
 
@@ -37,7 +48,14 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const [newAdmission, setNewAdmission] = useState('');
 
     const [editingItem, setEditingItem] = useState<{ index: number; type: 'REGULAR' | 'ADMISSION'; value: string } | null>(null);
-    const [editingPrice, setEditingPrice] = useState<{ className: string; monthly: number; yearly: number } | null>(null);
+    
+    // Pricing & Feature Edit State
+    const [editingConfig, setEditingConfig] = useState<{ 
+        className: string; 
+        monthly: number; 
+        yearly: number;
+        features: PremiumFeature[];
+    } | null>(null);
 
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; index: number | null; type: 'REGULAR' | 'ADMISSION' }>({ 
         isOpen: false, index: null, type: 'REGULAR' 
@@ -53,6 +71,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                 ADMISSION: admissionList
             },
             pricing: pricingMap,
+            lockedFeatures: lockedFeaturesMap,
             paymentNumbers: paymentNumbers
         };
 
@@ -77,11 +96,10 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
         if (item.trim() && !list.includes(item.trim())) {
             const newItem = item.trim();
             setList([...list, newItem]);
-            // Set default pricing for new item to 0 so admin notices they need to change it
-            setPricingMap(prev => ({
-                ...prev,
-                [newItem]: { monthly: 0, yearly: 0 }
-            }));
+            // Set default pricing to 0
+            setPricingMap(prev => ({ ...prev, [newItem]: { monthly: 0, yearly: 0 } }));
+            // Set default features to empty (free)
+            setLockedFeaturesMap(prev => ({ ...prev, [newItem]: [] }));
             setItem('');
         }
     };
@@ -106,12 +124,17 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             setAdmissionList(newList);
         }
 
-        // Migrate pricing key if name changed
+        // Migrate pricing and features key if name changed
         if (oldName !== editingItem.value.trim()) {
             const newPricing = { ...pricingMap };
             newPricing[editingItem.value.trim()] = newPricing[oldName] || { monthly: 0, yearly: 0 };
             delete newPricing[oldName];
             setPricingMap(newPricing);
+
+            const newFeatures = { ...lockedFeaturesMap };
+            newFeatures[editingItem.value.trim()] = newFeatures[oldName] || [];
+            delete newFeatures[oldName];
+            setLockedFeaturesMap(newFeatures);
         }
 
         setEditingItem(null);
@@ -139,29 +162,55 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
             const newPricing = { ...pricingMap };
             delete newPricing[removedName];
             setPricingMap(newPricing);
+            
+            // Remove from features
+            const newFeatures = { ...lockedFeaturesMap };
+            delete newFeatures[removedName];
+            setLockedFeaturesMap(newFeatures);
 
             setDeleteModal({ isOpen: false, index: null, type: 'REGULAR' });
         }
     };
 
-    // Pricing Edit Logic
-    const openPriceEdit = (className: string) => {
+    // Configuration (Price + Features) Edit Logic
+    const openConfigEdit = (className: string) => {
         const currentPrice = pricingMap[className] || { monthly: 0, yearly: 0 };
-        setEditingPrice({ className, monthly: currentPrice.monthly, yearly: currentPrice.yearly });
+        const currentFeatures = lockedFeaturesMap[className] || [];
+        setEditingConfig({ 
+            className, 
+            monthly: currentPrice.monthly, 
+            yearly: currentPrice.yearly,
+            features: currentFeatures
+        });
     };
 
-    const savePriceEdit = () => {
-        if (!editingPrice) return;
+    const toggleFeature = (featureId: PremiumFeature) => {
+        if (!editingConfig) return;
+        const current = editingConfig.features;
+        if (current.includes(featureId)) {
+            setEditingConfig({ ...editingConfig, features: current.filter(f => f !== featureId) });
+        } else {
+            setEditingConfig({ ...editingConfig, features: [...current, featureId] });
+        }
+    };
+
+    const saveConfigEdit = () => {
+        if (!editingConfig) return;
         setPricingMap(prev => ({
             ...prev,
-            [editingPrice.className]: { monthly: editingPrice.monthly, yearly: editingPrice.yearly }
+            [editingConfig.className]: { monthly: editingConfig.monthly, yearly: editingConfig.yearly }
         }));
-        setEditingPrice(null);
+        setLockedFeaturesMap(prev => ({
+            ...prev,
+            [editingConfig.className]: editingConfig.features
+        }));
+        setEditingConfig(null);
     };
 
     const renderListItem = (item: string, index: number, type: 'REGULAR' | 'ADMISSION') => {
         const isEditing = editingItem?.index === index && editingItem?.type === type;
         const price = pricingMap[item];
+        const features = lockedFeaturesMap[item] || [];
         const hasPrice = price && (price.monthly > 0 || price.yearly > 0);
 
         return (
@@ -205,25 +254,25 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                             </div>
                         </div>
                         
-                        {/* PRICE BUTTON - NOW VERY OBVIOUS */}
+                        {/* CONFIG BUTTON */}
                         <button 
-                            onClick={() => openPriceEdit(item)}
+                            onClick={() => openConfigEdit(item)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                                 hasPrice 
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
                                 : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300'
                             }`}
-                            title="Set Subscription Fee"
+                            title="Configure Fees & Features"
                         >
                             {hasPrice ? (
                                 <>
                                     <CheckCircle size={14} className="text-emerald-600" />
-                                    <span>Mo: ৳{price.monthly} / Yr: ৳{price.yearly}</span>
+                                    <span>৳{price.monthly}/mo • {features.length} Features</span>
                                 </>
                             ) : (
                                 <>
                                     <DollarSign size={14} />
-                                    <span>Set Fee</span>
+                                    <span>Set Subscription</span>
                                 </>
                             )}
                             <Settings size={12} className="ml-1 opacity-50" />
@@ -242,7 +291,7 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
                         <Sliders className="mr-3 text-indigo-600" size={28} />
                         Class & Pricing Settings
                     </h1>
-                    <p className="text-slate-500 text-sm">Create classes, assign fees, and manage payment numbers.</p>
+                    <p className="text-slate-500 text-sm">Configure fees and select which features require subscription.</p>
                 </div>
                 <Button onClick={handleSave} className="flex items-center shadow-lg shadow-indigo-200">
                     <Save size={18} className="mr-2" /> Save All Changes
@@ -358,45 +407,71 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
 
             </div>
 
-            {/* PRICE EDIT MODAL */}
-            <Modal isOpen={!!editingPrice} onClose={() => setEditingPrice(null)} title={`Set Pricing: ${editingPrice?.className}`}>
+            {/* CONFIG MODAL (PRICE + FEATURES) */}
+            <Modal isOpen={!!editingConfig} onClose={() => setEditingConfig(null)} title={`Configure: ${editingConfig?.className}`}>
                 <div className="space-y-6">
                     <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-800 border border-blue-100 flex items-start">
-                        <DollarSign size={20} className="mr-2 mt-0.5 shrink-0" />
+                        <Settings size={20} className="mr-2 mt-0.5 shrink-0" />
                         <div>
-                            <p className="font-bold text-base mb-1">Fee Configuration</p>
-                            <p>Set the subscription amount for students in <strong>{editingPrice?.className}</strong>. Set to 0 to make it free.</p>
+                            <p className="font-bold text-base mb-1">Subscription Configuration</p>
+                            <p>Set fees and choose which features should be <strong>Locked</strong> behind the subscription. Unchecked features will be free.</p>
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly Fee (৳)</label>
-                            <input 
-                                type="number" 
-                                min="0"
-                                className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
-                                placeholder="0"
-                                value={editingPrice?.monthly}
-                                onChange={e => setEditingPrice(prev => prev ? { ...prev, monthly: Number(e.target.value) } : null)}
-                            />
-                        </div>
-                        <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Yearly Fee (৳)</label>
-                            <input 
-                                type="number" 
-                                min="0"
-                                className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
-                                placeholder="0"
-                                value={editingPrice?.yearly}
-                                onChange={e => setEditingPrice(prev => prev ? { ...prev, yearly: Number(e.target.value) } : null)}
-                            />
+                    {/* Fees Section */}
+                    <div>
+                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">Subscription Fees</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly Fee (৳)</label>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
+                                    placeholder="0"
+                                    value={editingConfig?.monthly}
+                                    onChange={e => setEditingConfig(prev => prev ? { ...prev, monthly: Number(e.target.value) } : null)}
+                                />
+                            </div>
+                            <div className="bg-white p-3 border rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Yearly Fee (৳)</label>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    className="w-full text-xl font-bold text-slate-800 outline-none placeholder:text-slate-300"
+                                    placeholder="0"
+                                    value={editingConfig?.yearly}
+                                    onChange={e => setEditingConfig(prev => prev ? { ...prev, yearly: Number(e.target.value) } : null)}
+                                />
+                            </div>
                         </div>
                     </div>
 
+                    {/* Features Section */}
+                    <div>
+                        <h4 className="font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">Locked Features (Premium Only)</h4>
+                        <div className="grid grid-cols-1 gap-3">
+                            {AVAILABLE_FEATURES.map(feat => (
+                                <label key={feat.id} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${editingConfig?.features.includes(feat.id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 mr-3"
+                                        checked={editingConfig?.features.includes(feat.id)}
+                                        onChange={() => toggleFeature(feat.id)}
+                                    />
+                                    <span className={`text-sm font-medium ${editingConfig?.features.includes(feat.id) ? 'text-indigo-800' : 'text-slate-600'}`}>
+                                        {feat.label}
+                                    </span>
+                                    {editingConfig?.features.includes(feat.id) && <Lock size={14} className="ml-auto text-indigo-400" />}
+                                </label>
+                            ))}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2 text-center">Unchecked items will remain available to free users (with ads).</p>
+                    </div>
+
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <Button variant="outline" onClick={() => setEditingPrice(null)}>Cancel</Button>
-                        <Button onClick={savePriceEdit} className="px-6">Update Fees</Button>
+                        <Button variant="outline" onClick={() => setEditingConfig(null)}>Cancel</Button>
+                        <Button onClick={saveConfigEdit} className="px-6">Save Configuration</Button>
                     </div>
                 </div>
             </Modal>

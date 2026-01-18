@@ -11,6 +11,8 @@ export interface ClassPrice {
     yearly: number;
 }
 
+export type PremiumFeature = 'NO_ADS' | 'EXAMS' | 'CONTENT' | 'LEADERBOARD' | 'SOCIAL';
+
 export interface SystemSettings {
   id: string; // usually 'global_settings'
   educationLevels: {
@@ -19,6 +21,8 @@ export interface SystemSettings {
   };
   // NEW: Map class name to pricing structure
   pricing?: Record<string, ClassPrice>;
+  // NEW: Map class name to array of locked features (features that require subscription)
+  lockedFeatures?: Record<string, PremiumFeature[]>;
   // NEW: Admin configured payment numbers
   paymentNumbers?: {
       bKash: string;
