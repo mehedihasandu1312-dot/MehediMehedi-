@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdBanner from './AdBanner';
 import { X, Clock, AlertCircle } from 'lucide-react';
+import { authService } from '../services/authService';
 
 interface AdModalProps {
     isOpen: boolean;
@@ -12,8 +13,19 @@ interface AdModalProps {
 const AdModal: React.FC<AdModalProps> = ({ isOpen, onClose, title = "Advertisement", timerSeconds = 5 }) => {
     const [timeLeft, setTimeLeft] = useState(timerSeconds);
     const [canClose, setCanClose] = useState(false);
+    const [isPro, setIsPro] = useState(false);
 
     useEffect(() => {
+        // CHECK PRO STATUS
+        const user = authService.getCurrentUser();
+        if (user?.subscription?.status === 'ACTIVE') {
+            setIsPro(true);
+            if (isOpen) {
+                onClose(); // Auto close if open
+            }
+            return;
+        }
+
         if (isOpen) {
             setTimeLeft(timerSeconds);
             setCanClose(false);
@@ -31,7 +43,7 @@ const AdModal: React.FC<AdModalProps> = ({ isOpen, onClose, title = "Advertiseme
         }
     }, [isOpen, timerSeconds]);
 
-    if (!isOpen) return null;
+    if (!isOpen || isPro) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">

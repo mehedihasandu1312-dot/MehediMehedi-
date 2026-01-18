@@ -38,6 +38,13 @@ export interface User {
   // Social Fields
   friends?: string[]; // Array of User IDs
   friendRequests?: string[]; // Array of User IDs who sent request
+  // SUBSCRIPTION
+  subscription?: {
+      plan: 'MONTHLY' | 'YEARLY';
+      status: 'ACTIVE' | 'EXPIRED';
+      expiryDate: string;
+      startedAt: string;
+  };
 }
 
 export interface AdminActivityLog {

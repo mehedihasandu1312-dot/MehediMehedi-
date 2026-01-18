@@ -19,7 +19,9 @@ import {
   Settings, 
   Share2, 
   CheckSquare, 
-  Sliders 
+  Sliders,
+  Crown,
+  CreditCard
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { authService } from '../services/authService';
@@ -28,13 +30,15 @@ interface LayoutProps {
   user: User;
   setUser: (user: User | null) => void;
   children?: React.ReactNode;
-  unseenNoticeCount?: number; // ADDED PROP
+  unseenNoticeCount?: number; 
 }
 
 const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCount = 0 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isPro = user.subscription?.status === 'ACTIVE';
 
   const handleLogout = () => {
     authService.logout();
@@ -62,7 +66,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
             <span className="text-sm tracking-wide">{label}</span>
         </div>
         {badgeCount !== undefined && badgeCount > 0 && (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white text-brand-600' : 'bg-red-500 text-white'}`}>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white text-brand-600' : 'bg-red-50 text-red-600'}`}>
                 {badgeCount > 99 ? '99+' : badgeCount}
             </span>
         )}
@@ -74,6 +78,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
     <>
       <NavItem to="/student/dashboard" icon={LayoutDashboard} label="Dashboard" />
       <NavItem to="/student/notice" icon={Bell} label="Notices" badgeCount={unseenNoticeCount} />
+      <NavItem to="/student/subscription" icon={CreditCard} label="Upgrade Plan" />
       <NavItem to="/student/social" icon={MessageSquare} label="Social Feed" />
       <NavItem to="/student/content" icon={BookOpen} label="Study Content" />
       <NavItem to="/student/exams" icon={FileQuestion} label="Exams" />
@@ -134,19 +139,27 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
              <img 
               src={user.avatar || "https://picsum.photos/200/200"} 
               alt="Profile" 
-              className="relative w-20 h-20 rounded-full border-4 border-white shadow-md object-cover"
+              className={`relative w-20 h-20 rounded-full border-4 shadow-md object-cover ${isPro ? 'border-yellow-400' : 'border-white'}`}
             />
+            {isPro && (
+                <div className="absolute -top-2 -right-2 bg-yellow-400 text-white p-1.5 rounded-full shadow-lg border-2 border-white animate-bounce-slow">
+                    <Crown size={14} fill="currentColor" />
+                </div>
+            )}
            </div>
-          <h3 className="font-bold text-slate-800 text-base mt-3">{user.name}</h3>
+          <h3 className="font-bold text-slate-800 text-base mt-3 flex items-center gap-1">
+              {user.name}
+              {isPro && <Crown size={14} className="text-yellow-500" fill="currentColor"/>}
+          </h3>
           <span className="text-[10px] px-3 py-1 bg-brand-50 text-brand-700 rounded-full font-bold mt-1 uppercase tracking-wider border border-brand-100">
-            {user.role}
+            {user.role} {isPro ? '• PRO' : ''}
           </span>
         </div>
 
-        {/* Sidebar Navigation - Scrolls independently with 'overscroll-contain' to prevent chaining */}
+        {/* Sidebar Navigation - Scrolls independently */}
         <nav 
             className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar overscroll-contain"
-            style={{ overscrollBehavior: 'contain' }} // Inline style fallback
+            style={{ overscrollBehavior: 'contain' }}
         >
           {user.role === UserRole.STUDENT ? <StudentLinks /> : <AdminLinks />}
         </nav>

@@ -119,7 +119,20 @@ export const authService = {
 
   getCurrentUser: (): User | null => {
     const stored = sessionStorage.getItem('currentUser');
-    return stored ? JSON.parse(stored) : null;
+    if (stored) {
+        const user = JSON.parse(stored);
+        // Clean check for subscription expiration
+        if (user.subscription && user.subscription.status === 'ACTIVE') {
+            const expiry = new Date(user.subscription.expiryDate);
+            if (expiry < new Date()) {
+                user.subscription.status = 'EXPIRED';
+                // Update session quietly
+                sessionStorage.setItem('currentUser', JSON.stringify(user));
+            }
+        }
+        return user;
+    }
+    return null;
   },
 
   updateProfile: async (updates: Partial<User>): Promise<User> => {
@@ -141,5 +154,43 @@ export const authService = {
     }
 
     return updatedUser;
+  },
+
+  // NEW: Handle Subscription
+  upgradeSubscription: async (plan: 'MONTHLY' | 'YEARLY'): Promise<User> => {
+      const stored = sessionStorage.getItem('currentUser');
+      if (!stored) throw new Error("No user found");
+      const user = JSON.parse(stored);
+
+      const now = new Date();
+      const expiry = new Date();
+      
+      if (plan === 'MONTHLY') {
+          expiry.setMonth(expiry.getMonth() + 1);
+      } else {
+          expiry.setFullYear(expiry.getFullYear() + 1);
+      }
+
+      const subscription = {
+          plan,
+          status: 'ACTIVE',
+          startedAt: now.toISOString(),
+          expiryDate: expiry.toISOString()
+      };
+
+      const updatedUser = { ...user, subscription };
+      
+      // Update Session
+      sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+
+      // Update Cloud
+      try {
+          const userRef = doc(db, "users", user.id);
+          await setDoc(userRef, { subscription }, { merge: true });
+      } catch (e) {
+          console.error("Cloud sync failed for subscription", e);
+      }
+
+      return updatedUser;
   }
 };

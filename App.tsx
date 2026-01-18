@@ -13,6 +13,7 @@ import SocialPost from './pages/student/SocialPost';
 import Leaderboard from './pages/student/Leaderboard';
 import ProfileSettings from './pages/student/ProfileSettings';
 import StudentAppeals from './pages/student/StudentAppeals';
+import Subscription from './pages/student/Subscription'; // NEW IMPORT
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AppealManagement from './pages/admin/AppealManagement';
 import ContentManagement from './pages/admin/ContentManagement';
@@ -22,7 +23,7 @@ import BlogManagement from './pages/admin/BlogManagement';
 import NoticeManagement from './pages/admin/NoticeManagement';
 import SocialManagement from './pages/admin/SocialManagement';
 import ExamGrading from './pages/admin/ExamGrading';
-import SystemSettingsPage from './pages/admin/SystemSettings'; // New Import
+import SystemSettingsPage from './pages/admin/SystemSettings'; 
 import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission } from './types';
 import { authService } from './services/authService';
 import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS } from './constants';
@@ -160,11 +161,7 @@ const App: React.FC = () => {
   const [socialPosts, setSocialPosts, socialLoading] = useFirestoreCollection<SocialPostType>('social_posts', MOCK_SOCIAL_POSTS);
   const [socialReports, setSocialReports, reportsLoading] = useFirestoreCollection<SocialReport>('social_reports', MOCK_REPORTS);
   const [adminLogs, setAdminLogs, logsLoading] = useFirestoreCollection<AdminActivityLog>('admin_logs', MOCK_ADMIN_LOGS);
-  
-  // --- SUBMISSIONS COLLECTION (NEW) ---
   const [submissions, setSubmissions, submissionsLoading] = useFirestoreCollection<ExamSubmission>('submissions', MOCK_SUBMISSIONS);
-
-  // --- SETTINGS COLLECTION ---
   const [settings, setSettings, settingsLoading] = useFirestoreCollection<SystemSettings>('settings', [{
       id: 'global_settings',
       educationLevels: DEFAULT_EDUCATION_LEVELS
@@ -229,7 +226,6 @@ const App: React.FC = () => {
       ));
   };
 
-  // --- Handle New Appeal Submission ---
   const handleAddAppeal = (appealData: { contentId: string; contentTitle: string; text: string; image?: string }) => {
       if (!user) return;
       
@@ -342,6 +338,10 @@ const App: React.FC = () => {
                     />
                 } 
               />
+              <Route 
+                path="/student/subscription" 
+                element={<Subscription user={user} setUser={setUser} />} 
+              />
               <Route path="/student/social" element={<SocialPost posts={socialPosts} setPosts={setSocialPosts} />} />
               <Route 
                 path="/student/content" 
@@ -390,7 +390,6 @@ const App: React.FC = () => {
                 element={<AdminDashboard exams={exams} users={users} appeals={appeals} onLogout={handleLogout} />} 
               />
               <Route path="/admin/appeals" element={<AppealManagement appeals={appeals} setAppeals={setAppeals} />} />
-              {/* Pass currentUser to UserManagement for permission checks */}
               <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} currentUser={user} educationLevels={currentEducationLevels} />} />
               <Route 
                 path="/admin/content" 
@@ -416,7 +415,6 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              {/* Pass submissions, exams and currentUser to Grading */}
               <Route 
                 path="/admin/grading" 
                 element={

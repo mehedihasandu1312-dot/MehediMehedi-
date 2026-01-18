@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { authService } from '../services/authService';
 
 interface AdBannerProps {
     slotId?: string; // Google AdSense Data Ad Slot ID
@@ -10,8 +11,16 @@ const AdBanner: React.FC<AdBannerProps> = ({ slotId = "1234567890", format = "au
     // Detect if we are using a placeholder ID or if the script is missing
     const isPlaceholder = slotId === "1234567890" || slotId === "POPUP_MODAL_AD_ID";
     const [adError, setAdError] = useState(false);
+    const [isPro, setIsPro] = useState(false);
 
     useEffect(() => {
+        // Check if user is PRO
+        const user = authService.getCurrentUser();
+        if (user?.subscription?.status === 'ACTIVE') {
+            setIsPro(true);
+            return;
+        }
+
         if (isPlaceholder || adError) return;
 
         try {
@@ -28,12 +37,15 @@ const AdBanner: React.FC<AdBannerProps> = ({ slotId = "1234567890", format = "au
         }
     }, [isPlaceholder, adError]);
 
+    // IF USER IS PRO, RENDER NOTHING
+    if (isPro) return null;
+
     // Show a clean placeholder in development or if Ads fail to load
     if (isPlaceholder || adError) {
         return (
             <div className={`w-full bg-slate-100 border border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400 p-4 my-4 min-h-[100px] animate-pulse ${className}`}>
                 <span className="font-bold text-xs uppercase tracking-widest text-slate-300">Advertisement Space</span>
-                <span className="text-[10px] text-slate-300 mt-1">AdSense will appear here in production</span>
+                <span className="text-[10px] text-slate-300 mt-1">Upgrade to PRO to remove ads</span>
             </div>
         );
     }
