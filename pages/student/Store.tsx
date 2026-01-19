@@ -52,6 +52,7 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
         setSelectedProduct(product);
         setSenderNumber('');
         setTrxId('');
+        // Pre-fill address if user has one in profile
         setShippingAddress(user.district ? `${user.district}` : '');
         setBuyModalOpen(true);
     };
@@ -59,6 +60,13 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
     const handlePurchase = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedProduct) return;
+
+        // Validation for Physical Products
+        if (selectedProduct.type === 'PHYSICAL' && !shippingAddress.trim()) {
+            alert("Delivery Address is required for printed books.");
+            return;
+        }
+
         setIsSubmitting(true);
 
         const newOrder: StoreOrder = {
@@ -80,7 +88,7 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
         };
 
         try {
-            await authService.submitStoreOrder(newOrder); // Need to implement this in service
+            await authService.submitStoreOrder(newOrder); 
             setOrders([newOrder, ...orders]);
             alert("Order placed successfully! Please wait for admin approval.");
             setBuyModalOpen(false);
@@ -91,8 +99,18 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
         }
     };
 
-    const handleFreeDownload = (product: StoreProduct) => {
-        window.open(product.fileUrl, '_blank');
+    // Smooth Download Function
+    const handleDownload = (url?: string, filename?: string) => {
+        if (!url) return;
+        
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename || 'download'); // This attribute triggers download
+        link.setAttribute('target', '_self'); // Keeps it in the same tab
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     // Check if user already owns a digital product
@@ -149,8 +167,8 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                         </div>
                     </div>
 
-                    {/* Products Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Products Grid - UPDATED TO 2 COLUMNS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         {displayProducts.map(product => {
                             const isOwned = hasPurchased(product.id);
                             return (
@@ -177,7 +195,7 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                                             </div>
                                             
                                             {product.isFree ? (
-                                                <Button size="sm" onClick={() => handleFreeDownload(product)} className="bg-emerald-600 hover:bg-emerald-700">
+                                                <Button size="sm" onClick={() => handleDownload(product.fileUrl, product.title)} className="bg-emerald-600 hover:bg-emerald-700">
                                                     <Download size={16} className="mr-2"/> Download
                                                 </Button>
                                             ) : isOwned ? (
@@ -231,7 +249,7 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                                     </Badge>
                                     
                                     {order.status === 'COMPLETED' && order.productType === 'DIGITAL' && (
-                                        <Button size="sm" onClick={() => window.open(order.fileUrl, '_blank')} className="mt-2 w-full flex items-center justify-center text-xs">
+                                        <Button size="sm" onClick={() => handleDownload(order.fileUrl, order.productTitle)} className="mt-2 w-full flex items-center justify-center text-xs">
                                             <Download size={14} className="mr-1"/> Download
                                         </Button>
                                     )}
@@ -282,11 +300,11 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                                 <input required type="text" className="w-full p-2.5 border rounded-lg uppercase" placeholder="TRX123..." value={trxId} onChange={e => setTrxId(e.target.value)} />
                             </div>
                             
-                            {/* Shipping Address for Physical Products */}
+                            {/* Shipping Address for Physical Products (MANDATORY) */}
                             {selectedProduct.type === 'PHYSICAL' && (
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Delivery Address</label>
-                                    <textarea required className="w-full p-2.5 border rounded-lg h-20 resize-none" placeholder="Full address including district..." value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+                                    <label className="block text-xs font-bold text-red-600 uppercase mb-1">Delivery Address *</label>
+                                    <textarea required className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg h-20 resize-none focus:ring-red-500 focus:border-red-500" placeholder="Full address including House No, Road No, District..." value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
                                 </div>
                             )}
                         </div>
