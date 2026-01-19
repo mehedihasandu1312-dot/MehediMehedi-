@@ -337,6 +337,7 @@ export const MOCK_PRODUCTS: StoreProduct[] = [
         price: 0, // Free
         image: 'https://picsum.photos/200/300?random=101',
         fileUrl: '#',
+        previewUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', // Added preview
         isFree: true,
         category: 'HSC'
     },
@@ -360,6 +361,7 @@ export const MOCK_PRODUCTS: StoreProduct[] = [
         price: 50,
         image: 'https://picsum.photos/200/300?random=103',
         fileUrl: '#',
+        previewUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', // Added preview
         isFree: false,
         category: 'HSC'
     }

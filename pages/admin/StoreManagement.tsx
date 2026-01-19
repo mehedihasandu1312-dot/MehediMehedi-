@@ -21,10 +21,10 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     const [editingProduct, setEditingProduct] = useState<StoreProduct | null>(null);
     const [productForm, setProductForm] = useState<{
         title: string; description: string; type: ProductType; price: number; 
-        prevPrice: number; image: string; fileUrl: string; stock: number; category: string;
+        prevPrice: number; image: string; fileUrl: string; previewUrl: string; stock: number; category: string;
     }>({
         title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, 
-        image: '', fileUrl: '', stock: 0, category: ''
+        image: '', fileUrl: '', previewUrl: '', stock: 0, category: ''
     });
 
     // --- ORDER CONFIRMATION STATE ---
@@ -51,7 +51,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     };
 
     const resetForm = () => {
-        setProductForm({ title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, image: '', fileUrl: '', stock: 0, category: '' });
+        setProductForm({ title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, image: '', fileUrl: '', previewUrl: '', stock: 0, category: '' });
         setEditingProduct(null);
     };
 
@@ -65,6 +65,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
             prevPrice: product.prevPrice || 0,
             image: product.image,
             fileUrl: product.fileUrl || '',
+            previewUrl: product.previewUrl || '',
             stock: product.stock || 0,
             category: product.category || ''
         });
@@ -312,6 +313,12 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                 <input type="number" className="w-full p-2 border rounded" value={productForm.stock} onChange={e => setProductForm({...productForm, stock: Number(e.target.value)})} />
                             </div>
                         )}
+
+                        <div className="col-span-2">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Preview/Sample URL (Optional)</label>
+                            <input className="w-full p-2 border rounded" placeholder="https://..." value={productForm.previewUrl} onChange={e => setProductForm({...productForm, previewUrl: e.target.value})} />
+                            <p className="text-[10px] text-slate-400">Link to sample PDF or images for "Look Inside" feature.</p>
+                        </div>
 
                         <div className="col-span-2">
                             <label className="block text-sm font-bold text-slate-700 mb-1">Cover Image</label>

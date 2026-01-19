@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, User } from '../../types';
-import { ShoppingBag, Search, Filter, Lock, Unlock, Truck, FileText, CheckCircle, CreditCard, Copy, AlertTriangle, Download, Package, Clock, X } from 'lucide-react';
+import { ShoppingBag, Search, Filter, Lock, Unlock, Truck, FileText, CheckCircle, CreditCard, Copy, AlertTriangle, Download, Package, Clock, X, Eye } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { db } from '../../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -26,6 +26,10 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
     const [trxId, setTrxId] = useState('');
     const [shippingAddress, setShippingAddress] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Preview State
+    const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState('');
 
     // Fetch Payment Numbers (Real-time)
     const [paymentNumbers, setPaymentNumbers] = useState({ bKash: '', Nagad: '' });
@@ -113,6 +117,12 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
         document.body.removeChild(link);
     };
 
+    const handlePreview = (url?: string) => {
+        if(!url) return;
+        setPreviewUrl(url);
+        setPreviewModalOpen(true);
+    };
+
     // Check if user already owns a digital product
     const hasPurchased = (productId: string) => {
         return myOrders.some(o => o.productId === productId && o.status === 'COMPLETED');
@@ -167,43 +177,51 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                         </div>
                     </div>
 
-                    {/* Products Grid - UPDATED TO 2 COLUMNS */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Products Grid - UPDATED FOR HIGH DENSITY (Mobile: 2, Desktop: 5/6) */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                         {displayProducts.map(product => {
                             const isOwned = hasPurchased(product.id);
                             return (
-                                <Card key={product.id} className="overflow-hidden flex flex-col p-0 border border-slate-200 hover:shadow-lg transition-all group">
-                                    <div className="h-48 w-full bg-slate-100 relative overflow-hidden">
+                                <Card key={product.id} className="overflow-hidden flex flex-col p-0 border border-slate-200 hover:shadow-lg transition-all group h-full">
+                                    <div className="h-32 md:h-40 w-full bg-slate-100 relative overflow-hidden shrink-0">
                                         <img src={product.image} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                                        <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold shadow-sm flex items-center">
-                                            {product.type === 'DIGITAL' ? <FileText size={12} className="mr-1 text-blue-600"/> : <Package size={12} className="mr-1 text-amber-600"/>}
-                                            {product.type === 'DIGITAL' ? 'PDF' : 'Printed'}
+                                        <div className="absolute top-1 right-1 bg-white/90 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center">
+                                            {product.type === 'DIGITAL' ? <FileText size={10} className="mr-1 text-blue-600"/> : <Package size={10} className="mr-1 text-amber-600"/>}
+                                            {product.type === 'DIGITAL' ? 'PDF' : 'Book'}
                                         </div>
-                                        {product.isFree && <div className="absolute top-2 left-2 bg-emerald-500 text-white px-2 py-1 rounded text-xs font-bold shadow-sm">FREE</div>}
+                                        {product.isFree && <div className="absolute top-1 left-1 bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">FREE</div>}
+                                        
+                                        {/* Preview Button on Cover */}
+                                        {product.previewUrl && (
+                                            <div className="absolute bottom-0 w-full bg-black/50 text-white py-1 text-[10px] font-bold text-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" onClick={(e) => { e.stopPropagation(); handlePreview(product.previewUrl); }}>
+                                                <Eye size={10} className="mr-1" /> Look Inside
+                                            </div>
+                                        )}
                                     </div>
                                     
-                                    <div className="p-5 flex-1 flex flex-col">
-                                        <h3 className="font-bold text-slate-800 text-lg mb-1 line-clamp-1">{product.title}</h3>
-                                        <p className="text-sm text-slate-500 line-clamp-2 mb-4">{product.description}</p>
+                                    <div className="p-3 flex-1 flex flex-col">
+                                        <h3 className="font-bold text-slate-800 text-sm mb-1 line-clamp-2 leading-tight min-h-[2.5em]" title={product.title}>{product.title}</h3>
                                         
-                                        <div className="mt-auto flex justify-between items-center pt-3 border-t border-slate-100">
-                                            <div>
-                                                <span className="text-xl font-black text-indigo-600">{product.isFree ? 'Free' : `৳${product.price}`}</span>
-                                                {product.prevPrice && product.prevPrice > product.price && (
-                                                    <span className="text-xs text-slate-400 line-through ml-2">৳{product.prevPrice}</span>
-                                                )}
+                                        <div className="mt-auto pt-2 border-t border-slate-100 space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <span className="text-base font-black text-indigo-600">{product.isFree ? 'Free' : `৳${product.price}`}</span>
+                                                    {product.prevPrice && product.prevPrice > product.price && (
+                                                        <span className="text-[10px] text-slate-400 line-through ml-1">৳{product.prevPrice}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                             
                                             {product.isFree ? (
-                                                <Button size="sm" onClick={() => handleDownload(product.fileUrl, product.title)} className="bg-emerald-600 hover:bg-emerald-700">
-                                                    <Download size={16} className="mr-2"/> Download
+                                                <Button size="sm" onClick={() => handleDownload(product.fileUrl, product.title)} className="w-full bg-emerald-600 hover:bg-emerald-700 h-8 text-xs px-0">
+                                                    Download
                                                 </Button>
                                             ) : isOwned ? (
-                                                <Button size="sm" disabled className="bg-slate-100 text-slate-500 border-slate-200">
-                                                    <CheckCircle size={16} className="mr-2"/> Owned
+                                                <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500 border-slate-200 h-8 text-xs px-0">
+                                                    Owned
                                                 </Button>
                                             ) : (
-                                                <Button size="sm" onClick={() => openBuyModal(product)}>
+                                                <Button size="sm" onClick={() => openBuyModal(product)} className="w-full h-8 text-xs px-0">
                                                     Buy Now
                                                 </Button>
                                             )}
@@ -315,6 +333,21 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                         </div>
                     </form>
                 )}
+            </Modal>
+
+            {/* PREVIEW MODAL */}
+            <Modal isOpen={previewModalOpen} onClose={() => setPreviewModalOpen(false)} title="Book Preview">
+                <div className="h-[70vh] w-full">
+                    {previewUrl.endsWith('.pdf') ? (
+                        <iframe src={previewUrl} className="w-full h-full rounded-lg border border-slate-200" title="PDF Preview"></iframe>
+                    ) : (
+                        <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
+                    )}
+                    <div className="mt-4 text-center">
+                        <p className="text-xs text-slate-500 mb-2">Like what you see?</p>
+                        <Button onClick={() => { setPreviewModalOpen(false); if(selectedProduct) openBuyModal(selectedProduct); }}>Buy Full Version</Button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

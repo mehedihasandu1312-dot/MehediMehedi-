@@ -93,6 +93,7 @@ export interface StoreProduct {
     prevPrice?: number; // For discount display
     image: string;
     fileUrl?: string; // For Digital products (PDF link)
+    previewUrl?: string; // NEW: Link to sample/preview PDF
     stock?: number; // For Physical products
     isFree: boolean;
     category?: string;
