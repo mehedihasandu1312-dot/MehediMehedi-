@@ -42,7 +42,26 @@ export const authService = {
             sessionStorage.setItem('currentUser', JSON.stringify(userData));
             return userData;
         } else {
-            // Edge case: Auth exists but no DB record. Treat as unauthorized.
+            // --- MASTER ADMIN AUTO-HEAL ---
+            // If DB record is missing but it's the MASTER EMAIL, create it and log in.
+            if (fbUser.email === MASTER_ADMIN_EMAIL) {
+                const newMasterAdmin: User = {
+                    id: fbUser.uid,
+                    name: 'Super Admin',
+                    email: fbUser.email!,
+                    role: UserRole.ADMIN,
+                    isSuperAdmin: true,
+                    profileCompleted: true,
+                    status: 'ACTIVE',
+                    joinedDate: new Date().toISOString(),
+                    avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=0D9488&color=fff`
+                };
+                await setDoc(userRef, newMasterAdmin);
+                sessionStorage.setItem('currentUser', JSON.stringify(newMasterAdmin));
+                return newMasterAdmin;
+            }
+
+            // Edge case: Auth exists but no DB record and not master admin.
             await signOut(auth);
             throw new Error("User record not found in database.");
         }
@@ -51,7 +70,7 @@ export const authService = {
         // Clean up error messages
         let msg = error.message;
         if (error.code === 'auth/invalid-credential') msg = "Invalid Email or Password.";
-        if (error.code === 'auth/user-not-found') msg = "No admin account found with this email.";
+        if (error.code === 'auth/user-not-found') msg = "No admin account found with this email. Please run Setup.";
         if (error.code === 'auth/wrong-password') msg = "Incorrect password.";
         throw new Error(msg);
     }

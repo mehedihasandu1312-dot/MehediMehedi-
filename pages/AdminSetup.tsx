@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Card, Button } from '../components/UI';
-import { ShieldCheck, CheckCircle, AlertTriangle, Loader2, Key, ArrowLeft, LogIn } from 'lucide-react';
+import { ShieldCheck, CheckCircle, AlertTriangle, Loader2, Key, ArrowLeft, LogIn, RefreshCw } from 'lucide-react';
 import { UserRole } from '../types';
 
 // --- SECURITY CONFIGURATION ---
@@ -17,9 +17,12 @@ const AdminSetup: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
   
+  // Toggle between Create and Reset modes
+  const [mode, setMode] = useState<'CREATE' | 'RESET'>('CREATE');
+
   const navigate = useNavigate();
 
-  const handleCreateAdmin = async (e: React.FormEvent) => {
+  const handleAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
@@ -35,42 +38,54 @@ const AdminSetup: React.FC = () => {
     }
 
     try {
-      // 1. Create Authentication User
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      if (mode === 'CREATE') {
+          // 1. Create Authentication User
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const user = userCredential.user;
 
-      // 2. Prepare Admin Data Object
-      const adminData = {
-        email: user.email,
-        role: UserRole.ADMIN,
-        isSuperAdmin: true, // MASTER ADMIN FLAG
-        name: 'Super Admin',
-        status: 'ACTIVE',
-        profileCompleted: true,
-        joinedDate: new Date().toISOString(),
-        points: 0,
-        rank: 0,
-        avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=0D9488&color=fff`
-      };
+          // 2. Prepare Admin Data Object
+          const adminData = {
+            email: user.email,
+            role: UserRole.ADMIN,
+            isSuperAdmin: true, // MASTER ADMIN FLAG
+            name: 'Super Admin',
+            status: 'ACTIVE',
+            profileCompleted: true,
+            joinedDate: new Date().toISOString(),
+            points: 0,
+            rank: 0,
+            avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=0D9488&color=fff`
+          };
 
-      // 3. Write to Firestore
-      await setDoc(doc(db, "users", user.uid), adminData);
+          // 3. Write to Firestore
+          await setDoc(doc(db, "users", user.uid), adminData);
 
-      setStatus({
-        type: 'success',
-        msg: `Success! Master Admin created. You can now login.`
-      });
+          setStatus({
+            type: 'success',
+            msg: `Success! Master Admin created. You can now login.`
+          });
+      } else {
+          // RESET PASSWORD MODE
+          await sendPasswordResetEmail(auth, email);
+          setStatus({
+            type: 'success',
+            msg: `Password reset email sent to ${email}. Check your inbox!`
+          });
+      }
       
-      // Clear form
-      setEmail('');
+      // Clear sensitive fields
       setPassword('');
       setMasterKey('');
 
     } catch (error: any) {
       console.error("Setup Error:", error);
+      let errorMsg = error.message;
+      if (error.code === 'auth/email-already-in-use') {
+          errorMsg = "Account already exists! Try the 'Reset Password' tab instead.";
+      }
       setStatus({
         type: 'error',
-        msg: error.message
+        msg: errorMsg
       });
     } finally {
       setLoading(false);
@@ -98,13 +113,29 @@ const AdminSetup: React.FC = () => {
           <p className="text-slate-500 text-sm">Protected by Master Key</p>
         </div>
 
+        {/* Tab Switcher */}
+        <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+            <button 
+                onClick={() => { setMode('CREATE'); setStatus(null); }}
+                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${mode === 'CREATE' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}
+            >
+                Create New
+            </button>
+            <button 
+                onClick={() => { setMode('RESET'); setStatus(null); }}
+                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${mode === 'RESET' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}
+            >
+                Reset Password
+            </button>
+        </div>
+
         {status && (
           <div className={`p-4 rounded-lg mb-6 text-sm flex flex-col ${status.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
             <div className="flex items-start">
                 {status.type === 'success' ? <CheckCircle size={18} className="mr-2 shrink-0" /> : <AlertTriangle size={18} className="mr-2 shrink-0" />}
                 {status.msg}
             </div>
-            {status.type === 'success' && (
+            {status.type === 'success' && mode === 'CREATE' && (
                 <Button onClick={() => navigate('/login')} size="sm" className="mt-3 bg-emerald-700 hover:bg-emerald-800 self-end flex items-center">
                     <LogIn size={14} className="mr-1" /> Go to Login
                 </Button>
@@ -112,7 +143,7 @@ const AdminSetup: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleCreateAdmin} className="space-y-4">
+        <form onSubmit={handleAction} className="space-y-4">
           
           {/* Security Key Input */}
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -128,11 +159,11 @@ const AdminSetup: React.FC = () => {
                     onChange={e => setMasterKey(e.target.value)}
                   />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Required to authorize creation.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Required to authorize action.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">New Admin Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Admin Email</label>
             <input 
               type="email" 
               required
@@ -142,21 +173,24 @@ const AdminSetup: React.FC = () => {
               onChange={e => setEmail(e.target.value)}
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
-            <input 
-              type="password" 
-              required
-              minLength={6}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-              placeholder="******"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-          </div>
 
-          <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 py-3" disabled={loading}>
-            {loading ? <Loader2 className="animate-spin mx-auto" /> : "Authorize & Create Admin"}
+          {mode === 'CREATE' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+                <input 
+                  type="password" 
+                  required
+                  minLength={6}
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="******"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                />
+              </div>
+          )}
+
+          <Button type="submit" className={`w-full py-3 ${mode === 'CREATE' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'}`} disabled={loading}>
+            {loading ? <Loader2 className="animate-spin mx-auto" /> : (mode === 'CREATE' ? "Authorize & Create Admin" : "Send Reset Link")}
           </Button>
         </form>
       </Card>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRole, User } from '../types';
 import { authService } from '../services/authService';
-import { ShieldCheck, Loader2, AlertTriangle, Copy, Lock, Mail } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertTriangle, Copy, Lock, Mail, Wrench } from 'lucide-react';
 import AdModal from '../components/AdModal'; // Import Ad Modal
 
 interface LoginProps {
@@ -44,16 +44,15 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!adminEmail || !adminPassword) {
+    if(!adminEmail.trim() || !adminPassword.trim()) {
         setErrorMsg({ title: "Input Error", detail: "Please enter both email and password." });
         return;
     }
     setLoading(true);
     setErrorMsg(null);
     try {
-      const user = await authService.loginAdmin(adminEmail, adminPassword);
+      const user = await authService.loginAdmin(adminEmail.trim(), adminPassword.trim());
       if (user) {
-        // Admin login doesn't necessarily need ads, but if you want:
         setUser(user);
         navigate('/admin/dashboard');
       }
@@ -136,6 +135,15 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
                                     <button onClick={() => navigator.clipboard.writeText(errorMsg.domain!)} className="ml-2 text-brand-600 hover:text-brand-800"><Copy size={14} /></button>
                                 </div>
                             </div>
+                        )}
+                        {/* HELPFUL LINK FOR ADMIN RECOVERY */}
+                        {showAdminForm && (
+                            <button 
+                                onClick={() => navigate('/setup-admin')}
+                                className="mt-2 text-xs font-bold text-red-700 underline hover:text-red-900 flex items-center"
+                            >
+                                <Wrench size={12} className="mr-1" /> Trouble logging in? Setup/Recover Master Admin
+                            </button>
                         )}
                     </div>
                 </div>
