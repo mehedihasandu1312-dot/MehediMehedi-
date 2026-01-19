@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
-import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library } from 'lucide-react';
+import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library, PlayCircle, Youtube } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; 
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -62,6 +62,24 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       { question: `Can I download as PDF?`, answer: `Premium users may have download options.` }
   ];
 
+  const getEmbedUrl = (url?: string) => {
+      if (!url) return '';
+      // YouTube Standard
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = url.match(regExp);
+      if (match && match[2].length === 11) {
+          return `https://www.youtube.com/embed/${match[2]}`;
+      }
+      // Vimeo
+      const vimeoRegex = /(?:www\.|player\.)?vimeo.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|)(\d+)(?:[a-zA-Z0-9_\-]+)?/i;
+      const vimeoMatch = url.match(vimeoRegex);
+      if(vimeoMatch && vimeoMatch[1]) {
+          return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+      }
+
+      return url; // Return original if no match (might be direct embed link)
+  };
+
   const openAppealModal = (id: string, title: string) => {
     setAppealTarget({ id, title });
     setAppealText('');
@@ -112,12 +130,13 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const seoData = useMemo(() => {
       if (selectedContent) {
           const isMCQ = selectedContent.type === ContentType.MCQ;
+          const isVideo = selectedContent.type === ContentType.VIDEO;
           const folderName = selectedFolder?.name || "General";
           return {
               title: `${selectedContent.title} - ${folderName}`,
               desc: `Study ${selectedContent.title} on EduMaster.`,
               keywords: [selectedContent.title, folderName],
-              type: isMCQ ? 'website' : 'article',
+              type: isMCQ ? 'website' : isVideo ? 'video.other' : 'article',
               breadcrumbs: [
                   { name: 'Home', url: '/' },
                   { name: 'Library', url: '/#/student/content' },
@@ -229,9 +248,14 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors ${
                           isLocked ? 'bg-amber-100 text-amber-600' :
                           item.type === ContentType.WRITTEN ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' : 
+                          item.type === ContentType.VIDEO ? 'bg-red-50 text-red-600 group-hover:bg-red-600 group-hover:text-white' :
                           'bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white'
                       }`}>
-                        {isLocked ? <Lock size={24} /> : (item.type === ContentType.WRITTEN ? <FileText size={24} /> : <CheckSquare size={24} />)}
+                        {isLocked ? <Lock size={24} /> : (
+                            item.type === ContentType.WRITTEN ? <FileText size={24} /> : 
+                            item.type === ContentType.VIDEO ? <PlayCircle size={24} /> :
+                            <CheckSquare size={24} />
+                        )}
                       </div>
                       
                       <div>
@@ -246,9 +270,15 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             )}
                         </div>
                         <div className="flex items-center mt-1.5 space-x-3 text-xs text-slate-500 font-medium">
-                            <span className="uppercase tracking-wider">{item.type === ContentType.WRITTEN ? 'PDF Note' : 'Quiz'}</span>
+                            <span className="uppercase tracking-wider">
+                                {item.type === ContentType.WRITTEN ? 'PDF Note' : item.type === ContentType.VIDEO ? 'Video Class' : 'Quiz'}
+                            </span>
                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span>{item.type === ContentType.WRITTEN ? 'Read Only' : `${item.questions || '?'} Questions`}</span>
+                            <span>
+                                {item.type === ContentType.WRITTEN ? 'Read Only' : 
+                                 item.type === ContentType.VIDEO ? 'Watch Now' :
+                                 `${item.questions || '?'} Questions`}
+                            </span>
                         </div>
                       </div>
                     </div>
@@ -324,7 +354,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
               <div className="text-sm font-bold text-slate-800 line-clamp-1">{selectedContent.title}</div>
           </div>
 
-          {selectedContent.type === ContentType.WRITTEN && (
+          {(selectedContent.type === ContentType.WRITTEN || selectedContent.type === ContentType.VIDEO) && (
             <div className="animate-fade-in space-y-6">
                 <article className="bg-white rounded-none md:rounded-3xl shadow-xl border border-slate-100 min-h-[80vh] relative overflow-hidden">
                     {/* Pink Progress Bar */}
@@ -333,7 +363,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                     <div className="p-6 md:p-12 pb-24">
                         <header className="border-b border-slate-100 pb-8 mb-8">
                             <div className="flex flex-wrap gap-2 mb-4">
-                                <Badge color="bg-blue-50 text-blue-700 border-blue-100">READING MATERIAL</Badge>
+                                <Badge color="bg-blue-50 text-blue-700 border-blue-100">
+                                    {selectedContent.type === ContentType.VIDEO ? "VIDEO CLASS" : "READING MATERIAL"}
+                                </Badge>
                                 <Badge color="bg-slate-100 text-slate-600">{selectedFolder?.name}</Badge>
                             </div>
                             <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 font-sans tracking-tight leading-tight">{selectedContent.title}</h1>
@@ -346,35 +378,54 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                                     <Calendar size={16} className="mr-2 text-slate-400" /> Updated Today
                                 </span>
                                 <span className="flex items-center">
-                                    <BookOpen size={16} className="mr-2 text-slate-400" /> 5 min read
+                                    <BookOpen size={16} className="mr-2 text-slate-400" /> 
+                                    {selectedContent.type === ContentType.VIDEO ? "Video Lesson" : "5 min read"}
                                 </span>
                             </div>
                         </header>
 
-                        <section className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-100 rounded-2xl p-6 mb-10 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full -mr-10 -mt-10 blur-xl"></div>
-                            <h3 className="font-bold text-pink-900 mb-4 flex items-center text-lg">
-                                <Bookmark className="text-pink-600 mr-2" size={20} fill="currentColor" />
-                                Key Highlights
-                            </h3>
-                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-pink-800 list-disc list-inside marker:text-pink-400">
-                                <li>Comprehensive overview of {selectedContent.title}</li>
-                                <li>Key definitions and important formulas</li>
-                                <li>Exam-oriented explanations and examples</li>
-                                <li>Prepared by expert instructors for {selectedFolder?.name}</li>
-                            </ul>
-                        </section>
+                        {/* VIDEO PLAYER */}
+                        {selectedContent.type === ContentType.VIDEO && selectedContent.videoUrl && (
+                            <div className="mb-10">
+                                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-black">
+                                    <iframe 
+                                        src={getEmbedUrl(selectedContent.videoUrl)} 
+                                        title={selectedContent.title}
+                                        className="w-full h-full"
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                        allowFullScreen
+                                    ></iframe>
+                                </div>
+                                <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
+                                    <span className="flex items-center"><Youtube size={16} className="mr-2 text-red-600"/> Video Source</span>
+                                    <a href={selectedContent.videoUrl} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">Open Original Link</a>
+                                </div>
+                            </div>
+                        )}
 
-                        <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
-                             {selectedContent.body?.split('\n').map((paragraph, idx) => (
-                                 <p key={idx} className="mb-6">{paragraph}</p>
-                             ))}
-                             {(!selectedContent.body || selectedContent.body.length < 50) && (
-                                 <div className="text-slate-400 italic bg-slate-50 p-12 text-center rounded-2xl border-2 border-dashed border-slate-200">
-                                     [Content is currently being updated by the administrator]
-                                 </div>
-                             )}
-                        </div>
+                        {selectedContent.body && (
+                            <>
+                                <section className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-100 rounded-2xl p-6 mb-10 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full -mr-10 -mt-10 blur-xl"></div>
+                                    <h3 className="font-bold text-pink-900 mb-4 flex items-center text-lg">
+                                        <Bookmark className="text-pink-600 mr-2" size={20} fill="currentColor" />
+                                        Description & Notes
+                                    </h3>
+                                    <div className="text-sm text-pink-900 leading-relaxed whitespace-pre-wrap">
+                                        {selectedContent.body}
+                                    </div>
+                                </section>
+
+                                {selectedContent.type === ContentType.WRITTEN && (
+                                    <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
+                                        {selectedContent.body?.split('\n').map((paragraph, idx) => (
+                                            <p key={idx} className="mb-6">{paragraph}</p>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
                         
                         <div className="my-12">
                             <AdBanner slotId="CONTENT_BODY_AD" />

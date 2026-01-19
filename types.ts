@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export enum UserRole {
@@ -130,7 +131,8 @@ export interface AdminActivityLog {
 
 export enum ContentType {
   WRITTEN = 'WRITTEN',
-  MCQ = 'MCQ'
+  MCQ = 'MCQ',
+  VIDEO = 'VIDEO' // NEW TYPE ADDED
 }
 
 export interface MCQQuestion {
@@ -146,6 +148,7 @@ export interface StudyContent {
   title: string;
   type: ContentType;
   body?: string; // For written
+  videoUrl?: string; // NEW: For Video Links (YouTube/Vimeo)
   questions?: number; // Count for MCQ (Legacy/Summary)
   questionList?: MCQQuestion[]; // Detailed MCQ data
   isDeleted?: boolean; // Soft delete

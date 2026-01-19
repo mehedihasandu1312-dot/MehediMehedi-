@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import WrittenContentForm from '../../components/WrittenContentForm';
 import McqContentForm from '../../components/McqContentForm';
+import VideoContentForm from '../../components/VideoContentForm'; // NEW IMPORT
 import { StudyContent, ContentType, Folder } from '../../types';
 import { 
     Plus, 
@@ -25,7 +27,9 @@ import {
     X,
     Upload,
     AlertTriangle,
-    CheckCircle
+    CheckCircle,
+    PlayCircle,
+    Youtube
 } from 'lucide-react';
 
 // Custom Large Modal for Content Editing
@@ -92,9 +96,10 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
     const totalFiles = contents.filter(c => !c.isDeleted).length;
     const writtenCount = contents.filter(c => !c.isDeleted && c.type === ContentType.WRITTEN).length;
     const mcqCount = contents.filter(c => !c.isDeleted && c.type === ContentType.MCQ).length;
-    const storageUsed = ((writtenCount * 1.5) + (mcqCount * 0.5)).toFixed(1); 
+    const videoCount = contents.filter(c => !c.isDeleted && c.type === ContentType.VIDEO).length;
+    const storageUsed = ((writtenCount * 1.5) + (mcqCount * 0.5) + (videoCount * 0.1)).toFixed(1); // Videos are links, so low storage
 
-    return { totalFolders, totalFiles, writtenCount, mcqCount, storageUsed };
+    return { totalFolders, totalFiles, writtenCount, mcqCount, videoCount, storageUsed };
   }, [folders, contents]);
 
   // --- EXPLORER LOGIC ---
@@ -209,7 +214,12 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
 
   const handleSaveContent = (data: any) => {
     const isMcq = 'questions' in data || 'questionList' in data;
+    const isVideo = 'videoUrl' in data;
     
+    let type = ContentType.WRITTEN;
+    if (isMcq) type = ContentType.MCQ;
+    if (isVideo) type = ContentType.VIDEO;
+
     if (editingContent) {
         // Update Existing
         setContents(prev => prev.map(c => 
@@ -220,30 +230,31 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 folderId: data.folderId, 
                 body: data.body,
                 questions: data.questions,
-                questionList: data.questionList 
+                questionList: data.questionList,
+                videoUrl: data.videoUrl // Add this
               } 
             : c
         ));
-        showInfo("Success", `${isMcq ? 'MCQ Set' : 'Written Content'} updated successfully!`);
+        showInfo("Success", `Content updated successfully!`);
     } else {
         // Create New
         const newContent: StudyContent = {
             id: `content_${Date.now()}`,
             folderId: data.folderId,
             title: data.title,
-            type: isMcq ? ContentType.MCQ : ContentType.WRITTEN,
+            type: type,
             body: data.body,
             questions: data.questions,
             questionList: data.questionList,
+            videoUrl: data.videoUrl, // Add this
             isDeleted: false
         };
         setContents([newContent, ...contents]);
         
         if (currentFolderId !== data.folderId) {
-            // Just notify success, no confirm to keep UI clean per user request
-             showInfo("Success", `${isMcq ? 'MCQ Set' : 'Written Content'} added to selected folder!`);
+             showInfo("Success", `Content added to selected folder!`);
         } else {
-            showInfo("Success", `${isMcq ? 'MCQ Set' : 'Written Content'} added successfully!`);
+            showInfo("Success", `Content added successfully!`);
         }
     }
 
@@ -365,15 +376,6 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 <h3 className="text-xl font-bold text-slate-800">{stats.storageUsed} MB</h3>
             </div>
         </Card>
-        <Card className="flex items-center p-4 border-l-4 border-l-amber-500">
-            <div className="bg-amber-50 p-3 rounded-lg text-amber-600 mr-4">
-                <Layers size={24} />
-            </div>
-            <div>
-                <p className="text-xs text-slate-500 font-bold uppercase">Folders</p>
-                <h3 className="text-xl font-bold text-slate-800">{stats.totalFolders}</h3>
-            </div>
-        </Card>
         <Card className="flex items-center p-4 border-l-4 border-l-emerald-500">
             <div className="bg-emerald-50 p-3 rounded-lg text-emerald-600 mr-4">
                 <FileText size={24} />
@@ -381,6 +383,15 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             <div>
                 <p className="text-xs text-slate-500 font-bold uppercase">Text Notes</p>
                 <h3 className="text-xl font-bold text-slate-800">{stats.writtenCount}</h3>
+            </div>
+        </Card>
+        <Card className="flex items-center p-4 border-l-4 border-l-red-500">
+            <div className="bg-red-50 p-3 rounded-lg text-red-600 mr-4">
+                <Youtube size={24} />
+            </div>
+            <div>
+                <p className="text-xs text-slate-500 font-bold uppercase">Videos</p>
+                <h3 className="text-xl font-bold text-slate-800">{stats.videoCount}</h3>
             </div>
         </Card>
         <Card className="flex items-center p-4 border-l-4 border-l-purple-500">
@@ -493,14 +504,20 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                         className={`group p-4 border rounded-xl hover:shadow-md cursor-default transition-all relative h-36 flex flex-col ${
                                             content.type === ContentType.WRITTEN 
                                             ? 'bg-blue-50/50 border-blue-100 hover:bg-blue-100 hover:border-blue-300' 
-                                            : 'bg-purple-50/50 border-purple-100 hover:bg-purple-100 hover:border-purple-300'
+                                            : content.type === ContentType.MCQ
+                                            ? 'bg-purple-50/50 border-purple-100 hover:bg-purple-100 hover:border-purple-300'
+                                            : 'bg-red-50/50 border-red-100 hover:bg-red-100 hover:border-red-300'
                                         }`}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div className={`p-2 rounded-lg ${
-                                                content.type === ContentType.WRITTEN ? 'bg-blue-200 text-blue-700' : 'bg-purple-200 text-purple-700'
+                                                content.type === ContentType.WRITTEN ? 'bg-blue-200 text-blue-700' : 
+                                                content.type === ContentType.MCQ ? 'bg-purple-200 text-purple-700' :
+                                                'bg-red-200 text-red-700'
                                             }`}>
-                                                {content.type === ContentType.WRITTEN ? <FileText size={20} /> : <CheckSquare size={20} />}
+                                                {content.type === ContentType.WRITTEN ? <FileText size={20} /> : 
+                                                 content.type === ContentType.MCQ ? <CheckSquare size={20} /> :
+                                                 <Youtube size={20} />}
                                             </div>
                                             <div className="flex space-x-1">
                                                 <button 
@@ -522,11 +539,15 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                         <div className="flex-1 min-h-0">
                                             <h4 className="font-bold text-slate-800 truncate" title={content.title}>{content.title}</h4>
                                             <p className="text-xs text-slate-500 truncate">
-                                                {content.type === ContentType.WRITTEN ? 'Read Only Note' : `${content.questions} Questions`}
+                                                {content.type === ContentType.WRITTEN ? 'Read Only Note' : 
+                                                 content.type === ContentType.MCQ ? `${content.questions} Questions` :
+                                                 'Video Tutorial'}
                                             </p>
                                         </div>
                                         <div className={`mt-1 text-[10px] font-medium uppercase tracking-wide ${
-                                            content.type === ContentType.WRITTEN ? 'text-blue-700' : 'text-purple-700'
+                                            content.type === ContentType.WRITTEN ? 'text-blue-700' : 
+                                            content.type === ContentType.MCQ ? 'text-purple-700' :
+                                            'text-red-700'
                                         }`}>
                                             {content.type}
                                         </div>
@@ -652,11 +673,11 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
         </form>
       </Modal>
 
-      {/* Add/Edit Content Large Modal */}
+      {/* Add/Edit Content Large Modal - Updated with Video Option */}
       <LargeModal isOpen={isContentModalOpen} onClose={handleCloseContentModal} title={editingContent ? "Edit Study Content" : "Add Study Content"}>
         <div className="space-y-6">
             {/* Type Switcher */}
-            <div className="flex bg-slate-100 p-1 rounded-lg max-w-md mx-auto">
+            <div className="flex bg-slate-100 p-1 rounded-lg max-w-lg mx-auto">
                 <button 
                     disabled={!!editingContent}
                     onClick={() => setContentTypeToAdd(ContentType.WRITTEN)}
@@ -664,7 +685,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         contentTypeToAdd === ContentType.WRITTEN ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                     } ${editingContent ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    Written Note (Word Editor)
+                    Written Note
                 </button>
                 <button 
                     disabled={!!editingContent}
@@ -674,6 +695,15 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     } ${editingContent ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     MCQ Builder
+                </button>
+                <button 
+                    disabled={!!editingContent}
+                    onClick={() => setContentTypeToAdd(ContentType.VIDEO)}
+                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                        contentTypeToAdd === ContentType.VIDEO ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    } ${editingContent ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    Video
                 </button>
             </div>
 
@@ -689,7 +719,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     } : undefined}
                     onSubmit={handleSaveContent} 
                 />
-            ) : (
+            ) : contentTypeToAdd === ContentType.MCQ ? (
                 <McqContentForm 
                     folders={folders.filter(f => !f.type || f.type === 'CONTENT')}
                     fixedFolderId={editingContent ? editingContent.folderId : (currentFolderId || '')}
@@ -699,6 +729,19 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                         questionList: editingContent.questionList
                     } : undefined}
                     onSubmit={handleSaveContent} 
+                />
+            ) : (
+                <VideoContentForm 
+                    folders={folders.filter(f => !f.type || f.type === 'CONTENT')}
+                    fixedFolderId={editingContent ? editingContent.folderId : (currentFolderId || '')}
+                    initialData={editingContent && editingContent.type === ContentType.VIDEO ? {
+                        title: editingContent.title,
+                        folderId: editingContent.folderId,
+                        videoUrl: editingContent.videoUrl || '',
+                        body: editingContent.body || '',
+                        isPremium: editingContent.isPremium
+                    } : undefined}
+                    onSubmit={handleSaveContent}
                 />
             )}
         </div>
