@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, FileText } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, Link as LinkIcon } from 'lucide-react';
 import { db, storage } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -109,7 +109,8 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
             }, 
             (error) => {
                 console.error("Upload error:", error);
-                alert(`Upload failed: ${error.message}. Check Firebase Storage Rules.`);
+                // Allow user to continue manually if upload fails
+                alert(`Upload failed (likely due to storage quota). Please use the 'Direct Link' box below instead.`);
                 setUploadingField(null);
                 setUploadProgress(0);
             }, 
@@ -375,7 +376,20 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                             </div>
                                         )}
                                     </div>
-                                    {productForm.fileUrl && <p className="text-[10px] text-emerald-600 mt-1 font-bold">✓ Full PDF Loaded</p>}
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0">- OR -</span>
+                                        <div className="relative w-full">
+                                            <LinkIcon size={14} className="absolute left-2.5 top-2.5 text-slate-400"/>
+                                            <input 
+                                                type="text" 
+                                                className="w-full pl-8 p-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                placeholder="Paste Google Drive/External PDF Link here..."
+                                                value={productForm.fileUrl}
+                                                onChange={(e) => setProductForm({...productForm, fileUrl: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+                                    {productForm.fileUrl && <p className="text-[10px] text-emerald-600 mt-1 font-bold">✓ PDF Link Ready</p>}
                                 </div>
 
                                 {/* PREVIEW FILE UPLOAD */}
@@ -417,9 +431,19 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 mt-1">
-                                        {productForm.previewUrl ? "✓ Sample PDF Loaded" : "Upload a few pages for the 'Look Inside' feature."}
-                                    </p>
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0">- OR -</span>
+                                        <div className="relative w-full">
+                                            <LinkIcon size={14} className="absolute left-2.5 top-2.5 text-slate-400"/>
+                                            <input 
+                                                type="text" 
+                                                className="w-full pl-8 p-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                placeholder="Paste Preview Link..."
+                                                value={productForm.previewUrl}
+                                                onChange={(e) => setProductForm({...productForm, previewUrl: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -457,12 +481,24 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-slate-500 flex-1">
                                     <p className="font-bold">Book Cover</p>
-                                    <p>Recommended: 400x600px</p>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={!!uploadingField} className="mt-2 h-7 text-xs">
-                                        Select Image
-                                    </Button>
+                                    <p className="mb-2">Recommended: 400x600px</p>
+                                    <div className="flex gap-2">
+                                        <Button type="button" size="sm" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={!!uploadingField} className="h-7 text-xs px-2">
+                                            Select Image
+                                        </Button>
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0">OR Link:</span>
+                                        <input 
+                                            type="text" 
+                                            className="w-full p-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 outline-none"
+                                            placeholder="https://..."
+                                            value={productForm.image}
+                                            onChange={(e) => setProductForm({...productForm, image: e.target.value})}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
