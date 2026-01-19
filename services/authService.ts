@@ -1,6 +1,5 @@
 
 import { User, UserRole, PaymentRequest, StoreOrder } from '../types';
-import { MOCK_USERS, MASTER_ADMIN_EMAIL } from '../constants';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -9,7 +8,7 @@ export const authService = {
   // --- REAL ADMIN LOGIN (EMAIL/PASSWORD) ---
   loginAdmin: async (email: string, password: string): Promise<User> => {
     try {
-        // 1. Authenticate with Firebase Auth
+        // 1. Authenticate with Firebase Auth (Checks Email & Password hash)
         const result = await signInWithEmailAndPassword(auth, email, password);
         const fbUser = result.user;
 
@@ -18,16 +17,8 @@ export const authService = {
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
-            // FIX: Manually merge the Document ID with the data
             const userData = { id: userSnap.id, ...userSnap.data() } as User;
             
-            // --- AUTO SUPER ADMIN FIX ---
-            // If the email matches the hardcoded master email, grant super admin even if DB misses it
-            if (userData.email === MASTER_ADMIN_EMAIL) {
-                userData.isSuperAdmin = true;
-                userData.role = UserRole.ADMIN; // Ensure they are admin
-            }
-
             // SECURITY CHECK: Verify Role
             if (userData.role !== UserRole.ADMIN) {
                 await signOut(auth); // Log them out immediately
@@ -42,36 +33,17 @@ export const authService = {
             sessionStorage.setItem('currentUser', JSON.stringify(userData));
             return userData;
         } else {
-            // --- MASTER ADMIN AUTO-HEAL ---
-            // If DB record is missing but it's the MASTER EMAIL, create it and log in.
-            if (fbUser.email === MASTER_ADMIN_EMAIL) {
-                const newMasterAdmin: User = {
-                    id: fbUser.uid,
-                    name: 'Super Admin',
-                    email: fbUser.email!,
-                    role: UserRole.ADMIN,
-                    isSuperAdmin: true,
-                    profileCompleted: true,
-                    status: 'ACTIVE',
-                    joinedDate: new Date().toISOString(),
-                    avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=0D9488&color=fff`
-                };
-                await setDoc(userRef, newMasterAdmin);
-                sessionStorage.setItem('currentUser', JSON.stringify(newMasterAdmin));
-                return newMasterAdmin;
-            }
-
-            // Edge case: Auth exists but no DB record and not master admin.
+            // Edge case: Auth exists (Password correct) but no DB record found.
             await signOut(auth);
-            throw new Error("User record not found in database.");
+            throw new Error("User record missing in database. Please contact support.");
         }
     } catch (error: any) {
         console.error("Admin Login Error:", error);
         // Clean up error messages
         let msg = error.message;
-        if (error.code === 'auth/invalid-credential') msg = "Invalid Email or Password.";
-        if (error.code === 'auth/user-not-found') msg = "No admin account found with this email. Please run Setup.";
-        if (error.code === 'auth/wrong-password') msg = "Incorrect password.";
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') msg = "Invalid Email or Password.";
+        if (error.code === 'auth/user-not-found') msg = "No account found with this email.";
+        if (error.code === 'auth/too-many-requests') msg = "Too many failed attempts. Please try again later.";
         throw new Error(msg);
     }
   },
@@ -89,12 +61,6 @@ export const authService = {
       if (userSnap.exists()) {
         const userData = { id: userSnap.id, ...userSnap.data() } as User;
         
-        // --- AUTO SUPER ADMIN FIX ---
-        if (userData.email === MASTER_ADMIN_EMAIL) {
-            userData.isSuperAdmin = true;
-            userData.role = UserRole.ADMIN;
-        }
-
         if (userData.status === 'BLOCKED') {
            throw new Error("This account is blocked.");
         }
@@ -115,12 +81,6 @@ export const authService = {
           points: 0,
           rank: 0
         };
-
-        // If new user is Master Admin by email, auto-promote
-        if (newUser.email === MASTER_ADMIN_EMAIL) {
-            newUser.role = UserRole.ADMIN;
-            newUser.isSuperAdmin = true;
-        }
 
         await setDoc(userRef, newUser);
         sessionStorage.setItem('currentUser', JSON.stringify(newUser));
