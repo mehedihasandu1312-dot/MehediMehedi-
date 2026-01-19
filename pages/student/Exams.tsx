@@ -18,6 +18,19 @@ interface ExamsPageProps {
     currentUser?: User | null; 
 }
 
+// Consistent Pink/Warm Gradient Palette
+const getGradientClass = (index: number) => {
+    const gradients = [
+        'bg-gradient-to-br from-pink-600 to-rose-600 shadow-pink-200',
+        'bg-gradient-to-br from-fuchsia-600 to-pink-600 shadow-fuchsia-200',
+        'bg-gradient-to-br from-rose-500 to-orange-600 shadow-orange-200',
+        'bg-gradient-to-br from-purple-600 to-fuchsia-500 shadow-purple-200',
+        'bg-gradient-to-br from-brand-600 to-red-600 shadow-red-200',
+        'bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-violet-200',
+    ];
+    return gradients[index % gradients.length];
+};
+
 // Modern Status Badge Logic
 const getExamStatus = (exam: Exam) => {
     if (exam.type === 'GENERAL') return { status: 'OPEN', label: 'PRACTICE', color: 'bg-emerald-500', text: 'text-white' };
@@ -185,30 +198,42 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                   <AdModal isOpen={showExamAd} onClose={onAdComplete} title="Exam Loading" timerSeconds={5} />
 
                   {!selectedFolderId ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 animate-slide-up">
                           {examFolders.map((folder, index) => {
                               const examCount = exams.filter(e => e.folderId === folder.id && e.isPublished).length;
                               return (
                                   <div 
                                       key={folder.id} 
                                       onClick={() => setSelectedFolderId(folder.id)}
-                                      className="group bg-white p-6 rounded-2xl border border-slate-200 hover:border-pink-300 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden h-48 flex flex-col justify-between"
+                                      className={`relative overflow-hidden rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white border border-white/20`}
                                   >
-                                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-pink-50 to-transparent rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                                      
-                                      <div className="relative z-10">
-                                          <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center text-pink-600 mb-4 group-hover:bg-pink-600 group-hover:text-white transition-colors">
-                                              {folder.icon ? <img src={folder.icon} className="w-8 h-8 object-contain" /> : <FolderIcon size={24} />}
-                                          </div>
-                                          <h3 className="text-xl font-bold text-slate-800 line-clamp-1">{folder.name}</h3>
-                                          <p className="text-sm text-slate-500 mt-1 line-clamp-1">{folder.description}</p>
+                                      {/* Background Decoration */}
+                                      <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
+                                          {folder.icon ? (
+                                              <img src={folder.icon} className="w-32 h-32 object-contain drop-shadow-md brightness-200" alt="" />
+                                          ) : (
+                                              <FolderIcon className="w-32 h-32" fill="currentColor" />
+                                          )}
                                       </div>
-                                      
-                                      <div className="relative z-10 flex items-center justify-between pt-4 border-t border-slate-50">
-                                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{examCount} Exams</span>
-                                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">
-                                              <ChevronRight size={16} />
+
+                                      <div className="relative z-10">
+                                          <h3 className="text-xl md:text-2xl font-bold leading-tight mb-2 drop-shadow-md font-sans tracking-tight line-clamp-2">
+                                              {folder.name}
+                                          </h3>
+                                          <p className="text-white/80 text-xs md:text-sm font-medium line-clamp-1">
+                                              {folder.description || 'Access Exams'}
+                                          </p>
+                                      </div>
+
+                                      <div className="relative z-10 flex items-center justify-between mt-auto">
+                                          <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 group-hover:bg-white/30 transition-colors">
+                                              <FileQuestion size={12} className="text-white" />
+                                              <span>{examCount} Exams</span>
                                           </div>
+                                          
+                                          <span className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white text-white hover:text-pink-600 transition-all shadow-sm">
+                                              <ArrowLeft className="rotate-180" size={16} />
+                                          </span>
                                       </div>
                                   </div>
                               )
