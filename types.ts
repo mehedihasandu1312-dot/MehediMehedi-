@@ -64,7 +64,7 @@ export interface User {
   };
 }
 
-// NEW: Payment Request Interface
+// NEW: Payment Request Interface (Subscription)
 export interface PaymentRequest {
     id: string;
     userId: string;
@@ -78,6 +78,42 @@ export interface PaymentRequest {
     trxId: string;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     timestamp: string;
+}
+
+// --- STORE INTERFACES (NEW) ---
+
+export type ProductType = 'DIGITAL' | 'PHYSICAL';
+
+export interface StoreProduct {
+    id: string;
+    title: string;
+    description: string;
+    type: ProductType;
+    price: number; // 0 for free
+    prevPrice?: number; // For discount display
+    image: string;
+    fileUrl?: string; // For Digital products (PDF link)
+    stock?: number; // For Physical products
+    isFree: boolean;
+    category?: string;
+}
+
+export interface StoreOrder {
+    id: string;
+    userId: string;
+    userName: string;
+    userPhone: string;
+    productId: string;
+    productTitle: string;
+    productType: ProductType;
+    amount: number;
+    method: 'bKash' | 'Nagad'; // Manual payment
+    senderNumber: string;
+    trxId: string;
+    address?: string; // Only for Physical
+    status: 'PENDING' | 'COMPLETED' | 'SHIPPED' | 'REJECTED';
+    orderDate: string;
+    fileUrl?: string; // Copied from product for easier access after purchase
 }
 
 export interface AdminActivityLog {

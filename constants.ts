@@ -1,4 +1,4 @@
-import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog } from './types';
+import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog, StoreProduct, StoreOrder } from './types';
 
 // --- CONFIGURATION ---
 // IMPORTANT: This email has Super Admin privileges (cannot be blocked, sees all admins)
@@ -324,5 +324,62 @@ export const MOCK_REPORTS: SocialReport[] = [
         reason: 'Spam / Scam Link',
         timestamp: '2 hours ago',
         status: 'PENDING'
+    }
+];
+
+// --- MOCK STORE DATA ---
+export const MOCK_PRODUCTS: StoreProduct[] = [
+    {
+        id: 'p1',
+        title: 'Complete Physics Guide (PDF)',
+        description: 'A comprehensive PDF guide for HSC Physics covering all chapters.',
+        type: 'DIGITAL',
+        price: 0, // Free
+        image: 'https://picsum.photos/200/300?random=101',
+        fileUrl: '#',
+        isFree: true,
+        category: 'HSC'
+    },
+    {
+        id: 'p2',
+        title: 'Math Formula Book (Printed)',
+        description: 'Hardcopy book containing all math formulas for Class 9-10. Delivered to your home.',
+        type: 'PHYSICAL',
+        price: 150,
+        prevPrice: 200,
+        image: 'https://picsum.photos/200/300?random=102',
+        stock: 50,
+        isFree: false,
+        category: 'SSC'
+    },
+    {
+        id: 'p3',
+        title: 'Chemistry Premium Notes (PDF)',
+        description: 'High-quality handwritten notes for Organic Chemistry. Instant download after payment.',
+        type: 'DIGITAL',
+        price: 50,
+        image: 'https://picsum.photos/200/300?random=103',
+        fileUrl: '#',
+        isFree: false,
+        category: 'HSC'
+    }
+];
+
+export const MOCK_STORE_ORDERS: StoreOrder[] = [
+    {
+        id: 'ord_1',
+        userId: 'student1',
+        userName: 'Rahim Ahmed',
+        userPhone: '01700000000',
+        productId: 'p2',
+        productTitle: 'Math Formula Book (Printed)',
+        productType: 'PHYSICAL',
+        amount: 150,
+        method: 'bKash',
+        senderNumber: '017xxxxxx',
+        trxId: 'TRX123456',
+        address: 'House 12, Road 5, Dhanmondi, Dhaka',
+        status: 'PENDING',
+        orderDate: new Date().toISOString()
     }
 ];

@@ -1,4 +1,5 @@
-import { User, UserRole, PaymentRequest } from '../types';
+
+import { User, UserRole, PaymentRequest, StoreOrder } from '../types';
 import { MOCK_USERS, MASTER_ADMIN_EMAIL } from '../constants';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
@@ -191,5 +192,15 @@ export const authService = {
       // 2. Update Request Status
       const requestRef = doc(db, "payment_requests", request.id);
       await setDoc(requestRef, { status: 'APPROVED' }, { merge: true });
+  },
+
+  // NEW: Submit Store Order
+  submitStoreOrder: async (order: StoreOrder): Promise<void> => {
+      try {
+          await setDoc(doc(db, "store_orders", order.id), order);
+      } catch (e) {
+          console.error("Failed to submit store order", e);
+          throw e;
+      }
   }
 };

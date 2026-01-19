@@ -14,6 +14,7 @@ import Leaderboard from './pages/student/Leaderboard';
 import ProfileSettings from './pages/student/ProfileSettings';
 import StudentAppeals from './pages/student/StudentAppeals';
 import Subscription from './pages/student/Subscription'; 
+import Store from './pages/student/Store'; // NEW
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AppealManagement from './pages/admin/AppealManagement';
 import ContentManagement from './pages/admin/ContentManagement';
@@ -24,10 +25,11 @@ import NoticeManagement from './pages/admin/NoticeManagement';
 import SocialManagement from './pages/admin/SocialManagement';
 import ExamGrading from './pages/admin/ExamGrading';
 import SystemSettingsPage from './pages/admin/SystemSettings';
-import PaymentManagement from './pages/admin/PaymentManagement'; // NEW IMPORT
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission } from './types';
+import PaymentManagement from './pages/admin/PaymentManagement'; 
+import StoreManagement from './pages/admin/StoreManagement'; // NEW
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder } from './types';
 import { authService } from './services/authService';
-import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS } from './constants';
+import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS, MOCK_PRODUCTS, MOCK_STORE_ORDERS } from './constants';
 import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -167,6 +169,10 @@ const App: React.FC = () => {
       id: 'global_settings',
       educationLevels: DEFAULT_EDUCATION_LEVELS
   }]);
+  
+  // NEW STORE COLLECTIONS
+  const [storeProducts, setStoreProducts, productsLoading] = useFirestoreCollection<StoreProduct>('store_products', MOCK_PRODUCTS);
+  const [storeOrders, setStoreOrders, ordersLoading] = useFirestoreCollection<StoreOrder>('store_orders', MOCK_STORE_ORDERS);
 
   // --- LOCAL STATE FOR SEEN NOTICES ---
   const [readNoticeIds, setReadNoticeIds] = useState<string[]>([]);
@@ -193,7 +199,8 @@ const App: React.FC = () => {
 
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
                         blogFoldersLoading || blogsLoading || noticesLoading || appealsLoading || 
-                        socialLoading || reportsLoading || logsLoading || settingsLoading || submissionsLoading;
+                        socialLoading || reportsLoading || logsLoading || settingsLoading || submissionsLoading ||
+                        productsLoading || ordersLoading;
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -343,6 +350,10 @@ const App: React.FC = () => {
                 path="/student/subscription" 
                 element={<Subscription user={user} setUser={setUser} />} 
               />
+              <Route 
+                path="/student/store" 
+                element={<Store user={user} products={storeProducts} orders={storeOrders} setOrders={setStoreOrders} />} // NEW
+              />
               <Route path="/student/social" element={<SocialPost posts={socialPosts} setPosts={setSocialPosts} />} />
               <Route 
                 path="/student/content" 
@@ -453,7 +464,8 @@ const App: React.FC = () => {
                 } 
               />
               <Route path="/admin/settings" element={<SystemSettingsPage settings={settings} setSettings={setSettings} />} />
-              <Route path="/admin/payments" element={<PaymentManagement />} /> {/* NEW ROUTE */}
+              <Route path="/admin/payments" element={<PaymentManagement />} />
+              <Route path="/admin/store" element={<StoreManagement products={storeProducts} setProducts={setStoreProducts} orders={storeOrders} setOrders={setStoreOrders} />} /> {/* NEW */}
             </>
           )}
         </Route>
