@@ -15,15 +15,15 @@ interface StudyContentPageProps {
     onAppealSubmit?: (data: { contentId: string; contentTitle: string; text: string; image?: string }) => void;
 }
 
-// Modern Gradient Palette for Folders
+// Updated Gradient Palette to match PINK/WARM Theme
 const getGradientClass = (index: number) => {
     const gradients = [
-        'bg-gradient-to-br from-violet-600 to-indigo-600 shadow-indigo-200',
-        'bg-gradient-to-br from-pink-500 to-rose-500 shadow-pink-200',
-        'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200',
-        'bg-gradient-to-br from-amber-500 to-orange-600 shadow-orange-200',
-        'bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-200',
-        'bg-gradient-to-br from-fuchsia-600 to-purple-600 shadow-purple-200',
+        'bg-gradient-to-br from-pink-600 to-rose-600 shadow-pink-200',
+        'bg-gradient-to-br from-fuchsia-600 to-pink-600 shadow-fuchsia-200',
+        'bg-gradient-to-br from-rose-500 to-orange-600 shadow-orange-200',
+        'bg-gradient-to-br from-purple-600 to-fuchsia-500 shadow-purple-200',
+        'bg-gradient-to-br from-brand-600 to-red-600 shadow-red-200', // Brand Pink Mixed
+        'bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-violet-200',
     ];
     return gradients[index % gradients.length];
 };
@@ -165,7 +165,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         <span>{itemCount} Files</span>
                     </div>
                     
-                    <span className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white text-white hover:text-indigo-600 transition-all shadow-sm">
+                    <span className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white text-white hover:text-pink-600 transition-all shadow-sm">
                         <ArrowLeft className="rotate-180" size={16} />
                     </span>
                 </div>
@@ -199,7 +199,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                 <input 
                     type="text" 
                     placeholder="Search files..." 
-                    className="w-full pl-10 p-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-200 outline-none"
+                    className="w-full pl-10 p-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-pink-200 outline-none"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -223,20 +223,20 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                   <div 
                     key={item.id} 
                     onClick={() => handleContentClick(item)}
-                    className={`group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl transition-all cursor-pointer hover:shadow-lg hover:border-indigo-100 hover:translate-y-[-2px] ${isLocked ? 'opacity-90' : ''}`}
+                    className={`group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl transition-all cursor-pointer hover:shadow-lg hover:border-pink-100 hover:translate-y-[-2px] ${isLocked ? 'opacity-90' : ''}`}
                   >
                     <div className="flex items-center space-x-5">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors ${
                           isLocked ? 'bg-amber-100 text-amber-600' :
                           item.type === ContentType.WRITTEN ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' : 
-                          'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'
+                          'bg-pink-50 text-pink-600 group-hover:bg-pink-600 group-hover:text-white'
                       }`}>
                         {isLocked ? <Lock size={24} /> : (item.type === ContentType.WRITTEN ? <FileText size={24} /> : <CheckSquare size={24} />)}
                       </div>
                       
                       <div>
                         <div className="flex items-center gap-2">
-                            <h4 className={`font-bold text-lg leading-tight group-hover:text-indigo-700 transition-colors ${isLocked ? 'text-slate-500' : 'text-slate-800'}`}>
+                            <h4 className={`font-bold text-lg leading-tight group-hover:text-pink-700 transition-colors ${isLocked ? 'text-slate-500' : 'text-slate-800'}`}>
                                 {item.title}
                             </h4>
                             {item.isPremium && (
@@ -253,7 +253,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                       </div>
                     </div>
                     
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-slate-50 text-slate-400 group-hover:bg-pink-600 group-hover:text-white'}`}>
                       {isLocked ? <Lock size={18} /> : <ArrowLeft className="rotate-180" size={18} />}
                     </div>
                   </div>
@@ -280,15 +280,15 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         <div className="mb-8">
             {/* HERO SECTION */}
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between mb-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-50 to-pink-50 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-pink-50 to-purple-50 rounded-full blur-3xl -mr-16 -mt-16"></div>
                 
                 <div className="relative z-10 max-w-lg">
-                    <div className="flex items-center space-x-2 text-indigo-600 font-bold uppercase text-xs tracking-widest mb-2">
+                    <div className="flex items-center space-x-2 text-pink-600 font-bold uppercase text-xs tracking-widest mb-2">
                         <Library size={14} />
                         <span>Knowledge Base</span>
                     </div>
                     <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-3 tracking-tight">
-                        Study <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-600">Material</span>
+                        Study <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600">Material</span>
                     </h1>
                     <p className="text-slate-500 text-base leading-relaxed">
                         Access comprehensive notes, question banks, and suggestions tailored for your success.
@@ -318,7 +318,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       {selectedContent && (
         <div className="max-w-4xl mx-auto pb-10">
           <div className="flex items-center justify-between mb-6 sticky top-4 z-20 bg-white/80 backdrop-blur-md p-3 rounded-xl border border-slate-200/50 shadow-sm">
-             <Button variant="ghost" onClick={() => setSelectedContent(null)} className="flex items-center text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50">
+             <Button variant="ghost" onClick={() => setSelectedContent(null)} className="flex items-center text-sm font-bold text-slate-600 hover:text-pink-600 hover:bg-pink-50">
                 <ArrowLeft size={18} className="mr-2" /> Back to Folder
               </Button>
               <div className="text-sm font-bold text-slate-800 line-clamp-1">{selectedContent.title}</div>
@@ -327,18 +327,19 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           {selectedContent.type === ContentType.WRITTEN && (
             <div className="animate-fade-in space-y-6">
                 <article className="bg-white rounded-none md:rounded-3xl shadow-xl border border-slate-100 min-h-[80vh] relative overflow-hidden">
-                    <div className="h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 w-full"></div>
+                    {/* Pink Progress Bar */}
+                    <div className="h-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 w-full"></div>
                     
                     <div className="p-6 md:p-12 pb-24">
                         <header className="border-b border-slate-100 pb-8 mb-8">
                             <div className="flex flex-wrap gap-2 mb-4">
-                                <Badge color="bg-indigo-50 text-indigo-700 border-indigo-100">READING MATERIAL</Badge>
+                                <Badge color="bg-blue-50 text-blue-700 border-blue-100">READING MATERIAL</Badge>
                                 <Badge color="bg-slate-100 text-slate-600">{selectedFolder?.name}</Badge>
                             </div>
                             <h1 className="text-3xl md:text-5xl font-black text-slate-900 mb-6 font-sans tracking-tight leading-tight">{selectedContent.title}</h1>
                             
                             <div className="flex flex-wrap items-center gap-6 text-sm text-slate-500 font-medium">
-                                <span className="flex items-center text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+                                <span className="flex items-center text-pink-600 bg-pink-50 px-3 py-1 rounded-full">
                                     <UserCheck size={16} className="mr-2" /> Verified by EduMaster
                                 </span>
                                 <span className="flex items-center">
@@ -350,13 +351,13 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             </div>
                         </header>
 
-                        <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 mb-10 relative overflow-hidden">
+                        <section className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-100 rounded-2xl p-6 mb-10 relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full -mr-10 -mt-10 blur-xl"></div>
-                            <h3 className="font-bold text-indigo-900 mb-4 flex items-center text-lg">
-                                <Bookmark className="text-indigo-600 mr-2" size={20} fill="currentColor" />
+                            <h3 className="font-bold text-pink-900 mb-4 flex items-center text-lg">
+                                <Bookmark className="text-pink-600 mr-2" size={20} fill="currentColor" />
                                 Key Highlights
                             </h3>
-                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-indigo-800 list-disc list-inside marker:text-indigo-400">
+                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-pink-800 list-disc list-inside marker:text-pink-400">
                                 <li>Comprehensive overview of {selectedContent.title}</li>
                                 <li>Key definitions and important formulas</li>
                                 <li>Exam-oriented explanations and examples</li>
@@ -387,13 +388,13 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             <h3 className="text-2xl font-bold text-slate-900 mb-8">Frequently Asked Questions</h3>
                             <div className="space-y-4">
                                 {generateFAQs(selectedContent.title, selectedFolder?.name || 'Exam').map((faq, idx) => (
-                                    <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden transition-all hover:border-indigo-200">
+                                    <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden transition-all hover:border-pink-200">
                                         <button 
                                             onClick={() => setFaqOpen(faqOpen === idx ? null : idx)}
                                             className="w-full flex justify-between items-center p-5 bg-white hover:bg-slate-50 transition-colors text-left"
                                         >
                                             <span className="font-bold text-slate-800 text-base">{faq.question}</span>
-                                            {faqOpen === idx ? <ChevronUp size={20} className="text-indigo-600"/> : <ChevronDown size={20} className="text-slate-400"/>}
+                                            {faqOpen === idx ? <ChevronUp size={20} className="text-pink-600"/> : <ChevronDown size={20} className="text-slate-400"/>}
                                         </button>
                                         {faqOpen === idx && (
                                             <div className="p-5 bg-slate-50 text-slate-600 leading-relaxed border-t border-slate-100 text-sm">
@@ -420,7 +421,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
           {selectedContent.type === ContentType.MCQ && (
               <div className="space-y-8 animate-fade-in pb-10">
-                  <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-3xl p-8 md:p-12 text-white shadow-xl mb-8 relative overflow-hidden">
+                  <div className="bg-gradient-to-r from-pink-600 to-rose-600 rounded-3xl p-8 md:p-12 text-white shadow-xl mb-8 relative overflow-hidden">
                       <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
                       <div className="relative z-10">
                           <div className="flex items-center space-x-3 mb-4 opacity-90">
@@ -429,7 +430,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                               </span>
                           </div>
                           <h1 className="text-3xl md:text-4xl font-black mb-4">{selectedContent.title}</h1>
-                          <p className="text-indigo-100 text-lg max-w-2xl">
+                          <p className="text-pink-100 text-lg max-w-2xl">
                               Test your knowledge on {selectedContent.title}. Review the questions below to prepare for your exams.
                           </p>
                       </div>
@@ -494,7 +495,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                   <ShareTools title={`${selectedContent.title} (MCQ Set)`} type="NOTE" />
 
                   <div className="text-center mt-12 pb-8">
-                      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full mb-4">
+                      <div className="inline-flex items-center justify-center w-16 h-16 bg-pink-50 text-pink-600 rounded-full mb-4">
                           <Bookmark size={32} />
                       </div>
                       <h3 className="text-xl font-bold text-slate-800">You've reached the end!</h3>
@@ -519,7 +520,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           </div>
           
           <label className="block text-sm font-bold text-slate-700 mb-2">Describe the issue</label>
-          <textarea required className="w-full h-32 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none mb-5 text-sm" placeholder="e.g. The answer to question 5 seems incorrect because..." value={appealText} onChange={(e) => setAppealText(e.target.value)} />
+          <textarea required className="w-full h-32 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:outline-none mb-5 text-sm" placeholder="e.g. The answer to question 5 seems incorrect because..." value={appealText} onChange={(e) => setAppealText(e.target.value)} />
           
           <div className="mb-6">
              <label className="block text-sm font-bold text-slate-700 mb-2">Attach Screenshot (Optional)</label>
@@ -537,7 +538,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           
           <div className="flex justify-end space-x-3">
             <Button type="button" variant="outline" onClick={() => setIsAppealModalOpen(false)}>Cancel</Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200">Submit Report</Button>
+            <Button type="submit" className="bg-pink-600 hover:bg-pink-700 shadow-lg shadow-pink-200">Submit Report</Button>
           </div>
         </form>
       </Modal>

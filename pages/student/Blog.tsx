@@ -47,7 +47,7 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                           <img src={readingBlog.thumbnail} className="w-full h-full object-cover" alt="" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                           <div className="absolute bottom-0 left-0 p-6 md:p-10 text-white">
-                              <Badge color="bg-indigo-600 text-white border-none mb-3">{folders.find(f => f.id === readingBlog.folderId)?.name}</Badge>
+                              <Badge color="bg-pink-600 text-white border-none mb-3">{folders.find(f => f.id === readingBlog.folderId)?.name}</Badge>
                               <h1 className="text-2xl md:text-4xl font-black leading-tight mb-2 font-serif">{readingBlog.title}</h1>
                               <div className="flex items-center text-sm font-medium text-white/80 space-x-4">
                                   <span className="flex items-center"><User size={14} className="mr-2"/> {readingBlog.author}</span>
@@ -57,7 +57,7 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                       </div>
                       
                       <div className="p-6 md:p-12 max-w-3xl mx-auto">
-                          <div className="prose prose-lg prose-indigo text-slate-700 leading-loose first-letter:text-5xl first-letter:font-bold first-letter:text-indigo-600 first-letter:float-left first-letter:mr-3">
+                          <div className="prose prose-lg prose-pink text-slate-700 leading-loose first-letter:text-5xl first-letter:font-bold first-letter:text-pink-600 first-letter:float-left first-letter:mr-3">
                               {readingBlog.content}
                           </div>
                       </div>
@@ -73,10 +73,10 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
         
         {/* HEADER */}
         <div className="relative bg-slate-900 rounded-3xl p-8 md:p-12 overflow-hidden text-white shadow-2xl">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600 rounded-full blur-[100px] opacity-50 -mr-20 -mt-20"></div>
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-600 rounded-full blur-[80px] opacity-40 -ml-10 -mb-10"></div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-pink-600 rounded-full blur-[100px] opacity-50 -mr-20 -mt-20"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600 rounded-full blur-[80px] opacity-40 -ml-10 -mb-10"></div>
             <div className="relative z-10">
-                <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Knowledge <span className="text-indigo-400">Hub</span></h1>
+                <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Knowledge <span className="text-pink-400">Hub</span></h1>
                 <p className="text-lg text-slate-300 max-w-xl leading-relaxed">
                     Dive into a world of wisdom. Curated articles, study tips, and educational insights to fuel your learning journey.
                 </p>
@@ -95,7 +95,7 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                 <button 
                     key={folder.id}
                     onClick={() => setCurrentFolderId(folder.id)}
-                    className="flex items-center px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-white border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm"
+                    className="flex items-center px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-white border border-slate-200 text-slate-600 hover:border-pink-300 hover:text-pink-600 transition-all shadow-sm"
                 >
                     {folder.name}
                 </button>
@@ -126,12 +126,12 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                     <div className="p-6 flex-1 flex flex-col">
                         <div className="flex gap-2 mb-3">
                             {blog.tags.slice(0, 2).map(tag => (
-                                <span key={tag} className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
+                                <span key={tag} className="text-[10px] font-bold uppercase tracking-wider text-pink-600 bg-pink-50 px-2 py-1 rounded-md">
                                     {tag}
                                 </span>
                             ))}
                         </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-3 leading-snug group-hover:text-indigo-600 transition-colors">
+                        <h3 className="text-xl font-bold text-slate-800 mb-3 leading-snug group-hover:text-pink-600 transition-colors">
                             {blog.title}
                         </h3>
                         <p className="text-slate-500 text-sm line-clamp-3 mb-4 leading-relaxed flex-1">
@@ -141,7 +141,7 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                             <div className="flex items-center text-xs font-bold text-slate-500">
                                 <User size={14} className="mr-1.5" /> {blog.author}
                             </div>
-                            <span className="text-indigo-600 text-sm font-bold flex items-center group-hover:translate-x-1 transition-transform">
+                            <span className="text-pink-600 text-sm font-bold flex items-center group-hover:translate-x-1 transition-transform">
                                 Read Article <ArrowRight size={16} className="ml-1" />
                             </span>
                         </div>

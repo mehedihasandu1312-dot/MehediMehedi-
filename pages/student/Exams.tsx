@@ -41,7 +41,7 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
     const { status, label, color, text, animate } = getExamStatus(exam);
     
     return (
-      <div className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${isLocked ? 'border-slate-200 opacity-80' : 'border-slate-200 hover:border-indigo-300'}`}>
+      <div className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${isLocked ? 'border-slate-200 opacity-80' : 'border-slate-200 hover:border-pink-300'}`}>
           {/* Status Ribbon */}
           <div className={`absolute top-4 right-0 ${color} ${text} text-[10px] font-bold px-3 py-1 rounded-l-full shadow-sm z-10 flex items-center`}>
               {animate && <span className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>}
@@ -51,7 +51,7 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
           <div className="p-6 flex flex-col h-full">
               <div className="flex-1">
                   <div className="flex items-center gap-2 mb-3">
-                      <Badge color={exam.examFormat === 'MCQ' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}>
+                      <Badge color={exam.examFormat === 'MCQ' ? 'bg-pink-50 text-pink-700' : 'bg-orange-50 text-orange-700'}>
                           {exam.examFormat}
                       </Badge>
                       {exam.isPremium && (
@@ -61,7 +61,7 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
                       )}
                   </div>
                   
-                  <h3 className="text-xl font-bold text-slate-800 mb-2 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                  <h3 className="text-xl font-bold text-slate-800 mb-2 line-clamp-2 leading-tight group-hover:text-pink-600 transition-colors">
                       {exam.title}
                   </h3>
                   
@@ -95,7 +95,7 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
                       className={`w-full py-3 rounded-xl font-bold shadow-md transition-all ${
                           status === 'LIVE' && !isLocked ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-200' : 
                           isLocked ? 'bg-slate-100 text-slate-400 border-transparent' : 
-                          'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                          'bg-pink-600 hover:bg-pink-700 text-white shadow-pink-200'
                       }`}
                   >
                       {isLocked ? (
@@ -159,7 +159,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
           
           {/* HERO HEADER */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500"></div>
               <div className="relative z-10">
                   <h1 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Exam Portal</h1>
                   <p className="text-slate-500">Test your skills with live model tests and practice quizzes.</p>
@@ -167,7 +167,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
               <div className="relative z-10 mt-4 md:mt-0 bg-slate-100 p-1.5 rounded-xl flex shadow-inner">
                   <button 
                     onClick={() => setActiveTab('AVAILABLE')}
-                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center ${activeTab === 'AVAILABLE' ? 'bg-white shadow text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center ${activeTab === 'AVAILABLE' ? 'bg-white shadow text-pink-700' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                       <Zap size={16} className="mr-2" /> Exams
                   </button>
@@ -192,12 +192,12 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                   <div 
                                       key={folder.id} 
                                       onClick={() => setSelectedFolderId(folder.id)}
-                                      className="group bg-white p-6 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden h-48 flex flex-col justify-between"
+                                      className="group bg-white p-6 rounded-2xl border border-slate-200 hover:border-pink-300 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden h-48 flex flex-col justify-between"
                                   >
-                                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-50 to-transparent rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-pink-50 to-transparent rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
                                       
                                       <div className="relative z-10">
-                                          <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                          <div className="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center text-pink-600 mb-4 group-hover:bg-pink-600 group-hover:text-white transition-colors">
                                               {folder.icon ? <img src={folder.icon} className="w-8 h-8 object-contain" /> : <FolderIcon size={24} />}
                                           </div>
                                           <h3 className="text-xl font-bold text-slate-800 line-clamp-1">{folder.name}</h3>
@@ -206,7 +206,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                       
                                       <div className="relative z-10 flex items-center justify-between pt-4 border-t border-slate-50">
                                           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{examCount} Exams</span>
-                                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">
                                               <ChevronRight size={16} />
                                           </div>
                                       </div>
@@ -250,9 +250,9 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                       <Badge color="bg-amber-100 text-amber-700">Checking...</Badge>
                                   ) : (
                                       <>
-                                          <div className="text-2xl font-black text-indigo-600">{sub.obtainedMarks}</div>
+                                          <div className="text-2xl font-black text-pink-600">{sub.obtainedMarks}</div>
                                           <div className="text-[10px] font-bold text-slate-400 uppercase">Obtained</div>
-                                          <button onClick={() => setSelectedResult(sub)} className="text-xs font-bold text-indigo-600 mt-2 hover:underline">View Report</button>
+                                          <button onClick={() => setSelectedResult(sub)} className="text-xs font-bold text-pink-600 mt-2 hover:underline">View Report</button>
                                       </>
                                   )}
                               </div>
@@ -265,10 +265,10 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
           <Modal isOpen={!!selectedResult} onClose={() => setSelectedResult(null)} title="Exam Report">
               {selectedResult && (
                   <div className="space-y-6">
-                      <div className="bg-indigo-50 p-6 rounded-2xl text-center border border-indigo-100">
-                          <h2 className="text-indigo-900 font-bold text-lg mb-2">{exams.find(e => e.id === selectedResult.examId)?.title}</h2>
-                          <div className="text-4xl font-black text-indigo-600 mb-1">{selectedResult.obtainedMarks}</div>
-                          <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Total Score</span>
+                      <div className="bg-pink-50 p-6 rounded-2xl text-center border border-pink-100">
+                          <h2 className="text-pink-900 font-bold text-lg mb-2">{exams.find(e => e.id === selectedResult.examId)?.title}</h2>
+                          <div className="text-4xl font-black text-pink-600 mb-1">{selectedResult.obtainedMarks}</div>
+                          <span className="text-xs font-bold text-pink-400 uppercase tracking-widest">Total Score</span>
                       </div>
                       {/* Detailed list... (Keep logic from previous version, just styling updated) */}
                       <Button className="w-full" onClick={() => setSelectedResult(null)}>Close</Button>
