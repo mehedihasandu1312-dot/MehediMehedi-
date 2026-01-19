@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement> & { children: React.ReactNode; className?: string }> = ({ children, className = '', ...props }) => (
@@ -50,16 +51,27 @@ export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({
   );
 };
 
-export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; size?: 'sm' | 'md' | 'lg' | 'xl' }> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
+
+  const maxWidthClass = {
+      sm: 'max-w-sm',
+      md: 'max-w-md',
+      lg: 'max-w-2xl',
+      xl: 'max-w-4xl'
+  }[size];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up border border-white/20">
-        <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-brand-600 to-brand-500">
+      <div className={`bg-white rounded-3xl shadow-2xl w-full ${maxWidthClass} flex flex-col max-h-[90vh] animate-scale-up border border-white/20`}>
+        {/* Header - Fixed */}
+        <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-brand-600 to-brand-500 shrink-0 rounded-t-3xl">
           <h3 className="text-lg font-bold text-white">{title}</h3>
           <button onClick={onClose} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1.5 transition-colors">&times;</button>
         </div>
-        <div className="p-6">
+        
+        {/* Body - Scrollable */}
+        <div className="p-6 overflow-y-auto custom-scrollbar">
           {children}
         </div>
       </div>

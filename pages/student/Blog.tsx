@@ -1,9 +1,11 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
 import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, Newspaper, Lock, Crown } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/SEO';
 
 interface BlogProps {
     folders: Folder[];
@@ -62,6 +64,12 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
   if (readingBlog) {
       return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+              <SEO 
+                title={readingBlog.title} 
+                description={readingBlog.excerpt} 
+                image={readingBlog.thumbnail} 
+                type="article"
+              />
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                   <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
                       <div className="flex items-center space-x-3">
@@ -111,6 +119,10 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+        <SEO 
+            title="Educational Blog" 
+            description="Read insightful articles, tips, and guides from EduMaster Pro." 
+        />
         
         <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-slate-800 flex items-center">

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, User } from '../../types';
@@ -5,6 +6,7 @@ import { ShoppingBag, Search, Filter, Lock, Unlock, Truck, FileText, CheckCircle
 import { authService } from '../../services/authService';
 import { db } from '../../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import SEO from '../../components/SEO';
 
 interface Props {
     user: User;
@@ -134,6 +136,11 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
+            <SEO 
+                title="Book Store" 
+                description="Browse and buy educational books, PDF notes, and study guides." 
+            />
+
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center">
