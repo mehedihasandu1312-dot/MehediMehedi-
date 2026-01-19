@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StudentResult, ExamSubmission } from '../../types';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Clock, CheckCircle, Upload, X, AlertOctagon, Check, ArrowLeft, HelpCircle } from 'lucide-react';
 import { authService } from '../../services/authService';
+import ShareTools from '../../components/ShareTools'; // NEW IMPORT
 
 interface ExamLiveInterfaceProps {
     exam: Exam;
@@ -18,7 +20,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<Record<string, string[]>>({}); // questionId -> array of base64
+    const [uploadedFiles, setUploadedFiles] = useState<Record<string, string[]>>({}); 
     
     // Result State
     const [score, setScore] = useState(0);
@@ -26,13 +28,9 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
     const [wrongCount, setWrongCount] = useState(0);
     const [negativeDeduction, setNegativeDeduction] = useState(0);
 
-    // --- CRITICAL FIX: Safe Question List Extraction ---
-    // Ensures 'questions' is ALWAYS an array, even if API returns undefined/null/object
     const questions = useMemo(() => {
         if (!exam || !exam.questionList) return [];
-        // If it's not an array (e.g. Firebase mapped object), return empty or handle conversion if needed
         if (!Array.isArray(exam.questionList)) return []; 
-        // Filter out any null/undefined items in the array to prevent render crashes
         return exam.questionList.filter(q => !!q);
     }, [exam]);
 
@@ -56,7 +54,7 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    handleSubmit(); // Auto submit
+                    handleSubmit();
                     return 0;
                 }
                 return prev - 1;
@@ -73,7 +71,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
             if (exam.examFormat === 'MCQ') {
                 return Object.keys(answers).length;
             } else {
-                // For written, count questions that have at least one uploaded file
                 return Object.keys(uploadedFiles).filter(key => {
                     const files = uploadedFiles[key];
                     return Array.isArray(files) && files.length > 0;
@@ -85,20 +82,16 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         }
     }, [answers, uploadedFiles, exam]);
 
-    // --- SAFETY CHECK: If exam prop is somehow missing after hooks ---
     if (!exam) return <div className="p-10 text-center text-slate-500 font-bold">Loading Exam Data...</div>;
 
-    // Format Time
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    // --- HELPER: Parse Rich Text from Admin ---
     const renderFormattedText = (text: string) => {
         if (!text) return { __html: '' };
-        // Basic safety to ensure text is string
         const safeText = String(text);
         let formatted = safeText
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -106,13 +99,11 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         return { __html: formatted };
     };
 
-    // Handle MCQ Selection
     const handleOptionSelect = (qId: string, optIndex: number) => {
         if (!qId) return;
         setAnswers(prev => ({ ...prev, [qId]: optIndex }));
     };
 
-    // Handle Written Image Upload
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, qId: string) => {
         if (!qId) {
             alert("Error: Invalid question ID");
@@ -121,7 +112,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files);
             
-            // Validation
             if (files.length > 5) {
                 alert("You can upload maximum 5 images per question.");
                 return;
@@ -175,8 +165,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
 
     const submitWrittenExam = () => {
         const currentUser = authService.getCurrentUser();
-        
-        // Create Submission Object safely
         const submission: ExamSubmission = {
             id: `sub_${Date.now()}`,
             examId: exam.id,
@@ -243,6 +231,8 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         const accuracy = questions.length > 0 
             ? Math.round((correctCount / questions.length) * 100) 
             : 0;
+        
+        const percentage = exam.totalMarks > 0 ? Math.round((score / exam.totalMarks) * 100) : 0;
 
         return (
             <div className="max-w-4xl mx-auto space-y-8 animate-fade-in py-8 pb-20">
@@ -261,19 +251,8 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                                 <span className="text-xs text-slate-400 uppercase font-bold">Total Score</span>
                             </div>
                             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                                <path
-                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    fill="none"
-                                    stroke="#e2e8f0"
-                                    strokeWidth="3"
-                                />
-                                <path
-                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    fill="none"
-                                    stroke={score >= (exam.totalMarks * 0.4) ? "#10b981" : "#f43f5e"}
-                                    strokeWidth="3"
-                                    strokeDasharray={`${(score / exam.totalMarks) * 100}, 100`}
-                                />
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+                                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={score >= (exam.totalMarks * 0.4) ? "#10b981" : "#f43f5e"} strokeWidth="3" strokeDasharray={`${(score / exam.totalMarks) * 100}, 100`} />
                             </svg>
                         </div>
 
@@ -297,7 +276,10 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                         </div>
                     </div>
 
-                    <div className="flex justify-center">
+                    {/* --- SHARE & EMBED TOOLS (Auto Backlink Gen) --- */}
+                    <ShareTools title={exam.title} type="RESULT" score={percentage} />
+
+                    <div className="flex justify-center mt-8">
                          <Button onClick={onExit} className="px-8">Back to Dashboard</Button>
                     </div>
                 </Card>
@@ -392,7 +374,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         )
     }
 
-    // --- SUBMISSION CONFIRMATION (WRITTEN) ---
     if (isSubmitted && exam.examFormat === 'WRITTEN') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
@@ -409,27 +390,20 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
         )
     }
 
-    // --- LIVE EXAM INTERFACE ---
     return (
         <div className="flex flex-col h-[calc(100vh-100px)] animate-fade-in bg-slate-50/50">
-             {/* Sticky Header */}
              <div className="bg-white px-6 py-4 shadow-sm border-b border-slate-200 flex justify-between items-center sticky top-0 z-20">
                  <div>
                      <h2 className="font-bold text-slate-800 text-lg">{exam.title}</h2>
                      <p className="text-xs text-slate-500">{exam.examFormat} • {questions.length} Questions • {exam.totalMarks} Marks</p>
                  </div>
-                 
-                 <div className={`flex items-center space-x-3 px-4 py-2 rounded-xl border ${
-                     timeLeft < 60 ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' : 'bg-slate-100 border-slate-200 text-slate-700'
-                 }`}>
+                 <div className={`flex items-center space-x-3 px-4 py-2 rounded-xl border ${timeLeft < 60 ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
                      <Clock size={20} className={timeLeft < 60 ? "animate-spin" : ""} />
                      <span className="font-mono font-bold text-xl tracking-widest">{formatTime(timeLeft)}</span>
                  </div>
              </div>
 
-             {/* Question Body */}
              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 max-w-4xl mx-auto w-full pb-32">
-                 {/* CRITICAL SAFETY: Check if questions array is valid before mapping */}
                  {questions.length === 0 ? (
                      <div className="text-center py-20 text-slate-400">
                          <AlertOctagon size={48} className="mx-auto mb-4 opacity-30" />
@@ -437,28 +411,20 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                      </div>
                  ) : (
                      questions.map((q, idx) => {
-                         if (!q) return null; // Skip invalid question objects
-                         
-                         // Determine key safely
+                         if (!q) return null; 
                          const questionKey = q.id || `q_${idx}`;
-                         // Get current files safely
                          const currentFiles = (questionKey && uploadedFiles[questionKey]) ? uploadedFiles[questionKey] : [];
 
                          return (
                              <Card key={questionKey} className="relative border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                                  <div className="flex gap-4">
-                                     {/* Question Number */}
                                      <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-bold text-sm text-white shrink-0 shadow-lg shadow-slate-200">
                                          {idx + 1}
                                      </div>
                                      
                                      <div className="flex-1">
-                                         {/* Question Content */}
                                          <div className="mb-6">
-                                             <div 
-                                                className="text-lg text-slate-800 font-medium leading-relaxed"
-                                                dangerouslySetInnerHTML={renderFormattedText(q.text || '')}
-                                             />
+                                             <div className="text-lg text-slate-800 font-medium leading-relaxed" dangerouslySetInnerHTML={renderFormattedText(q.text || '')} />
                                              {q.image && (
                                                  <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded-xl inline-block">
                                                      <img src={q.image} alt="Question Reference" className="max-h-80 rounded-lg" />
@@ -466,85 +432,42 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                                              )}
                                          </div>
 
-                                         {/* MCQ Options Area */}
                                          {exam.examFormat === 'MCQ' && q.options && (
                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                  {q.options.map((opt, optIdx) => (
-                                                     <label 
-                                                        key={optIdx} 
-                                                        className={`group relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                                                            answers[questionKey] === optIdx 
-                                                            ? 'bg-indigo-50 border-indigo-600 shadow-md transform scale-[1.01]' 
-                                                            : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50'
-                                                        }`}
-                                                     >
-                                                         <input 
-                                                            type="radio" 
-                                                            name={`q_${questionKey}`} 
-                                                            className="sr-only"
-                                                            checked={answers[questionKey] === optIdx}
-                                                            onChange={() => handleOptionSelect(questionKey, optIdx)}
-                                                         />
-                                                         
-                                                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-4 shrink-0 transition-colors ${
-                                                             answers[questionKey] === optIdx 
-                                                             ? 'border-indigo-600 bg-indigo-600 text-white' 
-                                                             : 'border-slate-300 text-slate-400 group-hover:border-indigo-300'
-                                                         }`}>
+                                                     <label key={optIdx} className={`group relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${answers[questionKey] === optIdx ? 'bg-indigo-50 border-indigo-600 shadow-md transform scale-[1.01]' : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                                                         <input type="radio" name={`q_${questionKey}`} className="sr-only" checked={answers[questionKey] === optIdx} onChange={() => handleOptionSelect(questionKey, optIdx)} />
+                                                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-4 shrink-0 transition-colors ${answers[questionKey] === optIdx ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 text-slate-400 group-hover:border-indigo-300'}`}>
                                                              <span className="text-xs font-bold">{String.fromCharCode(65 + optIdx)}</span>
                                                          </div>
-                                                         
-                                                         <span className={`text-sm font-medium ${answers[questionKey] === optIdx ? 'text-indigo-900' : 'text-slate-600'}`}>
-                                                             {opt}
-                                                         </span>
-
-                                                         {answers[questionKey] === optIdx && (
-                                                             <div className="absolute right-4 text-indigo-600">
-                                                                 <CheckCircle size={18} />
-                                                             </div>
-                                                         )}
+                                                         <span className={`text-sm font-medium ${answers[questionKey] === optIdx ? 'text-indigo-900' : 'text-slate-600'}`}>{opt}</span>
+                                                         {answers[questionKey] === optIdx && <div className="absolute right-4 text-indigo-600"><CheckCircle size={18} /></div>}
                                                      </label>
                                                  ))}
                                              </div>
                                          )}
 
-                                         {/* Written Upload Area */}
                                          {exam.examFormat === 'WRITTEN' && (
                                              <div className="space-y-4 mt-2">
                                                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-start text-amber-800 text-sm">
                                                      <AlertOctagon size={20} className="mr-3 mt-0.5 shrink-0" />
                                                      <p>Please write your answer on paper, take a clear photo, and upload it here. You can upload multiple images.</p>
                                                  </div>
-                                                 
                                                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-white hover:bg-indigo-50/30 hover:border-indigo-300 transition-all relative cursor-pointer group">
-                                                     <input 
-                                                        type="file" 
-                                                        multiple 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleImageUpload(e, questionKey)}
-                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                     />
+                                                     <input type="file" multiple accept="image/*" onChange={(e) => handleImageUpload(e, questionKey)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                                                      <div className="flex flex-col items-center pointer-events-none">
-                                                         <div className="p-4 bg-indigo-50 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                                                             <Upload size={28} className="text-indigo-600" />
-                                                         </div>
+                                                         <div className="p-4 bg-indigo-50 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform"><Upload size={28} className="text-indigo-600" /></div>
                                                          <p className="text-base font-bold text-slate-700">Click to upload answer images</p>
                                                          <p className="text-sm text-slate-400 mt-1">Supports JPG, PNG (Max 5MB)</p>
                                                      </div>
                                                  </div>
-
                                                  {currentFiles.length > 0 && (
                                                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4 animate-fade-in">
                                                          {currentFiles.map((img, imgIdx) => (
                                                              <div key={imgIdx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-[3/4] shadow-sm">
                                                                  <img src={img} alt="Answer" className="w-full h-full object-cover" />
                                                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                     <button 
-                                                                        onClick={() => removeImage(questionKey, imgIdx)}
-                                                                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transform hover:scale-110 transition-all"
-                                                                     >
-                                                                         <X size={16} />
-                                                                     </button>
+                                                                     <button onClick={() => removeImage(questionKey, imgIdx)} className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transform hover:scale-110 transition-all"><X size={16} /></button>
                                                                  </div>
                                                              </div>
                                                          ))}
@@ -553,8 +476,6 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                                              </div>
                                          )}
                                      </div>
-
-                                     {/* Marks Indicator */}
                                      <div className="absolute top-4 right-4">
                                          <Badge color="bg-slate-100 text-slate-600 font-bold border border-slate-200">{q.marks} Marks</Badge>
                                      </div>
@@ -565,23 +486,15 @@ const ExamLiveInterface: React.FC<ExamLiveInterfaceProps> = ({ exam, onExit, onC
                  )}
              </div>
 
-             {/* Footer Actions */}
              <div className="bg-white p-4 border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-30 fixed bottom-0 w-full md:w-[calc(100%-256px)] right-0">
                  <div className="max-w-4xl mx-auto flex justify-between items-center">
                      <div className="text-sm text-slate-500 font-medium">
                          <span className="text-indigo-600 font-bold">{attemptedCount}</span> of {questions.length} Attempted
                      </div>
-                     <Button 
-                        size="lg"
-                        className="px-8 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-shadow"
-                        onClick={confirmSubmit}
-                     >
-                         Submit Exam
-                     </Button>
+                     <Button size="lg" className="px-8 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-shadow" onClick={confirmSubmit}>Submit Exam</Button>
                  </div>
              </div>
 
-             {/* Confirmation Modal */}
              <Modal isOpen={showConfirmModal} onClose={() => setShowConfirmModal(false)} title="Submit Exam?">
                  <div className="text-center p-4">
                      <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600">

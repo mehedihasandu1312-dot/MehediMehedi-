@@ -7,6 +7,7 @@ import AdBanner from '../../components/AdBanner';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../../components/SEO'; 
+import ShareTools from '../../components/ShareTools'; // NEW IMPORT
 
 interface StudyContentPageProps {
     folders: Folder[];
@@ -137,7 +138,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           
           const activeSchema: any[] = [];
 
-          // 1. FAQ Schema (Crucial for "People Also Ask")
+          // 1. FAQ Schema
           activeSchema.push({
               "@context": "https://schema.org",
               "@type": "FAQPage",
@@ -198,7 +199,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           };
       } 
       
-      // Folder View
       if (selectedFolder) {
           return {
               title: `${selectedFolder.name} Notes & Suggestions`,
@@ -270,7 +270,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     const items = contents.filter(c => c.folderId === selectedFolder?.id && !c.isDeleted);
 
     if (selectedContent) {
-      // --- CONTENT DETAIL VIEW (OPTIMIZED FOR E-E-A-T) ---
       return (
         <div className="max-w-4xl mx-auto pb-10">
           <div className="flex items-center justify-between mb-6">
@@ -281,12 +280,10 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
           {selectedContent.type === ContentType.WRITTEN && (
             <div className="animate-fade-in space-y-6">
-                {/* Semantic Article Tag for SEO */}
                 <article className="bg-white rounded-none md:rounded-xl shadow-xl border border-slate-200 min-h-[80vh] relative overflow-hidden">
                     <div className="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 w-full"></div>
                     
                     <div className="p-6 md:p-12 pb-24">
-                        {/* Header Section */}
                         <header className="border-b-2 border-slate-100 pb-6 mb-8">
                             <div className="flex flex-wrap gap-2 mb-3">
                                 <Badge color="bg-blue-50 text-blue-700 border-blue-100">READING MATERIAL</Badge>
@@ -294,7 +291,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             </div>
                             <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4 font-serif leading-tight">{selectedContent.title}</h1>
                             
-                            {/* Trust Signals (E-E-A-T) */}
                             <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-slate-500 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">
                                 <span className="flex items-center text-indigo-700">
                                     <UserCheck size={16} className="mr-1.5" /> Verified by EduMaster
@@ -310,7 +306,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             </div>
                         </header>
 
-                        {/* Featured Snippet Optimization: Key Highlights */}
                         <section className="bg-blue-50/50 border border-blue-100 rounded-xl p-5 mb-8">
                             <h3 className="font-bold text-slate-700 mb-3 flex items-center">
                                 <Bookmark className="text-blue-500 mr-2" size={18} fill="currentColor" />
@@ -324,7 +319,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             </ul>
                         </section>
 
-                        {/* Main Content Body */}
                         <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
                              {selectedContent.body?.split('\n').map((paragraph, idx) => (
                                  <p key={idx} className="mb-4">{paragraph}</p>
@@ -340,7 +334,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                             <AdBanner slotId="CONTENT_BODY_AD" />
                         </div>
 
-                        {/* Auto-Generated FAQs for SEO "People Also Ask" */}
+                        {/* --- AUTO BACKLINK GENERATOR --- */}
+                        <ShareTools title={selectedContent.title} type="NOTE" />
+
                         <section className="mt-12 pt-8 border-t border-slate-100">
                             <h3 className="text-xl font-bold text-slate-800 mb-6">Frequently Asked Questions</h3>
                             <div className="space-y-3">
@@ -450,6 +446,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                       </Card>
                   ))}
                   
+                  {/* --- AUTO BACKLINK GENERATOR FOR MCQS --- */}
+                  <ShareTools title={`${selectedContent.title} (MCQ Set)`} type="NOTE" />
+
                   <div className="text-center text-slate-400 text-sm mt-8">
                       <Bookmark size={20} className="mx-auto mb-2" />
                       End of Study Set
@@ -462,7 +461,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       );
     }
 
-    // --- LIST OF CONTENT IN FOLDER ---
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2 mb-6 bg-white p-3 rounded-lg border border-slate-200 shadow-sm inline-flex">
@@ -537,7 +535,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
   return (
     <div className="animate-fade-in pb-10">
-      {/* INJECT DYNAMIC SEO */}
       <SEO 
         title={seoData.title}
         description={seoData.desc}
