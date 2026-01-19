@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { 
@@ -37,6 +38,7 @@ import {
   Info
 } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; // Import Ads
+import SEO from '../../components/SEO';
 
 interface Props {
   user: User;
@@ -226,6 +228,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-10">
+      <SEO title="Student Dashboard" description="Track your progress, view stats, and compete with friends." />
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle, Crown } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle, Crown, Upload, Loader2, X } from 'lucide-react';
+import { storage } from '../../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -29,6 +32,9 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     tags: '',
     isPremium: false // NEW
   });
+  
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'BLOG' }>({ isOpen: false, id: null, type: 'BLOG' });
@@ -78,6 +84,43 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       setNewFolderDesc('');
       setIsFolderModalOpen(false);
       showInfo("Success", "Folder created successfully!");
+  };
+
+  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploading(true);
+
+      if (file.size < 700 * 1024) {
+          // Direct Base64
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setFormData(prev => ({ ...prev, thumbnail: event.target!.result as string }));
+                  setIsUploading(false);
+              }
+          };
+          reader.readAsDataURL(file);
+      } else {
+          // Firebase Storage
+          const storageRef = ref(storage, `blog_thumbnails/${Date.now()}_${file.name}`);
+          const uploadTask = uploadBytesResumable(storageRef, file);
+
+          uploadTask.on('state_changed',
+              null,
+              (error) => {
+                  console.error("Upload error:", error);
+                  alert("Upload failed. Try a smaller image.");
+                  setIsUploading(false);
+              },
+              async () => {
+                  const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                  setFormData(prev => ({ ...prev, thumbnail: downloadURL }));
+                  setIsUploading(false);
+              }
+          );
+      }
   };
 
   const initiateDeleteFolder = (e: React.MouseEvent, id: string) => {
@@ -200,17 +243,57 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                             <textarea required className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" rows={6}
                             value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Main article content..." />
                         </div>
+                        
+                        {/* Hybrid Upload for Thumbnail */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Thumbnail URL</label>
-                            <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
-                            value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} placeholder="https://..." />
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Thumbnail</label>
+                            <div className="flex gap-2 mb-2">
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef}
+                                    className="hidden" 
+                                    accept="image/*"
+                                    onChange={handleThumbnailUpload}
+                                />
+                                <Button 
+                                    type="button" 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex items-center"
+                                >
+                                    <Upload size={14} className="mr-2" /> Upload Image
+                                </Button>
+                                {isUploading && <span className="flex items-center text-xs text-indigo-600"><Loader2 size={12} className="animate-spin mr-1"/> Uploading...</span>}
+                            </div>
+                            
+                            <div className="flex gap-2 items-center">
+                                <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                                value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} placeholder="Or paste Image URL..." />
+                                {formData.thumbnail && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setFormData({...formData, thumbnail: ''})}
+                                        className="text-red-500 p-2 hover:bg-red-50 rounded"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {formData.thumbnail && (
+                                <div className="mt-2">
+                                    <img src={formData.thumbnail} alt="Preview" className="h-32 rounded border border-slate-200 object-cover" />
+                                </div>
+                            )}
                         </div>
+
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Tags (comma separated)</label>
                             <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
                             value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} placeholder="Math, Science, Tips" />
                         </div>
-                        <Button type="submit" className="w-full">Publish Post</Button>
+                        <Button type="submit" className="w-full" disabled={isUploading}>Publish Post</Button>
                     </form>
                   </Card>
               </div>

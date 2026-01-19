@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRole, User } from '../types';
 import { authService } from '../services/authService';
 import { ShieldCheck, Loader2, AlertTriangle, Copy, Lock, Mail, Wrench } from 'lucide-react';
 import AdModal from '../components/AdModal'; // Import Ad Modal
+import SEO from '../components/SEO';
 
 interface LoginProps {
   setUser: (user: User) => void;
@@ -97,6 +99,8 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative overflow-hidden">
+      <SEO title="Login" description="Login to EduMaster Pro to access your courses and exams." />
+      
       {/* Mandatory Welcome Ad */}
       <AdModal 
         isOpen={showAd} 
