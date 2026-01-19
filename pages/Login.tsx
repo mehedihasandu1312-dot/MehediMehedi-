@@ -99,7 +99,22 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative overflow-hidden">
-      <SEO title="Login" description="Login to EduMaster Pro to access your courses and exams." />
+      {/* ORGANIZATION SCHEMA FOR HOMEPAGE SEO */}
+      <SEO 
+        title="EduMaster Pro - Learning Platform" 
+        description="Login to EduMaster Pro to access online exams, lecture notes, and educational resources."
+        schema={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "EduMaster Pro",
+            "url": window.location.origin,
+            "logo": window.location.origin + "/vite.svg",
+            "sameAs": [
+                "https://facebook.com/edumaster",
+                "https://twitter.com/edumaster"
+            ]
+        }}
+      />
       
       {/* Mandatory Welcome Ad */}
       <AdModal 

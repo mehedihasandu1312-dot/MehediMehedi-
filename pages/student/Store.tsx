@@ -136,9 +136,12 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
+            {/* ADVANCED SEO FOR STORE: Generates Schema for List of Products */}
             <SEO 
-                title="Book Store" 
-                description="Browse and buy educational books, PDF notes, and study guides." 
+                title="Book Store & Resources" 
+                description="Buy educational books, download PDF notes, and access premium study guides for SSC, HSC and Admission." 
+                keywords={["books", "PDF notes", "study guide", "SSC suggestion", "HSC books", "University Admission"]}
+                type="website"
             />
 
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -300,55 +303,64 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                 </div>
             )}
 
-            {/* BUY MODAL */}
+            {/* BUY MODAL - Dynamic SEO for Specific Product when Opened */}
             <Modal isOpen={buyModalOpen} onClose={() => setBuyModalOpen(false)} title="Complete Purchase">
                 {selectedProduct && (
-                    <form onSubmit={handlePurchase} className="space-y-6">
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <h4 className="font-bold text-slate-800">{selectedProduct.title}</h4>
-                            <div className="flex justify-between items-center mt-2">
-                                <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded">{selectedProduct.type}</span>
-                                <span className="text-xl font-black text-slate-800">৳{selectedProduct.price}</span>
-                            </div>
-                        </div>
-
-                        {/* Payment Instructions */}
-                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                            <p className="text-xs text-amber-900 mb-2"><strong>Step 1:</strong> Send ৳{selectedProduct.price} to our Merchant Number.</p>
-                            <div className="flex gap-2 mb-3">
-                                <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex-1 p-2 rounded border text-sm font-bold ${paymentMethod === 'bKash' ? 'bg-pink-100 border-pink-500 text-pink-700' : 'bg-white border-slate-300'}`}>bKash</button>
-                                <button type="button" onClick={() => setPaymentMethod('Nagad')} className={`flex-1 p-2 rounded border text-sm font-bold ${paymentMethod === 'Nagad' ? 'bg-orange-100 border-orange-500 text-orange-700' : 'bg-white border-slate-300'}`}>Nagad</button>
-                            </div>
-                            <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded">
-                                <span className="font-mono font-bold text-slate-700">{paymentNumbers[paymentMethod]}</span>
-                                <button type="button" onClick={() => navigator.clipboard.writeText(paymentNumbers[paymentMethod])} className="text-amber-600"><Copy size={16}/></button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Sender Number</label>
-                                <input required type="tel" className="w-full p-2.5 border rounded-lg" placeholder="017..." value={senderNumber} onChange={e => setSenderNumber(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Transaction ID (TrxID)</label>
-                                <input required type="text" className="w-full p-2.5 border rounded-lg uppercase" placeholder="TRX123..." value={trxId} onChange={e => setTrxId(e.target.value)} />
-                            </div>
-                            
-                            {/* Shipping Address for Physical Products (MANDATORY) */}
-                            {selectedProduct.type === 'PHYSICAL' && (
-                                <div>
-                                    <label className="block text-xs font-bold text-red-600 uppercase mb-1">Delivery Address *</label>
-                                    <textarea required className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg h-20 resize-none focus:ring-red-500 focus:border-red-500" placeholder="Full address including House No, Road No, District..." value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+                    <>
+                        <SEO 
+                            title={`${selectedProduct.title} - EduMaster Store`}
+                            description={selectedProduct.description}
+                            image={selectedProduct.image}
+                            type="product"
+                            price={{ amount: selectedProduct.price, currency: 'BDT' }}
+                        />
+                        <form onSubmit={handlePurchase} className="space-y-6">
+                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                <h4 className="font-bold text-slate-800">{selectedProduct.title}</h4>
+                                <div className="flex justify-between items-center mt-2">
+                                    <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded">{selectedProduct.type}</span>
+                                    <span className="text-xl font-black text-slate-800">৳{selectedProduct.price}</span>
                                 </div>
-                            )}
-                        </div>
+                            </div>
 
-                        <div className="flex justify-end gap-2 pt-2">
-                            <Button variant="outline" type="button" onClick={() => setBuyModalOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Processing...' : 'Confirm Order'}</Button>
-                        </div>
-                    </form>
+                            {/* Payment Instructions */}
+                            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                                <p className="text-xs text-amber-900 mb-2"><strong>Step 1:</strong> Send ৳{selectedProduct.price} to our Merchant Number.</p>
+                                <div className="flex gap-2 mb-3">
+                                    <button type="button" onClick={() => setPaymentMethod('bKash')} className={`flex-1 p-2 rounded border text-sm font-bold ${paymentMethod === 'bKash' ? 'bg-pink-100 border-pink-500 text-pink-700' : 'bg-white border-slate-300'}`}>bKash</button>
+                                    <button type="button" onClick={() => setPaymentMethod('Nagad')} className={`flex-1 p-2 rounded border text-sm font-bold ${paymentMethod === 'Nagad' ? 'bg-orange-100 border-orange-500 text-orange-700' : 'bg-white border-slate-300'}`}>Nagad</button>
+                                </div>
+                                <div className="flex items-center justify-between bg-white border border-amber-200 p-2 rounded">
+                                    <span className="font-mono font-bold text-slate-700">{paymentNumbers[paymentMethod]}</span>
+                                    <button type="button" onClick={() => navigator.clipboard.writeText(paymentNumbers[paymentMethod])} className="text-amber-600"><Copy size={16}/></button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Sender Number</label>
+                                    <input required type="tel" className="w-full p-2.5 border rounded-lg" placeholder="017..." value={senderNumber} onChange={e => setSenderNumber(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Transaction ID (TrxID)</label>
+                                    <input required type="text" className="w-full p-2.5 border rounded-lg uppercase" placeholder="TRX123..." value={trxId} onChange={e => setTrxId(e.target.value)} />
+                                </div>
+                                
+                                {/* Shipping Address for Physical Products (MANDATORY) */}
+                                {selectedProduct.type === 'PHYSICAL' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-red-600 uppercase mb-1">Delivery Address *</label>
+                                        <textarea required className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg h-20 resize-none focus:ring-red-500 focus:border-red-500" placeholder="Full address including House No, Road No, District..." value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button variant="outline" type="button" onClick={() => setBuyModalOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Processing...' : 'Confirm Order'}</Button>
+                            </div>
+                        </form>
+                    </>
                 )}
             </Modal>
 

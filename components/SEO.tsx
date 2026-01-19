@@ -4,49 +4,143 @@ import React, { useEffect } from 'react';
 interface SEOProps {
     title: string;
     description?: string;
+    keywords?: string[];
     image?: string;
-    type?: string;
+    url?: string;
+    type?: 'website' | 'article' | 'book' | 'profile' | 'product';
+    author?: string;
+    publishedTime?: string;
+    price?: { amount: number; currency: string }; // For Products
+    schema?: object; // Custom JSON-LD for advanced Google Rich Results
 }
 
 const SEO: React.FC<SEOProps> = ({ 
     title, 
     description = "EduMaster Pro - The ultimate educational platform for students and admins.", 
+    keywords = ["education", "learning", "exam", "bangladesh", "edtech"],
     image = "/vite.svg", 
-    type = "website" 
+    url = window.location.href,
+    type = "website",
+    author = "EduMaster Team",
+    publishedTime,
+    price,
+    schema
 }) => {
     
     useEffect(() => {
-        // Update Title
+        // 1. Update Document Title
         document.title = `${title} | EduMaster Pro`;
 
-        // Helper to update meta tags
-        const updateMeta = (name: string, content: string, attribute = 'name') => {
-            let element = document.querySelector(`meta[${attribute}="${name}"]`);
+        // 2. Helper to manage Meta Tags
+        const setMeta = (name: string, content: string) => {
+            let element = document.querySelector(`meta[name="${name}"]`);
             if (!element) {
                 element = document.createElement('meta');
-                element.setAttribute(attribute, name);
+                element.setAttribute('name', name);
                 document.head.appendChild(element);
             }
             element.setAttribute('content', content);
         };
 
-        // Standard Meta
-        updateMeta('description', description);
+        const setOgMeta = (property: string, content: string) => {
+            let element = document.querySelector(`meta[property="${property}"]`);
+            if (!element) {
+                element = document.createElement('meta');
+                element.setAttribute('property', property);
+                document.head.appendChild(element);
+            }
+            element.setAttribute('content', content);
+        };
 
-        // Open Graph / Facebook
-        updateMeta('og:title', title, 'property');
-        updateMeta('og:description', description, 'property');
-        updateMeta('og:image', image, 'property');
-        updateMeta('og:type', type, 'property');
-        updateMeta('og:site_name', 'EduMaster Pro', 'property');
+        // 3. Helper for Canonical Link
+        const setCanonical = (href: string) => {
+            let element = document.querySelector(`link[rel="canonical"]`);
+            if (!element) {
+                element = document.createElement('link');
+                element.setAttribute('rel', 'canonical');
+                document.head.appendChild(element);
+            }
+            element.setAttribute('href', href);
+        };
 
-        // Twitter
-        updateMeta('twitter:card', 'summary_large_image');
-        updateMeta('twitter:title', title);
-        updateMeta('twitter:description', description);
-        updateMeta('twitter:image', image);
+        // --- APPLY META TAGS ---
+        setMeta('description', description);
+        setMeta('keywords', keywords.join(', '));
+        setMeta('author', author);
+        setMeta('robots', 'index, follow'); // Allow Google to index
 
-    }, [title, description, image, type]);
+        // Open Graph (Facebook/LinkedIn)
+        setOgMeta('og:title', title);
+        setOgMeta('og:description', description);
+        setOgMeta('og:image', window.location.origin + image); // Ensure absolute URL
+        setOgMeta('og:url', url);
+        setOgMeta('og:type', type);
+        setOgMeta('og:site_name', 'EduMaster Pro');
+
+        // Twitter Card
+        setMeta('twitter:card', 'summary_large_image');
+        setMeta('twitter:title', title);
+        setMeta('twitter:description', description);
+        setMeta('twitter:image', window.location.origin + image);
+
+        // Canonical URL (Prevents Duplicate Content Penalty)
+        setCanonical(url);
+
+        // --- 4. GOOGLE STRUCTURED DATA (JSON-LD) ---
+        // This is the most important part for Google Ranking
+        let jsonLdData: any = {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "EduMaster Pro",
+            "url": window.location.origin,
+        };
+
+        if (type === 'article') {
+            jsonLdData = {
+                "@context": "https://schema.org",
+                "@type": "BlogPosting",
+                "headline": title,
+                "image": [window.location.origin + image],
+                "datePublished": publishedTime || new Date().toISOString(),
+                "author": [{
+                    "@type": "Person",
+                    "name": author,
+                }]
+            };
+        } else if (type === 'product' && price) {
+            jsonLdData = {
+                "@context": "https://schema.org",
+                "@type": "Product",
+                "name": title,
+                "image": [window.location.origin + image],
+                "description": description,
+                "brand": {
+                    "@type": "Brand",
+                    "name": "EduMaster Store"
+                },
+                "offers": {
+                    "@type": "Offer",
+                    "url": url,
+                    "priceCurrency": price.currency,
+                    "price": price.amount,
+                    "availability": "https://schema.org/InStock"
+                }
+            };
+        } else if (schema) {
+            // Allow passing custom schema
+            jsonLdData = schema;
+        }
+
+        // Inject JSON-LD
+        let script = document.querySelector('script[type="application/ld+json"]');
+        if (!script) {
+            script = document.createElement('script');
+            script.setAttribute('type', 'application/ld+json');
+            document.head.appendChild(script);
+        }
+        script.textContent = JSON.stringify(jsonLdData);
+
+    }, [title, description, keywords, image, url, type, author, publishedTime, price, schema]);
 
     return null;
 };

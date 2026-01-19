@@ -64,11 +64,15 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
   if (readingBlog) {
       return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+              {/* ADVANCED SEO: ARTICLE SCHEMA FOR GOOGLE NEWS/DISCOVER */}
               <SEO 
                 title={readingBlog.title} 
                 description={readingBlog.excerpt} 
                 image={readingBlog.thumbnail} 
                 type="article"
+                author={readingBlog.author}
+                publishedTime={readingBlog.date}
+                keywords={readingBlog.tags}
               />
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                   <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
@@ -122,6 +126,7 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
         <SEO 
             title="Educational Blog" 
             description="Read insightful articles, tips, and guides from EduMaster Pro." 
+            type="website"
         />
         
         <div className="flex items-center justify-between">
