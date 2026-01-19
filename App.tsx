@@ -465,7 +465,7 @@ const App: React.FC = () => {
               />
               <Route path="/admin/settings" element={<SystemSettingsPage settings={settings} setSettings={setSettings} />} />
               <Route path="/admin/payments" element={<PaymentManagement />} />
-              <Route path="/admin/store" element={<StoreManagement products={storeProducts} setProducts={setStoreProducts} orders={storeOrders} setOrders={setStoreOrders} />} /> {/* NEW */}
+              <Route path="/admin/store" element={<StoreManagement products={storeProducts} setProducts={setStoreProducts} orders={storeOrders} setOrders={setStoreOrders} educationLevels={currentEducationLevels} />} /> {/* UPDATED */}
             </>
           )}
         </Route>

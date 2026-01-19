@@ -44,9 +44,13 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
 
     // Filter Logic
     const displayProducts = products.filter(p => {
+        // Filter by Class: Show if product has no class (General) OR if it matches user's class
+        const matchesClass = !p.targetClass || p.targetClass === user.class;
+        
         const matchesType = filterType === 'ALL' || p.type === filterType;
         const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesType && matchesSearch;
+        
+        return matchesClass && matchesType && matchesSearch;
     });
 
     const myOrders = useMemo(() => orders.filter(o => o.userId === user.id).sort((a,b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()), [orders, user.id]);
@@ -179,6 +183,12 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
 
                     {/* Products Grid - UPDATED FOR HIGH DENSITY (Mobile: 2, Desktop: 5/6) */}
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+                        {displayProducts.length === 0 && (
+                            <div className="col-span-full text-center py-20 text-slate-400">
+                                <ShoppingBag size={48} className="mx-auto mb-4 opacity-20" />
+                                <p>No books found for your class or criteria.</p>
+                            </div>
+                        )}
                         {displayProducts.map(product => {
                             const isOwned = hasPurchased(product.id);
                             return (

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, Link as LinkIcon, Target } from 'lucide-react';
 import { db, storage } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -11,9 +11,10 @@ interface Props {
     setProducts: React.Dispatch<React.SetStateAction<StoreProduct[]>>;
     orders: StoreOrder[];
     setOrders: React.Dispatch<React.SetStateAction<StoreOrder[]>>;
+    educationLevels?: { REGULAR: string[], ADMISSION: string[] }; // ADDED
 }
 
-const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOrders }) => {
+const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOrders, educationLevels }) => {
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'ORDERS'>('PRODUCTS');
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -22,10 +23,10 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     const [editingProduct, setEditingProduct] = useState<StoreProduct | null>(null);
     const [productForm, setProductForm] = useState<{
         title: string; description: string; type: ProductType; price: number; 
-        prevPrice: number; image: string; fileUrl: string; previewUrl: string; stock: number; category: string;
+        prevPrice: number; image: string; fileUrl: string; previewUrl: string; stock: number; category: string; targetClass: string;
     }>({
         title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, 
-        image: '', fileUrl: '', previewUrl: '', stock: 0, category: ''
+        image: '', fileUrl: '', previewUrl: '', stock: 0, category: '', targetClass: ''
     });
 
     // Uploading State
@@ -48,6 +49,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         const productData: StoreProduct = {
             id: editingProduct ? editingProduct.id : `prod_${Date.now()}`,
             ...productForm,
+            targetClass: productForm.targetClass || undefined, // Convert empty string to undefined
             isFree: productForm.price === 0
         };
 
@@ -61,7 +63,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     };
 
     const resetForm = () => {
-        setProductForm({ title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, image: '', fileUrl: '', previewUrl: '', stock: 0, category: '' });
+        setProductForm({ title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, image: '', fileUrl: '', previewUrl: '', stock: 0, category: '', targetClass: '' });
         setEditingProduct(null);
         setUploadingField(null);
         setUploadProgress(0);
@@ -79,7 +81,8 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
             fileUrl: product.fileUrl || '',
             previewUrl: product.previewUrl || '',
             stock: product.stock || 0,
-            category: product.category || ''
+            category: product.category || '',
+            targetClass: product.targetClass || ''
         });
         setIsProductModalOpen(true);
     };
@@ -149,6 +152,8 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     const filteredProducts = products.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
     const filteredOrders = orders.filter(o => o.userName.toLowerCase().includes(searchTerm.toLowerCase()) || o.trxId.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
+
     return (
         <div className="space-y-6 animate-fade-in pb-10">
             <div className="flex justify-between items-center">
@@ -215,6 +220,13 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                     <h3 className="font-bold text-slate-800 text-lg mb-1">{product.title}</h3>
                                     <p className="text-sm text-slate-500 line-clamp-2 mb-3">{product.description}</p>
                                     
+                                    {/* Class Badge */}
+                                    <div className="mb-2">
+                                        <span className={`text-[10px] font-bold px-2 py-1 rounded ${product.targetClass ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                                            {product.targetClass ? product.targetClass : 'General / All Classes'}
+                                        </span>
+                                    </div>
+
                                     <div className="mt-auto flex justify-between items-center pt-3 border-t border-slate-100">
                                         <div>
                                             <span className="text-lg font-bold text-indigo-600">৳{product.price}</span>
@@ -322,6 +334,28 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                             <textarea required className="w-full p-2 border rounded h-20" value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} />
                         </div>
                         
+                        {/* Target Class Selection */}
+                        <div className="col-span-2">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Target Class / Group</label>
+                            <div className="relative">
+                                <Target size={16} className="absolute left-3 top-3 text-slate-400" />
+                                <select 
+                                    className="w-full pl-9 p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                    value={productForm.targetClass}
+                                    onChange={e => setProductForm({...productForm, targetClass: e.target.value})}
+                                >
+                                    <option value="">-- All Classes / General --</option>
+                                    <optgroup label="Regular & Job Prep">
+                                        {levels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
+                                    <optgroup label="Admission">
+                                        {levels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">If selected, only students of this class can see this product.</p>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Type</label>
                             <div className="flex border rounded overflow-hidden">
@@ -335,6 +369,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                             <p className="text-[10px] text-slate-400">Set 0 for Free</p>
                         </div>
 
+                        {/* File Inputs (Same as before) */}
                         {productForm.type === 'DIGITAL' ? (
                             <div className="col-span-2 space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
                                 {/* MAIN FILE UPLOAD */}
@@ -342,7 +377,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                     <label className="block text-sm font-bold text-slate-700 mb-1">Main PDF File (Full Product)</label>
                                     <input 
                                         type="file" 
-                                        ref={pdfInputRef}
+                                        ref={pdfInputRef} 
                                         accept="application/pdf"
                                         className="hidden"
                                         onChange={(e) => handleFileUpload(e, 'fileUrl')}

@@ -96,7 +96,8 @@ export interface StoreProduct {
     previewUrl?: string; // NEW: Link to sample/preview PDF
     stock?: number; // For Physical products
     isFree: boolean;
-    category?: string;
+    category?: string; // Subject or Topic
+    targetClass?: string; // NEW: Class specific visibility (e.g. "Class 10", "HSC") or undefined for General
 }
 
 export interface StoreOrder {
