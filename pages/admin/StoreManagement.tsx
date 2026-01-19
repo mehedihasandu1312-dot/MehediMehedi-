@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, ShoppingBag, Edit, Trash2, CheckCircle, XCircle, Search, Truck, Download, AlertTriangle, Upload, X, Image as ImageIcon, FileText, Eye } from 'lucide-react';
-import { db } from '../../services/firebase';
+import { Package, Plus, ShoppingBag, Edit, Trash2, CheckCircle, XCircle, Search, Truck, Download, AlertTriangle, Upload, X, Image as ImageIcon, FileText, Eye, Loader2 } from 'lucide-react';
+import { db, storage } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface Props {
     products: StoreProduct[];
@@ -26,6 +27,9 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, 
         image: '', fileUrl: '', previewUrl: '', stock: 0, category: ''
     });
+
+    // Uploading State
+    const [uploadingField, setUploadingField] = useState<string | null>(null);
 
     // Refs for File Inputs
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -83,20 +87,30 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         }
     };
 
-    // Generic File Handler (Image or PDF)
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'fileUrl' | 'previewUrl') => {
+    // UPDATED: File Handler using Firebase Storage
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'fileUrl' | 'previewUrl') => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            const reader = new FileReader();
-            
-            // For PDFs, we might want to check size or show a loader in a real app
-            // Here we convert to Base64 as requested
-            reader.onload = (event) => {
-                if (event.target?.result) {
-                    setProductForm(prev => ({...prev, [field]: event.target?.result as string}));
-                }
-            };
-            reader.readAsDataURL(file);
+            setUploadingField(field);
+
+            try {
+                // Create a unique file path: uploads/timestamp_filename
+                const storageRef = ref(storage, `store_uploads/${Date.now()}_${file.name}`);
+                
+                // Upload file
+                const snapshot = await uploadBytes(storageRef, file);
+                
+                // Get URL
+                const downloadURL = await getDownloadURL(snapshot.ref);
+
+                // Update Form
+                setProductForm(prev => ({...prev, [field]: downloadURL}));
+            } catch (error) {
+                console.error("Upload failed", error);
+                alert("Failed to upload file. Please try again.");
+            } finally {
+                setUploadingField(null);
+            }
         }
     };
 
@@ -332,12 +346,13 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                             variant="outline" 
                                             size="sm" 
                                             onClick={() => pdfInputRef.current?.click()}
+                                            disabled={!!uploadingField}
                                             className="w-full flex items-center justify-center border-dashed"
                                         >
-                                            <Upload size={16} className="mr-2" /> 
-                                            {productForm.fileUrl ? "Change Main PDF" : "Upload Full PDF"}
+                                            {uploadingField === 'fileUrl' ? <Loader2 size={16} className="animate-spin mr-2"/> : <Upload size={16} className="mr-2" />} 
+                                            {uploadingField === 'fileUrl' ? "Uploading..." : (productForm.fileUrl ? "Change Main PDF" : "Upload Full PDF")}
                                         </Button>
-                                        {productForm.fileUrl && (
+                                        {productForm.fileUrl && !uploadingField && (
                                             <div className="flex items-center text-emerald-600 bg-white px-2 py-1 rounded border border-emerald-200 shadow-sm" title="File Loaded">
                                                 <CheckCircle size={16} />
                                             </div>
@@ -362,12 +377,13 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                             variant="outline" 
                                             size="sm" 
                                             onClick={() => sampleInputRef.current?.click()}
+                                            disabled={!!uploadingField}
                                             className="w-full flex items-center justify-center border-dashed text-slate-500"
                                         >
-                                            <Eye size={16} className="mr-2" /> 
-                                            {productForm.previewUrl ? "Change Sample PDF" : "Upload Sample PDF"}
+                                            {uploadingField === 'previewUrl' ? <Loader2 size={16} className="animate-spin mr-2"/> : <Eye size={16} className="mr-2" />} 
+                                            {uploadingField === 'previewUrl' ? "Uploading..." : (productForm.previewUrl ? "Change Sample PDF" : "Upload Sample PDF")}
                                         </Button>
-                                        {productForm.previewUrl && (
+                                        {productForm.previewUrl && !uploadingField && (
                                             <div className="flex items-center text-emerald-600 bg-white px-2 py-1 rounded border border-emerald-200 shadow-sm" title="File Loaded">
                                                 <CheckCircle size={16} />
                                             </div>
@@ -399,7 +415,9 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                     className="relative overflow-hidden w-24 h-24 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
                                     onClick={() => imageInputRef.current?.click()}
                                 >
-                                    {productForm.image ? (
+                                    {uploadingField === 'image' ? (
+                                        <Loader2 size={24} className="animate-spin text-indigo-500" />
+                                    ) : productForm.image ? (
                                         <img src={productForm.image} className="w-full h-full object-cover" alt="Cover" />
                                     ) : (
                                         <div className="text-center text-slate-400">
@@ -411,7 +429,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                 <div className="text-xs text-slate-500">
                                     <p className="font-bold">Book Cover</p>
                                     <p>Recommended: 400x600px</p>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => imageInputRef.current?.click()} className="mt-2 h-7 text-xs">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => imageInputRef.current?.click()} disabled={!!uploadingField} className="mt-2 h-7 text-xs">
                                         Select Image
                                     </Button>
                                 </div>
@@ -419,7 +437,9 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                         </div>
                     </div>
                     <div className="flex justify-end pt-4 border-t border-slate-100">
-                        <Button type="submit">{editingProduct ? "Update Product" : "Add Product"}</Button>
+                        <Button type="submit" disabled={!!uploadingField}>
+                            {uploadingField ? "Uploading..." : (editingProduct ? "Update Product" : "Add Product")}
+                        </Button>
                     </div>
                 </form>
             </Modal>
