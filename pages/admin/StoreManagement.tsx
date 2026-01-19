@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, ShoppingBag, Edit, Trash2, CheckCircle, XCircle, Search, Truck, Download, AlertTriangle, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Package, Plus, ShoppingBag, Edit, Trash2, CheckCircle, XCircle, Search, Truck, Download, AlertTriangle, Upload, X, Image as ImageIcon, FileText, Eye } from 'lucide-react';
 import { db } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -26,6 +26,11 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, 
         image: '', fileUrl: '', previewUrl: '', stock: 0, category: ''
     });
+
+    // Refs for File Inputs
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const pdfInputRef = useRef<HTMLInputElement>(null);
+    const sampleInputRef = useRef<HTMLInputElement>(null);
 
     // --- ORDER CONFIRMATION STATE ---
     const [confirmOrderModal, setConfirmOrderModal] = useState<{ isOpen: boolean; order: StoreOrder | null; action: 'APPROVE' | 'SHIP' | 'REJECT' }>({ isOpen: false, order: null, action: 'APPROVE' });
@@ -78,13 +83,20 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Generic File Handler (Image or PDF)
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'fileUrl' | 'previewUrl') => {
         if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
             const reader = new FileReader();
+            
+            // For PDFs, we might want to check size or show a loader in a real app
+            // Here we convert to Base64 as requested
             reader.onload = (event) => {
-                if (event.target?.result) setProductForm(prev => ({...prev, image: event.target?.result as string}));
+                if (event.target?.result) {
+                    setProductForm(prev => ({...prev, [field]: event.target?.result as string}));
+                }
             };
-            reader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(file);
         }
     };
 
@@ -303,9 +315,68 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                         </div>
 
                         {productForm.type === 'DIGITAL' ? (
-                            <div className="col-span-2">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">PDF File URL</label>
-                                <input required className="w-full p-2 border rounded" placeholder="https://..." value={productForm.fileUrl} onChange={e => setProductForm({...productForm, fileUrl: e.target.value})} />
+                            <div className="col-span-2 space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                {/* MAIN FILE UPLOAD */}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Main PDF File (Full Product)</label>
+                                    <input 
+                                        type="file" 
+                                        ref={pdfInputRef}
+                                        accept="application/pdf"
+                                        className="hidden"
+                                        onChange={(e) => handleFileUpload(e, 'fileUrl')}
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button 
+                                            type="button" 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => pdfInputRef.current?.click()}
+                                            className="w-full flex items-center justify-center border-dashed"
+                                        >
+                                            <Upload size={16} className="mr-2" /> 
+                                            {productForm.fileUrl ? "Change Main PDF" : "Upload Full PDF"}
+                                        </Button>
+                                        {productForm.fileUrl && (
+                                            <div className="flex items-center text-emerald-600 bg-white px-2 py-1 rounded border border-emerald-200 shadow-sm" title="File Loaded">
+                                                <CheckCircle size={16} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {productForm.fileUrl && <p className="text-[10px] text-emerald-600 mt-1 font-bold">✓ Full PDF Loaded</p>}
+                                </div>
+
+                                {/* PREVIEW FILE UPLOAD */}
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Preview/Sample PDF (Optional)</label>
+                                    <input 
+                                        type="file" 
+                                        ref={sampleInputRef}
+                                        accept="application/pdf"
+                                        className="hidden"
+                                        onChange={(e) => handleFileUpload(e, 'previewUrl')}
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button 
+                                            type="button" 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => sampleInputRef.current?.click()}
+                                            className="w-full flex items-center justify-center border-dashed text-slate-500"
+                                        >
+                                            <Eye size={16} className="mr-2" /> 
+                                            {productForm.previewUrl ? "Change Sample PDF" : "Upload Sample PDF"}
+                                        </Button>
+                                        {productForm.previewUrl && (
+                                            <div className="flex items-center text-emerald-600 bg-white px-2 py-1 rounded border border-emerald-200 shadow-sm" title="File Loaded">
+                                                <CheckCircle size={16} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-1">
+                                        {productForm.previewUrl ? "✓ Sample PDF Loaded" : "Upload a few pages for the 'Look Inside' feature."}
+                                    </p>
+                                </div>
                             </div>
                         ) : (
                             <div className="col-span-2">
@@ -315,27 +386,39 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                         )}
 
                         <div className="col-span-2">
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Preview/Sample URL (Optional)</label>
-                            <input className="w-full p-2 border rounded" placeholder="https://..." value={productForm.previewUrl} onChange={e => setProductForm({...productForm, previewUrl: e.target.value})} />
-                            <p className="text-[10px] text-slate-400">Link to sample PDF or images for "Look Inside" feature.</p>
-                        </div>
-
-                        <div className="col-span-2">
                             <label className="block text-sm font-bold text-slate-700 mb-1">Cover Image</label>
-                            <div className="flex items-center gap-3">
-                                <div className="relative overflow-hidden w-24 h-24 bg-slate-100 rounded border border-slate-200">
+                            <input 
+                                type="file" 
+                                ref={imageInputRef} 
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleFileUpload(e, 'image')}
+                            />
+                            <div className="flex items-center gap-4">
+                                <div 
+                                    className="relative overflow-hidden w-24 h-24 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                                    onClick={() => imageInputRef.current?.click()}
+                                >
                                     {productForm.image ? (
-                                        <img src={productForm.image} className="w-full h-full object-cover" />
+                                        <img src={productForm.image} className="w-full h-full object-cover" alt="Cover" />
                                     ) : (
-                                        <div className="flex items-center justify-center h-full text-slate-300"><ImageIcon size={24} /></div>
+                                        <div className="text-center text-slate-400">
+                                            <ImageIcon size={24} className="mx-auto mb-1" />
+                                            <span className="text-[10px]">Upload</span>
+                                        </div>
                                     )}
-                                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
                                 </div>
-                                <div className="text-xs text-slate-500">Click box to upload cover image.</div>
+                                <div className="text-xs text-slate-500">
+                                    <p className="font-bold">Book Cover</p>
+                                    <p>Recommended: 400x600px</p>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => imageInputRef.current?.click()} className="mt-2 h-7 text-xs">
+                                        Select Image
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div className="flex justify-end pt-4">
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
                         <Button type="submit">{editingProduct ? "Update Product" : "Add Product"}</Button>
                     </div>
                 </form>
