@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
-import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown } from 'lucide-react';
+import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; 
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +31,7 @@ const getGradientClass = (index: number) => {
 const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, onAppealSubmit }) => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [selectedContent, setSelectedContent] = useState<StudyContent | null>(null);
+  const [faqOpen, setFaqOpen] = useState<number | null>(0); // Default open first FAQ
   
   // Appeal State
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
@@ -49,16 +50,32 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     }
     return Array.from({ length: 5 }).map((_, i) => ({
       id: `demo_q_${i}`,
-      questionText: `Sample Question ${i + 1} for '${content.title}'. Real questions appear here.`,
+      questionText: `This is a sample question #${i + 1} for '${content.title}'. In a real scenario, the admin enters this text.`,
       options: [
-        "Incorrect Option A",
-        "Correct Answer B",
-        "Incorrect Option C",
-        "Incorrect Option D"
+        "This is an incorrect option",
+        "This is the CORRECT answer",
+        "Another distraction option",
+        "Totally wrong answer"
       ],
       correctOptionIndex: 1
     }));
   };
+
+  // --- HELPER: Generate Smart FAQs for SEO ---
+  const generateFAQs = (title: string, folderName: string) => [
+      {
+          question: `What is covered in ${title}?`,
+          answer: `This study material covers all key concepts of ${title}, including important definitions, formulas, and explanations suitable for ${folderName} students.`
+      },
+      {
+          question: `Is this content helpful for exams?`,
+          answer: `Yes, "${title}" is designed specifically for exam preparation, focusing on common questions and critical topics required for high scores.`
+      },
+      {
+          question: `Can I download ${title} as PDF?`,
+          answer: `Currently, you can read this content online. Premium users may have options to download offline resources via the EduMaster app.`
+      }
+  ];
 
   const openAppealModal = (id: string, title: string) => {
     setAppealTarget({ id, title });
@@ -91,6 +108,10 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         });
         setIsAppealModalOpen(false);
         setAppealTarget(null);
+    } else {
+        alert(`Appeal submitted for: ${appealTarget?.title}\nIssue: ${appealText}`);
+        setIsAppealModalOpen(false);
+        setAppealTarget(null);
     }
   };
 
@@ -102,78 +123,75 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           return;
       }
       setSelectedContent(item);
+      window.scrollTo(0,0);
   };
 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
 
-  // --- DYNAMIC SEO LOGIC (The "Rank One" Engine) ---
+  // --- DYNAMIC SEO LOGIC ---
   const seoData = useMemo(() => {
       if (selectedContent) {
           const isMCQ = selectedContent.type === ContentType.MCQ;
-          const questions = getDisplayQuestions(selectedContent);
+          const folderName = selectedFolder?.name || "General";
+          const generatedFAQs = generateFAQs(selectedContent.title, folderName);
+          
           const activeSchema: any[] = [];
 
+          // 1. FAQ Schema (Crucial for "People Also Ask")
+          activeSchema.push({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": generatedFAQs.map(f => ({
+                  "@type": "Question",
+                  "name": f.question,
+                  "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": f.answer
+                  }
+              }))
+          });
+
           if (isMCQ) {
-              // 1. QUIZ SCHEMA (For Google Quiz Carousel)
+              const questions = getDisplayQuestions(selectedContent);
               activeSchema.push({
                   "@context": "https://schema.org",
                   "@type": "Quiz",
                   "name": selectedContent.title,
-                  "description": `Test your skills in ${selectedContent.title}. Ideal for exam preparation.`,
-                  "educationalLevel": selectedFolder?.targetClass || "General",
-                  "hasPart": questions.slice(0, 10).map(q => ({
+                  "description": `Online MCQ test for ${selectedContent.title}.`,
+                  "hasPart": questions.slice(0, 5).map(q => ({
                       "@type": "Question",
                       "name": q.questionText,
-                      "acceptedAnswer": {
-                          "@type": "Answer",
-                          "text": q.options[q.correctOptionIndex]
-                      },
-                      "suggestedAnswer": q.options.filter((_, i) => i !== q.correctOptionIndex).map(opt => ({
-                          "@type": "Answer",
-                          "text": opt
-                      }))
-                  }))
-              });
-
-              // 2. FAQ SCHEMA (For "People Also Ask" Dominance)
-              // We convert MCQ questions into Q&A format for better indexing
-              activeSchema.push({
-                  "@context": "https://schema.org",
-                  "@type": "FAQPage",
-                  "mainEntity": questions.slice(0, 5).map(q => ({
-                      "@type": "Question",
-                      "name": q.questionText,
-                      "acceptedAnswer": {
-                          "@type": "Answer",
-                          "text": `The correct answer is: ${q.options[q.correctOptionIndex]}`
-                      }
+                      "acceptedAnswer": { "@type": "Answer", "text": q.options[q.correctOptionIndex] }
                   }))
               });
           } else {
-              // ARTICLE SCHEMA (For Written Notes)
               activeSchema.push({
                   "@context": "https://schema.org",
                   "@type": "Article",
                   "headline": selectedContent.title,
-                  "articleBody": selectedContent.body?.substring(0, 160) + "...",
-                  "author": { "@type": "Organization", "name": "EduMaster Pro" },
-                  "datePublished": new Date().toISOString(), // Simulates freshness
-                  "dateModified": new Date().toISOString()
+                  "author": { "@type": "Organization", "name": "EduMaster Team" },
+                  "datePublished": new Date().toISOString(),
+                  "dateModified": new Date().toISOString(),
+                  "publisher": {
+                      "@type": "Organization",
+                      "name": "EduMaster Pro",
+                      "logo": { "@type": "ImageObject", "url": window.location.origin + "/vite.svg" }
+                  }
               });
           }
-          
+
           return {
-              title: `${selectedContent.title} - ${isMCQ ? 'MCQ & Quiz' : 'Notes & PDF'}`,
+              title: `${selectedContent.title} - ${folderName} | EduMaster`,
               desc: isMCQ 
-                  ? `Free Online MCQ Test: ${selectedContent.title}. Practice important questions and answers for ${selectedFolder?.name}.`
-                  : `Read detailed lecture notes on ${selectedContent.title}. Comprehensive study material for ${selectedFolder?.name}.`,
-              keywords: [selectedContent.title, isMCQ ? "MCQ" : "Notes", selectedFolder?.name || "Study", "Bangla Exam Prep", "Solution"],
-              type: isMCQ ? 'quiz' : 'article',
+                  ? `Take free online MCQ test on ${selectedContent.title}. Important questions for ${folderName} exams.`
+                  : `Read detailed notes on ${selectedContent.title}. Best study material for ${folderName} students.`,
+              keywords: [selectedContent.title, folderName, "Study Notes", "Bangla Suggestion", "Exam Prep"],
+              type: isMCQ ? 'website' : 'article',
               schema: activeSchema,
               breadcrumbs: [
                   { name: 'Home', url: '/' },
                   { name: 'Study Content', url: '/#/student/content' },
-                  { name: selectedFolder?.name || 'Folder', url: '/#/student/content' },
+                  { name: folderName, url: '/#/student/content' },
                   { name: selectedContent.title, url: `/#/student/content?id=${selectedContent.id}` }
               ],
               modifiedTime: new Date().toISOString()
@@ -183,9 +201,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       // Folder View
       if (selectedFolder) {
           return {
-              title: `${selectedFolder.name} - Study Materials & Suggestions`,
-              desc: selectedFolder.description || `Best collection of notes, suggestions and questions for ${selectedFolder.name}.`,
-              keywords: [selectedFolder.name, "Syllabus", "Suggestion", "PDF Download"],
+              title: `${selectedFolder.name} Notes & Suggestions`,
+              desc: `Access all study materials, notes, and question banks for ${selectedFolder.name}. Updated for current syllabus.`,
+              keywords: [selectedFolder.name, "Syllabus", "Notes", "PDF"],
               type: 'course',
               breadcrumbs: [
                   { name: 'Home', url: '/' },
@@ -195,16 +213,11 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           };
       }
 
-      // Root View
       return {
-          title: "Study Library - Free Notes & Online Exams",
-          desc: "Access thousands of free educational resources, PDF notes, and participate in live model tests.",
-          keywords: ["Study Library", "Free Notes", "PDF Download", "Online Education BD"],
-          type: 'website',
-          breadcrumbs: [
-              { name: 'Home', url: '/' },
-              { name: 'Study Content', url: '/#/student/content' }
-          ]
+          title: "Study Material Library - Best Education Resources",
+          desc: "EduMaster Pro Library: Access thousands of notes, PDF suggestions, and quizzes for Class 6 to Masters.",
+          keywords: ["Study Library", "Free Notes", "Education BD"],
+          type: 'website'
       };
   }, [selectedContent, selectedFolder]);
 
@@ -227,6 +240,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         <FolderIcon className="w-24 h-24 md:w-40 md:h-40" fill="currentColor" />
                     )}
                 </div>
+
                 <div className="relative z-10">
                     <h3 className="text-base md:text-2xl font-bold leading-tight mb-1 md:mb-2 drop-shadow-sm font-serif tracking-wide line-clamp-2">
                         {folder.name}
@@ -235,11 +249,13 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         {folder.description || 'Lecture Notes & Materials'}
                     </p>
                 </div>
+
                 <div className="relative z-10 flex items-center justify-between mt-2">
                     <div className="flex items-center space-x-1 md:space-x-2 bg-black/20 backdrop-blur-md px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
                         <FileText size={12} className="text-white/90" />
                         <span>{itemCount}</span>
                     </div>
+                    
                     <span className="flex items-center text-xs font-bold bg-white/20 p-1.5 rounded-full hover:bg-white/30 transition-colors group-hover:translate-x-1 duration-300">
                         <ArrowLeft className="rotate-180" size={14} />
                     </span>
@@ -254,6 +270,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     const items = contents.filter(c => c.folderId === selectedFolder?.id && !c.isDeleted);
 
     if (selectedContent) {
+      // --- CONTENT DETAIL VIEW (OPTIMIZED FOR E-E-A-T) ---
       return (
         <div className="max-w-4xl mx-auto pb-10">
           <div className="flex items-center justify-between mb-6">
@@ -263,27 +280,101 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           </div>
 
           {selectedContent.type === ContentType.WRITTEN && (
-            <div className="animate-fade-in space-y-4">
-                <div className="bg-white rounded-none md:rounded-lg shadow-xl border border-slate-200 min-h-[80vh] relative overflow-hidden">
-                    <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-600 w-full"></div>
-                    <div className="p-8 md:p-12 pb-24">
-                        <div className="border-b-2 border-slate-100 pb-6 mb-8">
-                            <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-2 font-serif">{selectedContent.title}</h1>
-                            <div className="flex items-center space-x-2">
-                                <Badge color="bg-blue-100 text-blue-700">READING MATERIAL</Badge>
-                                <span className="text-slate-400 text-sm">• {selectedFolder?.name}</span>
+            <div className="animate-fade-in space-y-6">
+                {/* Semantic Article Tag for SEO */}
+                <article className="bg-white rounded-none md:rounded-xl shadow-xl border border-slate-200 min-h-[80vh] relative overflow-hidden">
+                    <div className="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 w-full"></div>
+                    
+                    <div className="p-6 md:p-12 pb-24">
+                        {/* Header Section */}
+                        <header className="border-b-2 border-slate-100 pb-6 mb-8">
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                <Badge color="bg-blue-50 text-blue-700 border-blue-100">READING MATERIAL</Badge>
+                                <Badge color="bg-slate-100 text-slate-600">{selectedFolder?.name}</Badge>
                             </div>
-                        </div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4 font-serif leading-tight">{selectedContent.title}</h1>
+                            
+                            {/* Trust Signals (E-E-A-T) */}
+                            <div className="flex flex-wrap items-center gap-4 text-xs md:text-sm text-slate-500 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="flex items-center text-indigo-700">
+                                    <UserCheck size={16} className="mr-1.5" /> Verified by EduMaster
+                                </span>
+                                <span className="hidden md:inline text-slate-300">|</span>
+                                <span className="flex items-center">
+                                    <Calendar size={16} className="mr-1.5" /> Updated: {new Date().toLocaleDateString()}
+                                </span>
+                                <span className="hidden md:inline text-slate-300">|</span>
+                                <span className="flex items-center">
+                                    <BookOpen size={16} className="mr-1.5" /> 5 min read
+                                </span>
+                            </div>
+                        </header>
+
+                        {/* Featured Snippet Optimization: Key Highlights */}
+                        <section className="bg-blue-50/50 border border-blue-100 rounded-xl p-5 mb-8">
+                            <h3 className="font-bold text-slate-700 mb-3 flex items-center">
+                                <Bookmark className="text-blue-500 mr-2" size={18} fill="currentColor" />
+                                Key Highlights
+                            </h3>
+                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600 list-disc list-inside">
+                                <li>Comprehensive overview of {selectedContent.title}</li>
+                                <li>Key definitions and important formulas</li>
+                                <li>Exam-oriented explanations and examples</li>
+                                <li>Prepared by expert instructors for {selectedFolder?.name}</li>
+                            </ul>
+                        </section>
+
+                        {/* Main Content Body */}
                         <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
                              {selectedContent.body?.split('\n').map((paragraph, idx) => (
-                                 <p key={idx}>{paragraph}</p>
+                                 <p key={idx} className="mb-4">{paragraph}</p>
                              ))}
+                             {(!selectedContent.body || selectedContent.body.length < 50) && (
+                                 <div className="text-slate-400 italic bg-slate-50 p-8 text-center rounded-lg">
+                                     [Content is being updated by the administrator]
+                                 </div>
+                             )}
                         </div>
-                        <div className="my-8"><AdBanner slotId="CONTENT_BODY_AD" /></div>
+                        
+                        <div className="my-8">
+                            <AdBanner slotId="CONTENT_BODY_AD" />
+                        </div>
+
+                        {/* Auto-Generated FAQs for SEO "People Also Ask" */}
+                        <section className="mt-12 pt-8 border-t border-slate-100">
+                            <h3 className="text-xl font-bold text-slate-800 mb-6">Frequently Asked Questions</h3>
+                            <div className="space-y-3">
+                                {generateFAQs(selectedContent.title, selectedFolder?.name || 'Exam').map((faq, idx) => (
+                                    <div key={idx} className="border border-slate-200 rounded-lg overflow-hidden">
+                                        <button 
+                                            onClick={() => setFaqOpen(faqOpen === idx ? null : idx)}
+                                            className="w-full flex justify-between items-center p-4 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                                        >
+                                            <span className="font-bold text-slate-700 text-sm">{faq.question}</span>
+                                            {faqOpen === idx ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                                        </button>
+                                        {faqOpen === idx && (
+                                            <div className="p-4 bg-white text-sm text-slate-600 leading-relaxed border-t border-slate-100">
+                                                {faq.answer}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
                     </div>
-                </div>
+
+                    <div className="absolute bottom-0 w-full bg-slate-50 border-t border-slate-100 py-3 px-8 flex justify-between text-xs text-slate-400">
+                        <span>© EduMaster Pro Content</span>
+                        <span>Page 1 of 1</span>
+                    </div>
+                </article>
+
                 <div className="flex justify-center">
-                    <button onClick={() => openAppealModal(selectedContent.id, `Document: ${selectedContent.title}`)} className="flex items-center text-sm text-slate-500 hover:text-red-600 transition-colors px-4 py-2 rounded-full hover:bg-red-50 border border-transparent hover:border-red-100">
+                    <button 
+                        onClick={() => openAppealModal(selectedContent.id, `Document: ${selectedContent.title}`)}
+                        className="flex items-center text-sm text-slate-500 hover:text-red-600 transition-colors px-4 py-2 rounded-full hover:bg-red-50 border border-transparent hover:border-red-100"
+                    >
                         <Flag size={14} className="mr-2" /> Report an issue with this document
                     </button>
                 </div>
@@ -292,43 +383,78 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
           {selectedContent.type === ContentType.MCQ && (
               <div className="space-y-8 animate-fade-in pb-10">
-                  <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl p-8 text-white shadow-lg mb-8">
-                      <div className="flex items-center space-x-3 mb-2 opacity-80">
+                  <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl p-8 text-white shadow-lg mb-8 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                      <div className="flex items-center space-x-3 mb-2 opacity-90 relative z-10">
                           <CheckSquare size={20} />
-                          <span className="text-sm font-bold tracking-wider uppercase">MCQ Study Set</span>
+                          <span className="text-sm font-bold tracking-wider uppercase">Online Quiz</span>
                       </div>
-                      <h1 className="text-3xl font-bold">{selectedContent.title}</h1>
-                      <p className="mt-2 text-purple-100">Review the questions and memorize the correct answers below.</p>
+                      <h1 className="text-3xl font-bold relative z-10">{selectedContent.title}</h1>
+                      <p className="mt-2 text-purple-100 relative z-10 max-w-xl">
+                          Test your knowledge on {selectedContent.title}. Review the questions below to prepare for your exams.
+                      </p>
                   </div>
 
                   {getDisplayQuestions(selectedContent).map((q, index) => (
                       <Card key={q.id || index} className="p-0 overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                           <div className="bg-slate-50 p-5 border-b border-slate-200 flex items-start gap-4">
-                              <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-slate-800 text-white font-bold rounded-lg text-sm">{index + 1}</span>
-                              <h3 className="text-lg font-semibold text-slate-800 leading-snug pt-0.5">{q.questionText}</h3>
+                              <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-slate-800 text-white font-bold rounded-lg text-sm">
+                                  {index + 1}
+                              </span>
+                              <h3 className="text-lg font-semibold text-slate-800 leading-snug pt-0.5">
+                                  {q.questionText}
+                              </h3>
                           </div>
+
                           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                               {q.options.map((opt, optIdx) => {
                                   const isCorrect = q.correctOptionIndex === optIdx;
                                   return (
-                                      <div key={optIdx} className={`relative p-4 rounded-lg border-2 flex items-center justify-between transition-all ${isCorrect ? 'bg-emerald-50 border-emerald-500 shadow-sm' : 'bg-white border-slate-100 text-slate-500'}`}>
+                                      <div 
+                                        key={optIdx} 
+                                        className={`relative p-4 rounded-lg border-2 flex items-center justify-between transition-all ${
+                                            isCorrect 
+                                            ? 'bg-emerald-50 border-emerald-500 shadow-sm' 
+                                            : 'bg-white border-slate-100 text-slate-500'
+                                        }`}
+                                      >
                                           <div className="flex items-center gap-3">
-                                              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border ${isCorrect ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{String.fromCharCode(65 + optIdx)}</span>
-                                              <span className={`text-sm font-medium ${isCorrect ? 'text-emerald-800' : ''}`}>{opt}</span>
+                                              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border ${
+                                                  isCorrect ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-500 border-slate-200'
+                                              }`}>
+                                                  {String.fromCharCode(65 + optIdx)}
+                                              </span>
+                                              <span className={`text-sm font-medium ${isCorrect ? 'text-emerald-800' : ''}`}>
+                                                  {opt}
+                                              </span>
                                           </div>
-                                          {isCorrect && <div className="text-emerald-600 flex items-center text-xs font-bold bg-white px-2 py-1 rounded-full shadow-sm border border-emerald-100"><CheckCircle2 size={14} className="mr-1" /> Answer</div>}
+                                          
+                                          {isCorrect && (
+                                              <div className="text-emerald-600 flex items-center text-xs font-bold bg-white px-2 py-1 rounded-full shadow-sm border border-emerald-100">
+                                                  <CheckCircle2 size={14} className="mr-1" /> Answer
+                                              </div>
+                                          )}
                                       </div>
                                   );
                               })}
                           </div>
+                          
                           <div className="bg-slate-50 p-2 border-t border-slate-100 flex justify-end">
-                              <button onClick={() => openAppealModal(q.id, `Question #${index+1}: ${q.questionText.substring(0, 30)}...`)} className="flex items-center text-xs text-slate-400 hover:text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors">
+                              <button 
+                                onClick={() => openAppealModal(q.id, `Question #${index+1}: ${q.questionText.substring(0, 30)}...`)}
+                                className="flex items-center text-xs text-slate-400 hover:text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors"
+                              >
                                   <AlertTriangle size={12} className="mr-1" /> Report Error
                               </button>
                           </div>
                       </Card>
                   ))}
-                  <div className="text-center text-slate-400 text-sm mt-8"><Bookmark size={20} className="mx-auto mb-2" /> End of Study Set</div>
+                  
+                  <div className="text-center text-slate-400 text-sm mt-8">
+                      <Bookmark size={20} className="mx-auto mb-2" />
+                      End of Study Set
+                  </div>
+                  
                   <AdBanner slotId="STUDY_MCQ_BOTTOM_AD" />
               </div>
           )}
@@ -336,13 +462,18 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       );
     }
 
+    // --- LIST OF CONTENT IN FOLDER ---
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2 mb-6 bg-white p-3 rounded-lg border border-slate-200 shadow-sm inline-flex">
           <button onClick={() => setSelectedFolder(null)} className="text-slate-500 hover:text-indigo-600 font-medium transition-colors">All Folders</button>
           <span className="text-slate-300">/</span>
           <span className="font-bold text-indigo-700 flex items-center">
-            {selectedFolder?.icon ? <img src={selectedFolder.icon} alt="icon" className="w-5 h-5 mr-2 object-contain" /> : <FolderIcon size={16} className="mr-2" />}
+            {selectedFolder?.icon ? (
+                <img src={selectedFolder.icon} alt="icon" className="w-5 h-5 mr-2 object-contain" />
+            ) : (
+                <FolderIcon size={16} className="mr-2" />
+            )}
             {selectedFolder?.name}
           </span>
         </div>
@@ -357,15 +488,33 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
             {items.map(item => {
                 const isLocked = item.isPremium && !isPro;
                 return (
-                  <div key={item.id} onClick={() => handleContentClick(item)} className={`group flex items-center justify-between p-5 border rounded-xl transition-all cursor-pointer ${isLocked ? 'bg-slate-50 border-slate-200 opacity-80 hover:border-amber-300' : 'bg-white border-slate-200 hover:shadow-md hover:border-indigo-400'}`}>
+                  <div 
+                    key={item.id} 
+                    onClick={() => handleContentClick(item)}
+                    className={`group flex items-center justify-between p-5 border rounded-xl transition-all cursor-pointer ${
+                        isLocked 
+                        ? 'bg-slate-50 border-slate-200 opacity-80 hover:border-amber-300' 
+                        : 'bg-white border-slate-200 hover:shadow-md hover:border-indigo-400'
+                    }`}
+                  >
                     <div className="flex items-center space-x-5">
-                      <div className={`p-3 rounded-xl transition-colors ${isLocked ? 'bg-amber-100 text-amber-600' : item.type === ContentType.WRITTEN ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'}`}>
+                      <div className={`p-3 rounded-xl transition-colors ${
+                        isLocked 
+                        ? 'bg-amber-100 text-amber-600'
+                        : item.type === ContentType.WRITTEN 
+                            ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' 
+                            : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'
+                      }`}>
                         {isLocked ? <Lock size={24} /> : (item.type === ContentType.WRITTEN ? <FileText size={24} /> : <CheckSquare size={24} />)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                             <h4 className={`font-bold text-lg transition-colors ${isLocked ? 'text-slate-500' : 'text-slate-800 group-hover:text-indigo-700'}`}>{item.title}</h4>
-                            {item.isPremium && <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center border border-amber-200"><Crown size={10} className="mr-1" fill="currentColor"/> Premium</span>}
+                            {item.isPremium && (
+                                <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center border border-amber-200">
+                                    <Crown size={10} className="mr-1" fill="currentColor"/> Premium
+                                </span>
+                            )}
                         </div>
                         <p className="text-sm text-slate-500 capitalize flex items-center mt-1">
                             {item.type === ContentType.WRITTEN ? 'Document' : 'MCQ Set'} 
@@ -388,6 +537,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
   return (
     <div className="animate-fade-in pb-10">
+      {/* INJECT DYNAMIC SEO */}
       <SEO 
         title={seoData.title}
         description={seoData.desc}
