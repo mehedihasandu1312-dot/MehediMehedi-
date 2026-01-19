@@ -29,7 +29,8 @@ import {
     AlertTriangle,
     CheckCircle,
     PlayCircle,
-    Youtube
+    Youtube,
+    Filter
 } from 'lucide-react';
 
 // Custom Large Modal for Content Editing
@@ -61,6 +62,9 @@ interface ContentManagementProps {
 const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolders, contents, setContents, educationLevels }) => {
   // Navigation State (Explorer)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  // Filter State
+  const [filterType, setFilterType] = useState<'ALL' | ContentType>('ALL');
 
   // Modal State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -119,9 +123,13 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
     (!f.type || f.type === 'CONTENT')
   );
   
-  const displayedContents = contents.filter(c => 
-    !c.isDeleted && c.folderId === (currentFolderId || 'root_unsupported_in_demo')
-  );
+  // Apply Type Filter here
+  const displayedContents = contents.filter(c => {
+    const folderMatch = c.folderId === (currentFolderId || 'root_unsupported_in_demo');
+    const deleteMatch = !c.isDeleted;
+    const typeMatch = filterType === 'ALL' || c.type === filterType;
+    return folderMatch && deleteMatch && typeMatch;
+  });
 
   const foldersByClass = useMemo(() => {
       const groups: Record<string, Folder[]> = {};
@@ -463,6 +471,36 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             </div>
         </div>
 
+        {/* Filter Tabs (Added in this change) */}
+        {currentFolderId && (
+            <div className="flex gap-2 mb-6 border-b border-slate-50 pb-2 overflow-x-auto">
+                <button 
+                    onClick={() => setFilterType('ALL')}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'ALL' ? 'bg-pink-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                    All Files
+                </button>
+                <button 
+                    onClick={() => setFilterType(ContentType.WRITTEN)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.WRITTEN ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                    Notes Only
+                </button>
+                <button 
+                    onClick={() => setFilterType(ContentType.VIDEO)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.VIDEO ? 'bg-red-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                    Videos Only
+                </button>
+                <button 
+                    onClick={() => setFilterType(ContentType.MCQ)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.MCQ ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                    Quizzes Only
+                </button>
+            </div>
+        )}
+
         {/* Explorer Grid */}
         <div className="flex-1">
             {currentFolderId === null && displayedFolders.length === 0 ? (
@@ -475,8 +513,10 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                  </div>
             ) : (
                 <div className="space-y-8">
-                    {/* Render Grouped Folders */}
-                    {sortedClassKeys.length > 0 ? (
+                    {/* Render Grouped Folders (Only show if filtering is set to ALL to avoid confusion, or handle nicely. 
+                        Usually folders don't have types like MCQ/Written, so we show them only if filter is ALL) 
+                    */}
+                    {filterType === 'ALL' && sortedClassKeys.length > 0 && (
                         sortedClassKeys.map(className => (
                             <div key={className}>
                                 <h4 className="text-sm font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-1 flex items-center">
@@ -488,15 +528,21 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                 </div>
                             </div>
                         ))
-                    ) : ( null )}
+                    )}
 
                     {/* Content Files */}
                     {displayedContents.length > 0 && (
                         <div>
-                            {displayedFolders.length > 0 && <div className="my-6 border-t border-slate-100"></div>}
+                            {/* Visual Separator if we have folders above */}
+                            {filterType === 'ALL' && displayedFolders.length > 0 && <div className="my-6 border-t border-slate-100"></div>}
+                            
                             <h4 className="text-sm font-bold text-slate-500 uppercase mb-3 flex items-center">
-                                <FileText size={14} className="mr-2" /> Files
+                                <FileText size={14} className="mr-2" /> 
+                                {filterType === 'ALL' ? 'Files' : 
+                                 filterType === ContentType.WRITTEN ? 'Written Notes' :
+                                 filterType === ContentType.VIDEO ? 'Videos' : 'Quizzes'}
                             </h4>
+                            
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {displayedContents.map(content => (
                                     <div 
@@ -560,15 +606,21 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     {/* Empty State */}
                     {displayedFolders.length === 0 && displayedContents.length === 0 && (
                         <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                            <p>This folder is empty.</p>
-                            <div className="flex justify-center gap-3 mt-4">
-                                <Button variant="outline" size="sm" onClick={openCreateFolderModal}>
-                                    <FolderPlus size={14} className="mr-2"/> Add Sub-folder
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => setIsContentModalOpen(true)}>
-                                    <FilePlus size={14} className="mr-2"/> Add File
-                                </Button>
-                            </div>
+                            <Filter size={48} className="mx-auto mb-4 opacity-20" />
+                            <p>No content found in this view.</p>
+                            {filterType !== 'ALL' && (
+                                <Button variant="outline" size="sm" onClick={() => setFilterType('ALL')} className="mt-2">Clear Filters</Button>
+                            )}
+                            {filterType === 'ALL' && (
+                                <div className="flex justify-center gap-3 mt-4">
+                                    <Button variant="outline" size="sm" onClick={openCreateFolderModal}>
+                                        <FolderPlus size={14} className="mr-2"/> Add Sub-folder
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setIsContentModalOpen(true)}>
+                                        <FilePlus size={14} className="mr-2"/> Add File
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

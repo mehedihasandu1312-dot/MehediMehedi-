@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
-import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library, PlayCircle, Youtube } from 'lucide-react';
+import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library, PlayCircle, Youtube, Grid, Filter } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; 
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +33,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const [selectedContent, setSelectedContent] = useState<StudyContent | null>(null);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Tabs State
+  const [activeTab, setActiveTab] = useState<'ALL' | ContentType>('ALL');
   
   // Appeal State
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
@@ -124,7 +127,15 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   };
 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
-  const filteredContents = contents.filter(c => c.folderId === selectedFolder?.id && !c.isDeleted && c.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  
+  // Filter Contents based on Search AND Active Tab
+  const filteredContents = contents.filter(c => {
+      const matchFolder = c.folderId === selectedFolder?.id;
+      const matchSearch = !c.isDeleted && c.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchTab = activeTab === 'ALL' ? true : c.type === activeTab;
+      
+      return matchFolder && matchSearch && matchTab;
+  });
 
   // --- DYNAMIC SEO ---
   const seoData = useMemo(() => {
@@ -196,32 +207,84 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
   // --- COMPONENT: CONTENT LIST ---
   const ContentList = () => {
+    // Count items for badges
+    const allCount = contents.filter(c => c.folderId === selectedFolder?.id && !c.isDeleted).length;
+    const noteCount = contents.filter(c => c.folderId === selectedFolder?.id && c.type === ContentType.WRITTEN && !c.isDeleted).length;
+    const videoCount = contents.filter(c => c.folderId === selectedFolder?.id && c.type === ContentType.VIDEO && !c.isDeleted).length;
+    const quizCount = contents.filter(c => c.folderId === selectedFolder?.id && c.type === ContentType.MCQ && !c.isDeleted).length;
+
     return (
       <div className="space-y-6 max-w-5xl mx-auto animate-fade-in pb-20">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-            <div className="flex items-center">
-                <Button variant="ghost" onClick={() => setSelectedFolder(null)} className="mr-2 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-slate-100">
-                    <ArrowLeft size={20} className="text-slate-600" />
-                </Button>
-                <div>
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                        {selectedFolder?.icon && <img src={selectedFolder.icon} alt="icon" className="w-6 h-6 mr-2 object-contain" />}
-                        {selectedFolder?.name}
-                    </h2>
-                    <p className="text-xs text-slate-500">Browsing files</p>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div className="flex items-center">
+                    <Button variant="ghost" onClick={() => { setSelectedFolder(null); setActiveTab('ALL'); }} className="mr-2 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-slate-100">
+                        <ArrowLeft size={20} className="text-slate-600" />
+                    </Button>
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                            {selectedFolder?.icon && <img src={selectedFolder.icon} alt="icon" className="w-6 h-6 mr-2 object-contain" />}
+                            {selectedFolder?.name}
+                        </h2>
+                        <p className="text-xs text-slate-500">Browsing files</p>
+                    </div>
+                </div>
+                
+                <div className="relative w-full md:w-64">
+                    <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Search files..." 
+                        className="w-full pl-10 p-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-pink-200 outline-none"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
             </div>
-            
-            <div className="relative w-full md:w-64">
-                <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                <input 
-                    type="text" 
-                    placeholder="Search files..." 
-                    className="w-full pl-10 p-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-pink-200 outline-none"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+
+            {/* TAB FILTERS */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <button 
+                    onClick={() => setActiveTab('ALL')}
+                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                        activeTab === 'ALL' 
+                        ? 'bg-pink-600 text-white shadow-md shadow-pink-200' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    <Grid size={14} className="mr-2"/> All ({allCount})
+                </button>
+                <button 
+                    onClick={() => setActiveTab(ContentType.WRITTEN)}
+                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                        activeTab === ContentType.WRITTEN
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    <FileText size={14} className="mr-2"/> Notes ({noteCount})
+                </button>
+                <button 
+                    onClick={() => setActiveTab(ContentType.VIDEO)}
+                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                        activeTab === ContentType.VIDEO
+                        ? 'bg-red-600 text-white shadow-md shadow-red-200' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    <Youtube size={14} className="mr-2"/> Videos ({videoCount})
+                </button>
+                <button 
+                    onClick={() => setActiveTab(ContentType.MCQ)}
+                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                        activeTab === ContentType.MCQ
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-200' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    <CheckSquare size={14} className="mr-2"/> Quizzes ({quizCount})
+                </button>
             </div>
         </div>
 
@@ -229,10 +292,10 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         {filteredContents.length === 0 ? (
           <div className="text-center py-24 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center">
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                <FileText size={40} className="text-slate-300" />
+                <Filter size={40} className="text-slate-300" />
             </div>
             <h3 className="text-lg font-bold text-slate-600">No Content Found</h3>
-            <p className="text-slate-400 text-sm">Try adjusting your search or come back later.</p>
+            <p className="text-slate-400 text-sm">Try adjusting your search or tabs.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
