@@ -79,6 +79,17 @@ const AdminSetup: React.FC = () => {
           setAdminExists(true); // Now admin exists
       } else {
           // RESET PASSWORD MODE
+          
+          // SECURITY UPGRADE: Verify Admin Status in Database BEFORE sending email
+          const q = query(collection(db, "users"), where("email", "==", email), where("role", "==", "ADMIN"));
+          const snapshot = await getDocs(q);
+
+          if (snapshot.empty) {
+              // If no admin found with this email, STOP here. Do not send email.
+              throw new Error("Access Denied: This email is not associated with an Admin account.");
+          }
+
+          // Only proceed if DB check passes
           await sendPasswordResetEmail(auth, email);
           setStatus({
             type: 'success',
