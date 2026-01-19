@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, ShoppingBag, Edit, Trash2, CheckCircle, XCircle, Search, Truck, Download, AlertTriangle, Upload, X, Image as ImageIcon, FileText, Eye, Loader2 } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, FileText } from 'lucide-react';
 import { db, storage } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface Props {
     products: StoreProduct[];
@@ -30,6 +30,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
 
     // Uploading State
     const [uploadingField, setUploadingField] = useState<string | null>(null);
+    const [uploadProgress, setUploadProgress] = useState<number>(0);
 
     // Refs for File Inputs
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -62,6 +63,8 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     const resetForm = () => {
         setProductForm({ title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, image: '', fileUrl: '', previewUrl: '', stock: 0, category: '' });
         setEditingProduct(null);
+        setUploadingField(null);
+        setUploadProgress(0);
     };
 
     const openEditProduct = (product: StoreProduct) => {
@@ -87,31 +90,36 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         }
     };
 
-    // UPDATED: File Handler using Firebase Storage
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'fileUrl' | 'previewUrl') => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setUploadingField(field);
+    // UPDATED: Resumable File Upload with Progress Bar
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'fileUrl' | 'previewUrl') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-            try {
-                // Create a unique file path: uploads/timestamp_filename
-                const storageRef = ref(storage, `store_uploads/${Date.now()}_${file.name}`);
-                
-                // Upload file
-                const snapshot = await uploadBytes(storageRef, file);
-                
-                // Get URL
-                const downloadURL = await getDownloadURL(snapshot.ref);
+        setUploadingField(field);
+        setUploadProgress(0);
 
-                // Update Form
-                setProductForm(prev => ({...prev, [field]: downloadURL}));
-            } catch (error) {
-                console.error("Upload failed", error);
-                alert("Failed to upload file. Please try again.");
-            } finally {
+        // Unique path for storage
+        const storageRef = ref(storage, `store_uploads/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed', 
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            }, 
+            (error) => {
+                console.error("Upload error:", error);
+                alert(`Upload failed: ${error.message}. Check Firebase Storage Rules.`);
                 setUploadingField(null);
+                setUploadProgress(0);
+            }, 
+            async () => {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                setProductForm(prev => ({...prev, [field]: downloadURL}));
+                setUploadingField(null);
+                setUploadProgress(0);
             }
-        }
+        );
     };
 
     // --- HANDLERS: ORDERS ---
@@ -121,14 +129,12 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         const { order, action } = confirmOrderModal;
         
         let newStatus: StoreOrder['status'] = 'PENDING';
-        if (action === 'APPROVE') newStatus = 'COMPLETED'; // For Digital, completed means paid & accessible
-        if (action === 'SHIP') newStatus = 'SHIPPED'; // For Physical
+        if (action === 'APPROVE') newStatus = 'COMPLETED'; 
+        if (action === 'SHIP') newStatus = 'SHIPPED'; 
         if (action === 'REJECT') newStatus = 'REJECTED';
 
-        // Update local state
         setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: newStatus } : o));
         
-        // Update Firestore
         try {
             await setDoc(doc(db, "store_orders", order.id), { status: newStatus }, { merge: true });
         } catch(e) {
@@ -347,10 +353,21 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                             size="sm" 
                                             onClick={() => pdfInputRef.current?.click()}
                                             disabled={!!uploadingField}
-                                            className="w-full flex items-center justify-center border-dashed"
+                                            className="w-full flex items-center justify-center border-dashed relative overflow-hidden"
                                         >
-                                            {uploadingField === 'fileUrl' ? <Loader2 size={16} className="animate-spin mr-2"/> : <Upload size={16} className="mr-2" />} 
-                                            {uploadingField === 'fileUrl' ? "Uploading..." : (productForm.fileUrl ? "Change Main PDF" : "Upload Full PDF")}
+                                            {uploadingField === 'fileUrl' ? (
+                                                <>
+                                                    <div className="absolute inset-0 bg-indigo-50" style={{ width: `${uploadProgress}%`, transition: 'width 0.3s' }}></div>
+                                                    <span className="relative z-10 flex items-center text-indigo-700">
+                                                        <Loader2 size={16} className="animate-spin mr-2"/> {Math.round(uploadProgress)}%
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Upload size={16} className="mr-2" /> 
+                                                    {productForm.fileUrl ? "Change Main PDF" : "Upload Full PDF"}
+                                                </>
+                                            )}
                                         </Button>
                                         {productForm.fileUrl && !uploadingField && (
                                             <div className="flex items-center text-emerald-600 bg-white px-2 py-1 rounded border border-emerald-200 shadow-sm" title="File Loaded">
@@ -378,10 +395,21 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                             size="sm" 
                                             onClick={() => sampleInputRef.current?.click()}
                                             disabled={!!uploadingField}
-                                            className="w-full flex items-center justify-center border-dashed text-slate-500"
+                                            className="w-full flex items-center justify-center border-dashed text-slate-500 relative overflow-hidden"
                                         >
-                                            {uploadingField === 'previewUrl' ? <Loader2 size={16} className="animate-spin mr-2"/> : <Eye size={16} className="mr-2" />} 
-                                            {uploadingField === 'previewUrl' ? "Uploading..." : (productForm.previewUrl ? "Change Sample PDF" : "Upload Sample PDF")}
+                                            {uploadingField === 'previewUrl' ? (
+                                                <>
+                                                    <div className="absolute inset-0 bg-indigo-50" style={{ width: `${uploadProgress}%`, transition: 'width 0.3s' }}></div>
+                                                    <span className="relative z-10 flex items-center text-indigo-700">
+                                                        <Loader2 size={16} className="animate-spin mr-2"/> {Math.round(uploadProgress)}%
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Eye size={16} className="mr-2" /> 
+                                                    {productForm.previewUrl ? "Change Sample PDF" : "Upload Sample PDF"}
+                                                </>
+                                            )}
                                         </Button>
                                         {productForm.previewUrl && !uploadingField && (
                                             <div className="flex items-center text-emerald-600 bg-white px-2 py-1 rounded border border-emerald-200 shadow-sm" title="File Loaded">
@@ -416,7 +444,10 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                     onClick={() => imageInputRef.current?.click()}
                                 >
                                     {uploadingField === 'image' ? (
-                                        <Loader2 size={24} className="animate-spin text-indigo-500" />
+                                        <div className="flex flex-col items-center">
+                                            <Loader2 size={24} className="animate-spin text-indigo-500 mb-1" />
+                                            <span className="text-[10px] font-bold text-indigo-600">{Math.round(uploadProgress)}%</span>
+                                        </div>
                                     ) : productForm.image ? (
                                         <img src={productForm.image} className="w-full h-full object-cover" alt="Cover" />
                                     ) : (
