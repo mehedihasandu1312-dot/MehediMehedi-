@@ -28,7 +28,7 @@ const SEO: React.FC<SEOProps> = ({
 }) => {
     
     useEffect(() => {
-        // 1. Update Document Title
+        // 1. Update Document Title (This is visible in the Browser Tab)
         document.title = `${title} | EduMaster Pro`;
 
         // 2. Helper to manage Meta Tags
@@ -83,11 +83,10 @@ const SEO: React.FC<SEOProps> = ({
         setMeta('twitter:description', description);
         setMeta('twitter:image', window.location.origin + image);
 
-        // Canonical URL (Prevents Duplicate Content Penalty)
+        // Canonical URL
         setCanonical(url);
 
         // --- 4. GOOGLE STRUCTURED DATA (JSON-LD) ---
-        // This is the most important part for Google Ranking
         let jsonLdData: any = {
             "@context": "https://schema.org",
             "@type": "WebSite",
@@ -127,7 +126,6 @@ const SEO: React.FC<SEOProps> = ({
                 }
             };
         } else if (schema) {
-            // Allow passing custom schema
             jsonLdData = schema;
         }
 
@@ -139,6 +137,14 @@ const SEO: React.FC<SEOProps> = ({
             document.head.appendChild(script);
         }
         script.textContent = JSON.stringify(jsonLdData);
+
+        // --- DEBUGGING: PRINT TO CONSOLE SO YOU CAN SEE IT WORKING ---
+        console.groupCollapsed(`🔍 SEO Updated: ${title}`);
+        console.log('📄 Title:', document.title);
+        console.log('📝 Description:', description);
+        console.log('🖼️ Image:', window.location.origin + image);
+        console.log('🤖 Structured Data (JSON-LD):', jsonLdData);
+        console.groupEnd();
 
     }, [title, description, keywords, image, url, type, author, publishedTime, price, schema]);
 
