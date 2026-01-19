@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Exam, Folder, StudentResult, ExamSubmission, User } from '../../types';
@@ -6,6 +7,7 @@ import ExamLiveInterface from './ExamLiveInterface';
 import AdModal from '../../components/AdModal'; 
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/SEO'; // Import SEO
 
 interface ExamsPageProps {
     exams: Exam[];
@@ -175,6 +177,25 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       }
   };
 
+  // Generate Quiz Schema for SEO
+  const quizSchema = useMemo(() => {
+      if (!exams || exams.length === 0) return undefined;
+      return {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          "itemListElement": exams.slice(0, 5).map((exam, index) => ({
+              "@type": "ListItem",
+              "position": index + 1,
+              "item": {
+                  "@type": "Quiz",
+                  "name": exam.title,
+                  "description": `Online exam for ${exam.targetClass || 'students'} with ${exam.totalMarks} marks.`,
+                  "educationalLevel": exam.targetClass || "General"
+              }
+          }))
+      };
+  }, [exams]);
+
   if (activeExam) {
       return (
         <ExamLiveInterface 
@@ -188,6 +209,11 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
 
   return (
       <div className="space-y-6 animate-fade-in pb-10">
+          <SEO 
+            title="Online Model Tests & Exams" 
+            description="Take free and premium online exams, model tests for SSC, HSC, and Admission preparation."
+            schema={quizSchema}
+          />
           
           <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-slate-800">Exam Portal</h1>

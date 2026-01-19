@@ -72,7 +72,14 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
                 type="article"
                 author={readingBlog.author}
                 publishedTime={readingBlog.date}
+                modifiedTime={new Date().toISOString()} // Signal freshness
                 keywords={readingBlog.tags}
+                breadcrumbs={[
+                    { name: 'Home', url: '/' },
+                    { name: 'Blog', url: '/#/student/blog' },
+                    { name: currentFolder?.name || 'Category', url: '/#/student/blog' },
+                    { name: readingBlog.title, url: `/#/student/blog?id=${readingBlog.id}` }
+                ]}
               />
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                   <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
@@ -127,6 +134,10 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
             title="Educational Blog" 
             description="Read insightful articles, tips, and guides from EduMaster Pro." 
             type="website"
+            breadcrumbs={[
+                { name: 'Home', url: '/' },
+                { name: 'Blog', url: '/#/student/blog' }
+            ]}
         />
         
         <div className="flex items-center justify-between">

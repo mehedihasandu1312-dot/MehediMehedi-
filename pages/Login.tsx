@@ -99,20 +99,31 @@ const Login: React.FC<LoginProps> = ({ setUser }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative overflow-hidden">
-      {/* ORGANIZATION SCHEMA FOR HOMEPAGE SEO */}
+      {/* 
+          CRITICAL SEO OPTIMIZATION 
+          This is the main entry point (Landing Page). We pack it with keywords and Organization Schema.
+      */}
       <SEO 
-        title="EduMaster Pro - Learning Platform" 
-        description="Login to EduMaster Pro to access online exams, lecture notes, and educational resources."
+        title="EduMaster Pro - #1 Online Exam & Admission Platform" 
+        description="Join EduMaster Pro for the best online preparation for SSC, HSC, Medical, and University Admission in Bangladesh. Access PDF notes, live exams, and model tests."
+        keywords={["Online Exam BD", "SSC Suggestion 2024", "HSC Notes", "Medical Admission Preparation", "BUET Admission", "EduMaster Login", "Model Test BD"]}
         schema={{
             "@context": "https://schema.org",
-            "@type": "Organization",
+            "@type": "EducationalOrganization",
             "name": "EduMaster Pro",
             "url": window.location.origin,
             "logo": window.location.origin + "/vite.svg",
+            "description": "A comprehensive educational platform providing online exams and study resources.",
             "sameAs": [
                 "https://facebook.com/edumaster",
-                "https://twitter.com/edumaster"
-            ]
+                "https://twitter.com/edumaster",
+                "https://youtube.com/edumaster"
+            ],
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Dhaka",
+                "addressCountry": "BD"
+            }
         }}
       />
       

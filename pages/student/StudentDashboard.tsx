@@ -228,7 +228,16 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-10">
-      <SEO title="Student Dashboard" description="Track your progress, view stats, and compete with friends." />
+      {/* 
+          DASHBOARD IS PRIVATE. 
+          We set `noIndex={true}` to prevent Google from indexing personal user data.
+          This focuses rank power on your landing page.
+      */}
+      <SEO 
+        title="My Dashboard" 
+        description="Track your progress, view stats, and compete with friends." 
+        noIndex={true} // IMPORTANT: Private Page
+      />
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

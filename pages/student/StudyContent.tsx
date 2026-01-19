@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
 import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; 
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/SEO'; 
 
 interface StudyContentPageProps {
     folders: Folder[];
@@ -107,6 +109,58 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   };
 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
+
+  // --- DYNAMIC SEO LOGIC ---
+  const seoData = useMemo(() => {
+      if (selectedContent) {
+          // 1. SPECIFIC CONTENT VIEW (Deepest Level)
+          const isMCQ = selectedContent.type === ContentType.MCQ;
+          
+          return {
+              title: `${selectedContent.title} - ${isMCQ ? 'Online Quiz' : 'Study Notes'}`,
+              desc: isMCQ 
+                  ? `Practice ${selectedContent.title} MCQ Questions online. Important for SSC, HSC and Admission exams.`
+                  : `Read ${selectedContent.title} lecture notes. Download PDF and clear your concepts.`,
+              keywords: [selectedContent.title, isMCQ ? "MCQ Test" : "Lecture Notes", selectedFolder?.name || "Study", "Bangla Education", "Suggestion"],
+              type: isMCQ ? 'website' : 'article',
+              breadcrumbs: [
+                  { name: 'Home', url: '/' },
+                  { name: 'Study Content', url: '/#/student/content' },
+                  { name: selectedFolder?.name || 'Folder', url: '/#/student/content' },
+                  { name: selectedContent.title, url: `/#/student/content?id=${selectedContent.id}` }
+              ],
+              modifiedTime: new Date().toISOString() // Simulates fresh content for Google
+          };
+      } 
+      
+      if (selectedFolder) {
+          // 2. FOLDER VIEW (Category Level)
+          return {
+              title: `${selectedFolder.name} - All Study Materials`,
+              desc: selectedFolder.description || `Browse best suggestions, notes and questions for ${selectedFolder.name}.`,
+              keywords: [selectedFolder.name, "Syllabus", "Suggestion", "Question Bank"],
+              type: 'course', // Tells Google this is a Course Collection
+              breadcrumbs: [
+                  { name: 'Home', url: '/' },
+                  { name: 'Study Content', url: '/#/student/content' },
+                  { name: selectedFolder.name, url: `/#/student/content` }
+              ]
+          };
+      }
+
+      // 3. ROOT VIEW
+      return {
+          title: "Study Material Library - Notes, PDFs & MCQs",
+          desc: "Access the largest collection of educational resources in Bangladesh. Class 6 to Masters, Admission, and Job Prep materials available.",
+          keywords: ["Study Library", "Free Notes", "PDF Download", "Online Education BD"],
+          type: 'website',
+          breadcrumbs: [
+              { name: 'Home', url: '/' },
+              { name: 'Study Content', url: '/#/student/content' }
+          ]
+      };
+  }, [selectedContent, selectedFolder]);
+
 
   const FolderList = () => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
@@ -368,6 +422,16 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
   return (
     <div className="animate-fade-in pb-10">
+      {/* INJECT DYNAMIC SEO */}
+      <SEO 
+        title={seoData.title}
+        description={seoData.desc}
+        keywords={seoData.keywords}
+        type={seoData.type as any}
+        breadcrumbs={seoData.breadcrumbs}
+        modifiedTime={seoData.modifiedTime}
+      />
+
       {!selectedContent && (
         <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-800 flex items-center">
