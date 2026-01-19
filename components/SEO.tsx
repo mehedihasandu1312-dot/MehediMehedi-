@@ -7,14 +7,14 @@ interface SEOProps {
     keywords?: string[];
     image?: string;
     url?: string;
-    type?: 'website' | 'article' | 'book' | 'profile' | 'product' | 'course';
+    type?: 'website' | 'article' | 'book' | 'profile' | 'product' | 'course' | 'quiz';
     author?: string;
     publishedTime?: string;
-    modifiedTime?: string; // NEW: Triggers Google to re-crawl immediately
+    modifiedTime?: string;
     price?: { amount: number; currency: string };
-    schema?: object;
+    schema?: object | object[]; // Updated to accept Array of schemas
     noIndex?: boolean;
-    breadcrumbs?: { name: string; url: string }[]; // NEW: Breadcrumb Schema for better structure
+    breadcrumbs?: { name: string; url: string }[];
 }
 
 const SEO: React.FC<SEOProps> = ({ 
@@ -79,10 +79,10 @@ const SEO: React.FC<SEOProps> = ({
         setOgMeta('og:description', description);
         setOgMeta('og:image', window.location.origin + image);
         setOgMeta('og:url', url);
-        setOgMeta('og:type', type);
+        setOgMeta('og:type', type === 'quiz' ? 'article' : type); // Facebook treats quizzes as articles
         setOgMeta('og:site_name', 'EduMaster Pro');
         if (publishedTime) setOgMeta('article:published_time', publishedTime);
-        if (modifiedTime) setOgMeta('article:modified_time', modifiedTime); // Critical for freshness ranking
+        if (modifiedTime) setOgMeta('article:modified_time', modifiedTime);
 
         // Twitter Card
         setMeta('twitter:card', 'summary_large_image');
@@ -93,7 +93,9 @@ const SEO: React.FC<SEOProps> = ({
         setCanonical(url);
 
         // --- 4. ADVANCED GOOGLE SCHEMA (JSON-LD) ---
-        // This is the "Magic" part that structures data for Google
+        // Clean up old schemas
+        document.querySelectorAll('script[type="application/ld+json"]').forEach(e => e.remove());
+
         let jsonLdData: any[] = [];
 
         // Base Website Schema
@@ -109,7 +111,7 @@ const SEO: React.FC<SEOProps> = ({
             }
         });
 
-        // Breadcrumb Schema (Helps ranking hierarchy)
+        // Breadcrumb Schema
         if (breadcrumbs && breadcrumbs.length > 0) {
             jsonLdData.push({
                 "@context": "https://schema.org",
@@ -123,7 +125,7 @@ const SEO: React.FC<SEOProps> = ({
             });
         }
 
-        // Specific Content Schema
+        // Specific Content Schemas
         if (type === 'article') {
             jsonLdData.push({
                 "@context": "https://schema.org",
@@ -132,18 +134,13 @@ const SEO: React.FC<SEOProps> = ({
                 "image": [window.location.origin + image],
                 "datePublished": publishedTime || new Date().toISOString(),
                 "dateModified": modifiedTime || new Date().toISOString(),
-                "author": [{
-                    "@type": "Person",
-                    "name": author,
-                }],
+                "author": [{ "@type": "Person", "name": author }],
                 "publisher": {
                     "@type": "Organization",
                     "name": "EduMaster Pro",
-                    "logo": {
-                        "@type": "ImageObject",
-                        "url": window.location.origin + "/vite.svg"
-                    }
-                }
+                    "logo": { "@type": "ImageObject", "url": window.location.origin + "/vite.svg" }
+                },
+                "description": description
             });
         } else if (type === 'course') {
              jsonLdData.push({
@@ -151,33 +148,26 @@ const SEO: React.FC<SEOProps> = ({
                 "@type": "Course",
                 "name": title,
                 "description": description,
-                "provider": {
-                    "@type": "Organization",
-                    "name": "EduMaster Pro",
-                    "sameAs": window.location.origin
-                }
+                "provider": { "@type": "Organization", "name": "EduMaster Pro" }
             });
-        } else if (schema) {
-            jsonLdData.push(schema);
         }
 
-        // Inject JSON-LD
-        // Remove old scripts first to prevent duplicates
-        document.querySelectorAll('script[type="application/ld+json"]').forEach(e => e.remove());
+        // Inject Custom Schemas (Quiz, FAQ, etc.) passed via props
+        if (schema) {
+            if (Array.isArray(schema)) {
+                jsonLdData = [...jsonLdData, ...schema];
+            } else {
+                jsonLdData.push(schema);
+            }
+        }
 
-        // Add new scripts
+        // Inject Scripts
         jsonLdData.forEach(data => {
             const script = document.createElement('script');
             script.setAttribute('type', 'application/ld+json');
             script.textContent = JSON.stringify(data);
             document.head.appendChild(script);
         });
-
-        // --- DEBUGGING ---
-        console.groupCollapsed(`⚡ Auto-Rank SEO Signal: ${title}`);
-        console.log('🤖 Schema Generated:', jsonLdData);
-        console.log('📅 Content Freshness:', modifiedTime || 'New');
-        console.groupEnd();
 
     }, [title, description, keywords, image, url, type, author, publishedTime, modifiedTime, price, schema, noIndex, breadcrumbs]);
 

@@ -49,12 +49,12 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     }
     return Array.from({ length: 5 }).map((_, i) => ({
       id: `demo_q_${i}`,
-      questionText: `This is a sample question #${i + 1} for '${content.title}'. In a real scenario, the admin enters this text.`,
+      questionText: `Sample Question ${i + 1} for '${content.title}'. Real questions appear here.`,
       options: [
-        "This is an incorrect option",
-        "This is the CORRECT answer",
-        "Another distraction option",
-        "Totally wrong answer"
+        "Incorrect Option A",
+        "Correct Answer B",
+        "Incorrect Option C",
+        "Incorrect Option D"
       ],
       correctOptionIndex: 1
     }));
@@ -91,10 +91,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         });
         setIsAppealModalOpen(false);
         setAppealTarget(null);
-    } else {
-        alert(`Appeal submitted for: ${appealTarget?.title}\nIssue: ${appealText}`);
-        setIsAppealModalOpen(false);
-        setAppealTarget(null);
     }
   };
 
@@ -110,36 +106,87 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
 
-  // --- DYNAMIC SEO LOGIC ---
+  // --- DYNAMIC SEO LOGIC (The "Rank One" Engine) ---
   const seoData = useMemo(() => {
       if (selectedContent) {
-          // 1. SPECIFIC CONTENT VIEW (Deepest Level)
           const isMCQ = selectedContent.type === ContentType.MCQ;
+          const questions = getDisplayQuestions(selectedContent);
+          const activeSchema: any[] = [];
+
+          if (isMCQ) {
+              // 1. QUIZ SCHEMA (For Google Quiz Carousel)
+              activeSchema.push({
+                  "@context": "https://schema.org",
+                  "@type": "Quiz",
+                  "name": selectedContent.title,
+                  "description": `Test your skills in ${selectedContent.title}. Ideal for exam preparation.`,
+                  "educationalLevel": selectedFolder?.targetClass || "General",
+                  "hasPart": questions.slice(0, 10).map(q => ({
+                      "@type": "Question",
+                      "name": q.questionText,
+                      "acceptedAnswer": {
+                          "@type": "Answer",
+                          "text": q.options[q.correctOptionIndex]
+                      },
+                      "suggestedAnswer": q.options.filter((_, i) => i !== q.correctOptionIndex).map(opt => ({
+                          "@type": "Answer",
+                          "text": opt
+                      }))
+                  }))
+              });
+
+              // 2. FAQ SCHEMA (For "People Also Ask" Dominance)
+              // We convert MCQ questions into Q&A format for better indexing
+              activeSchema.push({
+                  "@context": "https://schema.org",
+                  "@type": "FAQPage",
+                  "mainEntity": questions.slice(0, 5).map(q => ({
+                      "@type": "Question",
+                      "name": q.questionText,
+                      "acceptedAnswer": {
+                          "@type": "Answer",
+                          "text": `The correct answer is: ${q.options[q.correctOptionIndex]}`
+                      }
+                  }))
+              });
+          } else {
+              // ARTICLE SCHEMA (For Written Notes)
+              activeSchema.push({
+                  "@context": "https://schema.org",
+                  "@type": "Article",
+                  "headline": selectedContent.title,
+                  "articleBody": selectedContent.body?.substring(0, 160) + "...",
+                  "author": { "@type": "Organization", "name": "EduMaster Pro" },
+                  "datePublished": new Date().toISOString(), // Simulates freshness
+                  "dateModified": new Date().toISOString()
+              });
+          }
           
           return {
-              title: `${selectedContent.title} - ${isMCQ ? 'Online Quiz' : 'Study Notes'}`,
+              title: `${selectedContent.title} - ${isMCQ ? 'MCQ & Quiz' : 'Notes & PDF'}`,
               desc: isMCQ 
-                  ? `Practice ${selectedContent.title} MCQ Questions online. Important for SSC, HSC and Admission exams.`
-                  : `Read ${selectedContent.title} lecture notes. Download PDF and clear your concepts.`,
-              keywords: [selectedContent.title, isMCQ ? "MCQ Test" : "Lecture Notes", selectedFolder?.name || "Study", "Bangla Education", "Suggestion"],
-              type: isMCQ ? 'website' : 'article',
+                  ? `Free Online MCQ Test: ${selectedContent.title}. Practice important questions and answers for ${selectedFolder?.name}.`
+                  : `Read detailed lecture notes on ${selectedContent.title}. Comprehensive study material for ${selectedFolder?.name}.`,
+              keywords: [selectedContent.title, isMCQ ? "MCQ" : "Notes", selectedFolder?.name || "Study", "Bangla Exam Prep", "Solution"],
+              type: isMCQ ? 'quiz' : 'article',
+              schema: activeSchema,
               breadcrumbs: [
                   { name: 'Home', url: '/' },
                   { name: 'Study Content', url: '/#/student/content' },
                   { name: selectedFolder?.name || 'Folder', url: '/#/student/content' },
                   { name: selectedContent.title, url: `/#/student/content?id=${selectedContent.id}` }
               ],
-              modifiedTime: new Date().toISOString() // Simulates fresh content for Google
+              modifiedTime: new Date().toISOString()
           };
       } 
       
+      // Folder View
       if (selectedFolder) {
-          // 2. FOLDER VIEW (Category Level)
           return {
-              title: `${selectedFolder.name} - All Study Materials`,
-              desc: selectedFolder.description || `Browse best suggestions, notes and questions for ${selectedFolder.name}.`,
-              keywords: [selectedFolder.name, "Syllabus", "Suggestion", "Question Bank"],
-              type: 'course', // Tells Google this is a Course Collection
+              title: `${selectedFolder.name} - Study Materials & Suggestions`,
+              desc: selectedFolder.description || `Best collection of notes, suggestions and questions for ${selectedFolder.name}.`,
+              keywords: [selectedFolder.name, "Syllabus", "Suggestion", "PDF Download"],
+              type: 'course',
               breadcrumbs: [
                   { name: 'Home', url: '/' },
                   { name: 'Study Content', url: '/#/student/content' },
@@ -148,10 +195,10 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           };
       }
 
-      // 3. ROOT VIEW
+      // Root View
       return {
-          title: "Study Material Library - Notes, PDFs & MCQs",
-          desc: "Access the largest collection of educational resources in Bangladesh. Class 6 to Masters, Admission, and Job Prep materials available.",
+          title: "Study Library - Free Notes & Online Exams",
+          desc: "Access thousands of free educational resources, PDF notes, and participate in live model tests.",
           keywords: ["Study Library", "Free Notes", "PDF Download", "Online Education BD"],
           type: 'website',
           breadcrumbs: [
@@ -173,7 +220,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                 onClick={() => setSelectedFolder(folder)}
                 className={`relative overflow-hidden rounded-2xl p-4 md:p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl shadow-lg h-40 md:h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white`}
             >
-                {/* Background Decoration */}
                 <div className="absolute -right-4 -bottom-4 md:-right-6 md:-bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
                     {folder.icon ? (
                         <img src={folder.icon} className="w-24 h-24 md:w-40 md:h-40 object-contain drop-shadow-md grayscale invert brightness-200" alt="" />
@@ -181,8 +227,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         <FolderIcon className="w-24 h-24 md:w-40 md:h-40" fill="currentColor" />
                     )}
                 </div>
-
-                {/* Content */}
                 <div className="relative z-10">
                     <h3 className="text-base md:text-2xl font-bold leading-tight mb-1 md:mb-2 drop-shadow-sm font-serif tracking-wide line-clamp-2">
                         {folder.name}
@@ -191,14 +235,11 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         {folder.description || 'Lecture Notes & Materials'}
                     </p>
                 </div>
-
-                {/* Footer Info */}
                 <div className="relative z-10 flex items-center justify-between mt-2">
                     <div className="flex items-center space-x-1 md:space-x-2 bg-black/20 backdrop-blur-md px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold border border-white/10 hover:bg-black/30 transition-colors">
                         <FileText size={12} className="text-white/90" />
                         <span>{itemCount}</span>
                     </div>
-                    
                     <span className="flex items-center text-xs font-bold bg-white/20 p-1.5 rounded-full hover:bg-white/30 transition-colors group-hover:translate-x-1 duration-300">
                         <ArrowLeft className="rotate-180" size={14} />
                     </span>
@@ -213,7 +254,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     const items = contents.filter(c => c.folderId === selectedFolder?.id && !c.isDeleted);
 
     if (selectedContent) {
-      // --- CONTENT DETAIL VIEW ---
       return (
         <div className="max-w-4xl mx-auto pb-10">
           <div className="flex items-center justify-between mb-6">
@@ -226,7 +266,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
             <div className="animate-fade-in space-y-4">
                 <div className="bg-white rounded-none md:rounded-lg shadow-xl border border-slate-200 min-h-[80vh] relative overflow-hidden">
                     <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-600 w-full"></div>
-                    
                     <div className="p-8 md:p-12 pb-24">
                         <div className="border-b-2 border-slate-100 pb-6 mb-8">
                             <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-2 font-serif">{selectedContent.title}</h1>
@@ -235,34 +274,16 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                                 <span className="text-slate-400 text-sm">• {selectedFolder?.name}</span>
                             </div>
                         </div>
-
                         <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
                              {selectedContent.body?.split('\n').map((paragraph, idx) => (
                                  <p key={idx}>{paragraph}</p>
                              ))}
-                             {(!selectedContent.body || selectedContent.body.length < 50) && (
-                                 <div className="text-slate-400 italic">
-                                     [Content Placeholder]
-                                 </div>
-                             )}
                         </div>
-                        
-                        <div className="my-8">
-                            <AdBanner slotId="CONTENT_BODY_AD" />
-                        </div>
-                    </div>
-
-                    <div className="absolute bottom-0 w-full bg-slate-50 border-t border-slate-100 py-2 px-8 flex justify-between text-xs text-slate-400">
-                        <span>EduMaster Content</span>
-                        <span>Page 1 of 1</span>
+                        <div className="my-8"><AdBanner slotId="CONTENT_BODY_AD" /></div>
                     </div>
                 </div>
-
                 <div className="flex justify-center">
-                    <button 
-                        onClick={() => openAppealModal(selectedContent.id, `Document: ${selectedContent.title}`)}
-                        className="flex items-center text-sm text-slate-500 hover:text-red-600 transition-colors px-4 py-2 rounded-full hover:bg-red-50 border border-transparent hover:border-red-100"
-                    >
+                    <button onClick={() => openAppealModal(selectedContent.id, `Document: ${selectedContent.title}`)} className="flex items-center text-sm text-slate-500 hover:text-red-600 transition-colors px-4 py-2 rounded-full hover:bg-red-50 border border-transparent hover:border-red-100">
                         <Flag size={14} className="mr-2" /> Report an issue with this document
                     </button>
                 </div>
@@ -283,63 +304,31 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                   {getDisplayQuestions(selectedContent).map((q, index) => (
                       <Card key={q.id || index} className="p-0 overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                           <div className="bg-slate-50 p-5 border-b border-slate-200 flex items-start gap-4">
-                              <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-slate-800 text-white font-bold rounded-lg text-sm">
-                                  {index + 1}
-                              </span>
-                              <h3 className="text-lg font-semibold text-slate-800 leading-snug pt-0.5">
-                                  {q.questionText}
-                              </h3>
+                              <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-slate-800 text-white font-bold rounded-lg text-sm">{index + 1}</span>
+                              <h3 className="text-lg font-semibold text-slate-800 leading-snug pt-0.5">{q.questionText}</h3>
                           </div>
-
                           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                               {q.options.map((opt, optIdx) => {
                                   const isCorrect = q.correctOptionIndex === optIdx;
                                   return (
-                                      <div 
-                                        key={optIdx} 
-                                        className={`relative p-4 rounded-lg border-2 flex items-center justify-between transition-all ${
-                                            isCorrect 
-                                            ? 'bg-emerald-50 border-emerald-500 shadow-sm' 
-                                            : 'bg-white border-slate-100 text-slate-500'
-                                        }`}
-                                      >
+                                      <div key={optIdx} className={`relative p-4 rounded-lg border-2 flex items-center justify-between transition-all ${isCorrect ? 'bg-emerald-50 border-emerald-500 shadow-sm' : 'bg-white border-slate-100 text-slate-500'}`}>
                                           <div className="flex items-center gap-3">
-                                              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border ${
-                                                  isCorrect ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-500 border-slate-200'
-                                              }`}>
-                                                  {String.fromCharCode(65 + optIdx)}
-                                              </span>
-                                              <span className={`text-sm font-medium ${isCorrect ? 'text-emerald-800' : ''}`}>
-                                                  {opt}
-                                              </span>
+                                              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold border ${isCorrect ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{String.fromCharCode(65 + optIdx)}</span>
+                                              <span className={`text-sm font-medium ${isCorrect ? 'text-emerald-800' : ''}`}>{opt}</span>
                                           </div>
-                                          
-                                          {isCorrect && (
-                                              <div className="text-emerald-600 flex items-center text-xs font-bold bg-white px-2 py-1 rounded-full shadow-sm border border-emerald-100">
-                                                  <CheckCircle2 size={14} className="mr-1" /> Answer
-                                              </div>
-                                          )}
+                                          {isCorrect && <div className="text-emerald-600 flex items-center text-xs font-bold bg-white px-2 py-1 rounded-full shadow-sm border border-emerald-100"><CheckCircle2 size={14} className="mr-1" /> Answer</div>}
                                       </div>
                                   );
                               })}
                           </div>
-                          
                           <div className="bg-slate-50 p-2 border-t border-slate-100 flex justify-end">
-                              <button 
-                                onClick={() => openAppealModal(q.id, `Question #${index+1}: ${q.questionText.substring(0, 30)}...`)}
-                                className="flex items-center text-xs text-slate-400 hover:text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors"
-                              >
+                              <button onClick={() => openAppealModal(q.id, `Question #${index+1}: ${q.questionText.substring(0, 30)}...`)} className="flex items-center text-xs text-slate-400 hover:text-amber-600 px-3 py-1 rounded hover:bg-amber-50 transition-colors">
                                   <AlertTriangle size={12} className="mr-1" /> Report Error
                               </button>
                           </div>
                       </Card>
                   ))}
-                  
-                  <div className="text-center text-slate-400 text-sm mt-8">
-                      <Bookmark size={20} className="mx-auto mb-2" />
-                      End of Study Set
-                  </div>
-                  
+                  <div className="text-center text-slate-400 text-sm mt-8"><Bookmark size={20} className="mx-auto mb-2" /> End of Study Set</div>
                   <AdBanner slotId="STUDY_MCQ_BOTTOM_AD" />
               </div>
           )}
@@ -347,18 +336,13 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       );
     }
 
-    // --- LIST OF CONTENT IN FOLDER ---
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2 mb-6 bg-white p-3 rounded-lg border border-slate-200 shadow-sm inline-flex">
           <button onClick={() => setSelectedFolder(null)} className="text-slate-500 hover:text-indigo-600 font-medium transition-colors">All Folders</button>
           <span className="text-slate-300">/</span>
           <span className="font-bold text-indigo-700 flex items-center">
-            {selectedFolder?.icon ? (
-                <img src={selectedFolder.icon} alt="icon" className="w-5 h-5 mr-2 object-contain" />
-            ) : (
-                <FolderIcon size={16} className="mr-2" />
-            )}
+            {selectedFolder?.icon ? <img src={selectedFolder.icon} alt="icon" className="w-5 h-5 mr-2 object-contain" /> : <FolderIcon size={16} className="mr-2" />}
             {selectedFolder?.name}
           </span>
         </div>
@@ -373,33 +357,15 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
             {items.map(item => {
                 const isLocked = item.isPremium && !isPro;
                 return (
-                  <div 
-                    key={item.id} 
-                    onClick={() => handleContentClick(item)}
-                    className={`group flex items-center justify-between p-5 border rounded-xl transition-all cursor-pointer ${
-                        isLocked 
-                        ? 'bg-slate-50 border-slate-200 opacity-80 hover:border-amber-300' 
-                        : 'bg-white border-slate-200 hover:shadow-md hover:border-indigo-400'
-                    }`}
-                  >
+                  <div key={item.id} onClick={() => handleContentClick(item)} className={`group flex items-center justify-between p-5 border rounded-xl transition-all cursor-pointer ${isLocked ? 'bg-slate-50 border-slate-200 opacity-80 hover:border-amber-300' : 'bg-white border-slate-200 hover:shadow-md hover:border-indigo-400'}`}>
                     <div className="flex items-center space-x-5">
-                      <div className={`p-3 rounded-xl transition-colors ${
-                        isLocked 
-                        ? 'bg-amber-100 text-amber-600'
-                        : item.type === ContentType.WRITTEN 
-                            ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' 
-                            : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'
-                      }`}>
+                      <div className={`p-3 rounded-xl transition-colors ${isLocked ? 'bg-amber-100 text-amber-600' : item.type === ContentType.WRITTEN ? 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white' : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'}`}>
                         {isLocked ? <Lock size={24} /> : (item.type === ContentType.WRITTEN ? <FileText size={24} /> : <CheckSquare size={24} />)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                             <h4 className={`font-bold text-lg transition-colors ${isLocked ? 'text-slate-500' : 'text-slate-800 group-hover:text-indigo-700'}`}>{item.title}</h4>
-                            {item.isPremium && (
-                                <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center border border-amber-200">
-                                    <Crown size={10} className="mr-1" fill="currentColor"/> Premium
-                                </span>
-                            )}
+                            {item.isPremium && <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center border border-amber-200"><Crown size={10} className="mr-1" fill="currentColor"/> Premium</span>}
                         </div>
                         <p className="text-sm text-slate-500 capitalize flex items-center mt-1">
                             {item.type === ContentType.WRITTEN ? 'Document' : 'MCQ Set'} 
@@ -422,12 +388,12 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
   return (
     <div className="animate-fade-in pb-10">
-      {/* INJECT DYNAMIC SEO */}
       <SEO 
         title={seoData.title}
         description={seoData.desc}
         keywords={seoData.keywords}
         type={seoData.type as any}
+        schema={seoData.schema}
         breadcrumbs={seoData.breadcrumbs}
         modifiedTime={seoData.modifiedTime}
       />
@@ -447,31 +413,16 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         <form onSubmit={handleAppealSubmit}>
           <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm mb-4 flex items-start border border-amber-200">
              <AlertTriangle size={16} className="mr-2 mt-0.5 shrink-0" />
-             <div>
-                You are reporting: <br/>
-                <strong>{appealTarget?.title}</strong>
-             </div>
+             <div>You are reporting: <br/><strong>{appealTarget?.title}</strong></div>
           </div>
-          <textarea
-            required
-            className="w-full h-32 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none mb-4"
-            placeholder="Describe the error or issue clearly..."
-            value={appealText}
-            onChange={(e) => setAppealText(e.target.value)}
-          />
+          <textarea required className="w-full h-32 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none mb-4" placeholder="Describe the error or issue clearly..." value={appealText} onChange={(e) => setAppealText(e.target.value)} />
           <div className="mb-4">
              <label className="block text-sm font-medium text-slate-700 mb-1">Attach Screenshot (Optional)</label>
              <input type="file" className="text-sm text-slate-500" onChange={handleImageUpload} accept="image/*" />
              {appealImage && (
                  <div className="mt-2 relative inline-block">
                      <img src={appealImage} alt="preview" className="h-20 rounded border" />
-                     <button 
-                        type="button" 
-                        onClick={() => setAppealImage('')}
-                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"
-                     >
-                         <X size={12} />
-                     </button>
+                     <button type="button" onClick={() => setAppealImage('')} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"><X size={12} /></button>
                  </div>
              )}
           </div>
