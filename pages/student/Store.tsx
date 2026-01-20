@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, User } from '../../types';
-import { ShoppingBag, Search, Filter, Lock, Unlock, Truck, FileText, CheckCircle, CreditCard, Copy, AlertTriangle, Download, Package, Clock, X, Eye } from 'lucide-react';
+import { ShoppingBag, Search, Filter, Lock, Unlock, Truck, FileText, CheckCircle, CreditCard, Copy, AlertTriangle, Download, Package, Clock, X, Eye, ExternalLink } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { db } from '../../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -303,7 +303,7 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                 </div>
             )}
 
-            {/* BUY MODAL - Dynamic SEO for Specific Product when Opened */}
+            {/* BUY MODAL */}
             <Modal isOpen={buyModalOpen} onClose={() => setBuyModalOpen(false)} title="Complete Purchase">
                 {selectedProduct && (
                     <>
@@ -365,16 +365,35 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
             </Modal>
 
             {/* PREVIEW MODAL */}
-            <Modal isOpen={previewModalOpen} onClose={() => setPreviewModalOpen(false)} title="Book Preview">
-                <div className="h-[70vh] w-full">
-                    {previewUrl.endsWith('.pdf') ? (
-                        <iframe src={previewUrl} className="w-full h-full rounded-lg border border-slate-200" title="PDF Preview"></iframe>
-                    ) : (
-                        <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
-                    )}
-                    <div className="mt-4 text-center">
-                        <p className="text-xs text-slate-500 mb-2">Like what you see?</p>
-                        <Button onClick={() => { setPreviewModalOpen(false); if(selectedProduct) openBuyModal(selectedProduct); }}>Buy Full Version</Button>
+            <Modal isOpen={previewModalOpen} onClose={() => setPreviewModalOpen(false)} title="Preview Book">
+                <div className="h-[80vh] w-full flex flex-col">
+                    <div className="flex-1 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative">
+                        {/* Using Google Docs Viewer for Better Compatibility */}
+                        <iframe 
+                            src={`https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(previewUrl)}`} 
+                            className="w-full h-full" 
+                            title="PDF Preview"
+                            frameBorder="0"
+                        ></iframe>
+                    </div>
+                    
+                    <div className="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <p className="text-xs text-slate-500">
+                            Having trouble viewing?
+                        </p>
+                        <div className="flex gap-2">
+                            <a 
+                                href={previewUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="flex items-center text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-lg transition-colors border border-indigo-200"
+                            >
+                                <ExternalLink size={14} className="mr-1" /> Open Original
+                            </a>
+                            <Button size="sm" onClick={() => { setPreviewModalOpen(false); if(selectedProduct) openBuyModal(selectedProduct); }}>
+                                Buy Full Version
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </Modal>

@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, Link as LinkIcon, Target, Zap } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, Link as LinkIcon, Target, Zap, Filter } from 'lucide-react';
 import { db, storage } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -21,6 +21,7 @@ const DIRECT_UPLOAD_LIMIT = 750 * 1024;
 const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOrders, educationLevels }) => {
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'ORDERS'>('PRODUCTS');
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterClass, setFilterClass] = useState('ALL'); // NEW FILTER STATE
 
     // --- PRODUCT MANAGEMENT STATE ---
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -169,7 +170,12 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     };
 
     // --- FILTERING ---
-    const filteredProducts = products.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredProducts = products.filter(p => {
+        const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesClass = filterClass === 'ALL' || (p.targetClass === filterClass);
+        return matchesSearch && matchesClass;
+    });
+
     const filteredOrders = orders.filter(o => o.userName.toLowerCase().includes(searchTerm.toLowerCase()) || o.trxId.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
@@ -203,16 +209,37 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                 </div>
             </div>
 
-            {/* SEARCH */}
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder={activeTab === 'PRODUCTS' ? "Search products..." : "Search orders (Name/TrxID)..."}
-                    className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
+            {/* SEARCH & FILTER */}
+            <div className="flex flex-col md:flex-row gap-4 justify-between">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder={activeTab === 'PRODUCTS' ? "Search products..." : "Search orders (Name/TrxID)..."}
+                        className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                {activeTab === 'PRODUCTS' && (
+                    <div className="relative min-w-[200px]">
+                        <Filter className="absolute left-3 top-3 text-slate-400" size={16} />
+                        <select 
+                            className="w-full pl-9 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-medium"
+                            value={filterClass}
+                            onChange={e => setFilterClass(e.target.value)}
+                        >
+                            <option value="ALL">All Classes / General</option>
+                            <optgroup label="Regular">
+                                {levels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                            </optgroup>
+                            <optgroup label="Admission">
+                                {levels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                            </optgroup>
+                        </select>
+                    </div>
+                )}
             </div>
 
             {/* --- PRODUCTS TAB --- */}
