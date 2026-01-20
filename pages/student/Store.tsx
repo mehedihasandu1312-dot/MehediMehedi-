@@ -368,13 +368,30 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
             <Modal isOpen={previewModalOpen} onClose={() => setPreviewModalOpen(false)} title="Preview Book">
                 <div className="h-[80vh] w-full flex flex-col">
                     <div className="flex-1 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative">
-                        {/* Using Google Docs Viewer for Better Compatibility */}
-                        <iframe 
-                            src={`https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(previewUrl)}`} 
-                            className="w-full h-full" 
-                            title="PDF Preview"
-                            frameBorder="0"
-                        ></iframe>
+                        {/* Logic to handle Data URLs vs Public URLs */}
+                        {previewUrl.startsWith('data:') || previewUrl.startsWith('blob:') ? (
+                             <object data={previewUrl} type="application/pdf" className="w-full h-full rounded-lg">
+                                <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                                    <p className="text-slate-500 mb-4">
+                                        Your browser's PDF viewer cannot display this file directly inside the app.
+                                    </p>
+                                    <a 
+                                        href={previewUrl} 
+                                        download="preview.pdf" 
+                                        className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center"
+                                    >
+                                        <Download size={18} className="mr-2" /> Download to View
+                                    </a>
+                                </div>
+                             </object>
+                        ) : (
+                            <iframe 
+                                src={`https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(previewUrl)}`} 
+                                className="w-full h-full" 
+                                title="PDF Preview"
+                                frameBorder="0"
+                            ></iframe>
+                        )}
                     </div>
                     
                     <div className="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
