@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Modal } from '../../components/UI';
 import { User } from '../../types';
 import { authService } from '../../services/authService';
-import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
+import { storage } from '../../services/firebase'; // Import Storage
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
 import { ALL_DISTRICTS } from '../../constants';
 
 interface Props {
@@ -13,8 +16,11 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false); // Upload state
   const [studentType, setStudentType] = useState<'REGULAR' | 'ADMISSION'>('REGULAR');
   
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
+
   const [formData, setFormData] = useState({
     name: '',
     class: '',
@@ -24,9 +30,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     district: ''
   });
 
-  // Modal States
-  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
-  const [tempAvatarUrl, setTempAvatarUrl] = useState('');
   const [messageModal, setMessageModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
 
   useEffect(() => {
@@ -76,16 +79,37 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     }
   };
 
-  const handleAvatarChange = () => {
-      if(tempAvatarUrl.trim()) {
-          setFormData({ ...formData, avatar: tempAvatarUrl });
-          setAvatarModalOpen(false);
-      }
-  };
+  // --- IMAGE UPLOAD LOGIC ---
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !user) return;
 
-  const openAvatarModal = () => {
-      setTempAvatarUrl(formData.avatar);
-      setAvatarModalOpen(true);
+      // Validate Size (Max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+          alert("File size must be less than 2MB");
+          return;
+      }
+
+      setUploading(true);
+
+      // Create Storage Ref
+      const storageRef = ref(storage, `profile_avatars/${user.id}_${Date.now()}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+          null,
+          (error) => {
+              console.error("Upload error:", error);
+              alert("Failed to upload image. Please try again.");
+              setUploading(false);
+          },
+          async () => {
+              // Upload completed successfully, get download URL
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              setFormData(prev => ({ ...prev, avatar: downloadURL }));
+              setUploading(false);
+          }
+      );
   };
 
   const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
@@ -107,16 +131,33 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             <div className="md:col-span-1">
                 <Card className="text-center h-full">
                     <div className="relative inline-block mb-4 group">
-                        <img 
-                            src={formData.avatar || "https://picsum.photos/200/200"} 
-                            alt="Profile" 
-                            className="w-32 h-32 rounded-full border-4 border-slate-100 object-cover shadow-sm transition-transform group-hover:scale-105"
+                        <div className="w-32 h-32 rounded-full border-4 border-slate-100 overflow-hidden shadow-sm relative">
+                            <img 
+                                src={formData.avatar || "https://picsum.photos/200/200"} 
+                                alt="Profile" 
+                                className={`w-full h-full object-cover transition-transform group-hover:scale-105 ${uploading ? 'opacity-50' : ''}`}
+                            />
+                            {uploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                    <Loader2 className="animate-spin text-white" size={24} />
+                                </div>
+                            )}
+                        </div>
+                        
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={handleImageUpload}
                         />
+                        
                         <button 
                             type="button"
                             className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition-colors shadow-md"
                             title="Change Photo"
-                            onClick={openAvatarModal}
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
                         >
                             <Camera size={16} />
                         </button>
@@ -251,7 +292,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                     </div>
 
                     <div className="pt-6 flex justify-end">
-                        <Button type="submit" className="flex items-center min-w-[140px] justify-center" disabled={saving}>
+                        <Button type="submit" className="flex items-center min-w-[140px] justify-center" disabled={saving || uploading}>
                             {saving ? (
                                 <Loader2 size={18} className="animate-spin mr-2" />
                             ) : (
@@ -264,25 +305,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             </div>
          </div>
        </form>
-
-       {/* Custom Input Modal for Avatar */}
-       <Modal isOpen={avatarModalOpen} onClose={() => setAvatarModalOpen(false)} title="Update Profile Picture">
-           <div className="space-y-4">
-               <p className="text-sm text-slate-600">Enter a direct URL to an image to use as your profile picture.</p>
-               <input 
-                   type="url" 
-                   className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                   placeholder="https://example.com/my-photo.jpg"
-                   value={tempAvatarUrl}
-                   onChange={e => setTempAvatarUrl(e.target.value)}
-                   autoFocus
-               />
-               <div className="flex justify-end gap-2 pt-2">
-                   <Button variant="outline" onClick={() => setAvatarModalOpen(false)}>Cancel</Button>
-                   <Button onClick={handleAvatarChange}>Update Photo</Button>
-               </div>
-           </div>
-       </Modal>
 
        {/* Success/Error Message Modal */}
        <Modal isOpen={messageModal.isOpen} onClose={() => setMessageModal({ ...messageModal, isOpen: false })} title={messageModal.title}>

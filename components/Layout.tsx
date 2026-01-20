@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
@@ -106,6 +107,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
       <NavItem to="/admin/blog" icon={Newspaper} label="Blog Mgmt" />
       <NavItem to="/admin/notice" icon={Bell} label="Notice Mgmt" />
       <NavItem to="/admin/social" icon={Share2} label="Social Mgmt" />
+      <NavItem to="/admin/profile" icon={Settings} label="Profile Settings" /> {/* NEW LINK */}
     </>
   );
 
