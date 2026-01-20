@@ -15,13 +15,13 @@ interface Props {
     educationLevels?: { REGULAR: string[], ADMISSION: string[] }; 
 }
 
-// Limit for direct DB storage (Base64) - 750KB to stay safely under Firestore 1MB limit
-const DIRECT_UPLOAD_LIMIT = 750 * 1024; 
+// Reduced limit to 400KB (approx 530KB Base64) to be safe within Firestore 1MB limit
+const DIRECT_UPLOAD_LIMIT = 400 * 1024; 
 
 const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOrders, educationLevels }) => {
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'ORDERS'>('PRODUCTS');
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterClass, setFilterClass] = useState('ALL'); // NEW FILTER STATE
+    const [filterClass, setFilterClass] = useState('ALL');
 
     // --- PRODUCT MANAGEMENT STATE ---
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -98,7 +98,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         }
     };
 
-    // HYBRID UPLOAD SYSTEM: Direct Base64 (<750KB) OR Firebase Storage (>750KB)
+    // HYBRID UPLOAD SYSTEM: Direct Base64 (<400KB) OR Firebase Storage (>400KB)
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'image' | 'fileUrl' | 'previewUrl') => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -167,6 +167,11 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         }
 
         setConfirmOrderModal({ isOpen: false, order: null, action: 'APPROVE' });
+    };
+
+    // Helper to handle broken images
+    const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+        e.currentTarget.src = 'https://placehold.co/400x600?text=No+Cover';
     };
 
     // --- FILTERING ---
@@ -255,7 +260,12 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                         {filteredProducts.map(product => (
                             <Card key={product.id} className="overflow-hidden flex flex-col relative group">
                                 <div className="h-40 w-full bg-slate-100 relative">
-                                    <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
+                                    <img 
+                                        src={product.image} 
+                                        alt={product.title} 
+                                        className="w-full h-full object-cover" 
+                                        onError={handleImageError}
+                                    />
                                     <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold shadow-sm">
                                         {product.type === 'DIGITAL' ? 'PDF / E-Book' : 'Printed Book'}
                                     </div>
@@ -448,7 +458,7 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                                                 <Loader2 size={20} className="animate-spin text-indigo-500 mb-1" />
                                             </div>
                                         ) : productForm.image ? (
-                                            <img src={productForm.image} className="w-full h-full object-cover" alt="Cover" />
+                                            <img src={productForm.image} className="w-full h-full object-cover" alt="Cover" onError={handleImageError} />
                                         ) : (
                                             <div className="text-center text-slate-400">
                                                 <ImageIcon size={20} className="mx-auto" />

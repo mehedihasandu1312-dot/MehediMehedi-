@@ -129,6 +129,11 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
         setPreviewModalOpen(true);
     };
 
+    // Helper to handle broken images
+    const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+        e.currentTarget.src = 'https://placehold.co/400x600?text=No+Cover';
+    };
+
     // Check if user already owns a digital product
     const hasPurchased = (productId: string) => {
         return myOrders.some(o => o.productId === productId && o.status === 'COMPLETED');
@@ -204,7 +209,12 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                             return (
                                 <Card key={product.id} className="overflow-hidden flex flex-col p-0 border border-slate-200 hover:shadow-lg transition-all group h-full">
                                     <div className="h-32 md:h-40 w-full bg-slate-100 relative overflow-hidden shrink-0">
-                                        <img src={product.image} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                        <img 
+                                            src={product.image} 
+                                            alt={product.title} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                                            onError={handleImageError}
+                                        />
                                         <div className="absolute top-1 right-1 bg-white/90 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center">
                                             {product.type === 'DIGITAL' ? <FileText size={10} className="mr-1 text-blue-600"/> : <Package size={10} className="mr-1 text-amber-600"/>}
                                             {product.type === 'DIGITAL' ? 'PDF' : 'Book'}
