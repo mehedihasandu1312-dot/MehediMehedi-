@@ -34,8 +34,8 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Tabs State
-  const [activeTab, setActiveTab] = useState<'ALL' | ContentType>('ALL');
+  // Tabs State - Default to WRITTEN since 'ALL' is removed
+  const [activeTab, setActiveTab] = useState<ContentType>(ContentType.WRITTEN);
   
   // Appeal State
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
@@ -132,7 +132,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const filteredContents = contents.filter(c => {
       const matchFolder = c.folderId === selectedFolder?.id;
       const matchSearch = !c.isDeleted && c.title.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchTab = activeTab === 'ALL' ? true : c.type === activeTab;
+      const matchTab = c.type === activeTab;
       
       return matchFolder && matchSearch && matchTab;
   });
@@ -208,7 +208,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   // --- COMPONENT: CONTENT LIST ---
   const ContentList = () => {
     // Count items for badges
-    const allCount = contents.filter(c => c.folderId === selectedFolder?.id && !c.isDeleted).length;
     const noteCount = contents.filter(c => c.folderId === selectedFolder?.id && c.type === ContentType.WRITTEN && !c.isDeleted).length;
     const videoCount = contents.filter(c => c.folderId === selectedFolder?.id && c.type === ContentType.VIDEO && !c.isDeleted).length;
     const quizCount = contents.filter(c => c.folderId === selectedFolder?.id && c.type === ContentType.MCQ && !c.isDeleted).length;
@@ -219,7 +218,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                 <div className="flex items-center">
-                    <Button variant="ghost" onClick={() => { setSelectedFolder(null); setActiveTab('ALL'); }} className="mr-2 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-slate-100">
+                    <Button variant="ghost" onClick={() => { setSelectedFolder(null); setActiveTab(ContentType.WRITTEN); }} className="mr-2 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-slate-100">
                         <ArrowLeft size={20} className="text-slate-600" />
                     </Button>
                     <div>
@@ -243,18 +242,8 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                 </div>
             </div>
 
-            {/* TAB FILTERS (Updated Labels and Order) */}
+            {/* TAB FILTERS (NO 'ALL' BUTTON) */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                <button 
-                    onClick={() => setActiveTab('ALL')}
-                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                        activeTab === 'ALL' 
-                        ? 'bg-pink-600 text-white shadow-md shadow-pink-200' 
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                >
-                    <Grid size={14} className="mr-2"/> All ({allCount})
-                </button>
                 <button 
                     onClick={() => setActiveTab(ContentType.WRITTEN)}
                     className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
