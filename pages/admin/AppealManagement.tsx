@@ -1,7 +1,8 @@
+
 import React, { useMemo, useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle } from 'lucide-react';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
@@ -13,11 +14,13 @@ const CANNED_RESPONSES = [
     "The content is correct. Please check your textbook reference.",
     "We have noted this and will update it in the next maintenance cycle.",
     "Image added as requested. Thanks!",
-    "Question format has been corrected."
+    "Question format has been corrected.",
+    "Great question! Here is the explanation..."
 ];
 
 const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
-    const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'REPLIED'>('ALL');
+    const [viewType, setViewType] = useState<'REPORT' | 'QA'>('REPORT'); // High level filter
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'REPLIED'>('ALL');
     
     // Modal State
     const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
@@ -30,17 +33,19 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
 
     // Calculate Dashboard Metrics
     const stats = useMemo(() => {
-        const total = appeals.length;
-        const pending = appeals.filter(a => a.status === 'PENDING').length;
-        const replied = appeals.filter(a => a.status === 'REPLIED').length;
+        const typeAppeals = appeals.filter(a => a.type === viewType);
+        const total = typeAppeals.length;
+        const pending = typeAppeals.filter(a => a.status === 'PENDING').length;
+        const replied = typeAppeals.filter(a => a.status === 'REPLIED').length;
         const rate = total > 0 ? Math.round((replied / total) * 100) : 0;
         return { total, pending, replied, rate };
-    }, [appeals]);
+    }, [appeals, viewType]);
 
     // Filter Logic
     const filteredAppeals = appeals.filter(a => {
-        if (filter === 'ALL') return true;
-        return a.status === filter;
+        if (a.type !== viewType) return false;
+        if (statusFilter === 'ALL') return true;
+        return a.status === statusFilter;
     });
 
     const openReplyModal = (appeal: Appeal) => {
@@ -89,9 +94,33 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-slate-800">Smart Appeal Center</h1>
+        <div className="space-y-6 animate-fade-in pb-10">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 className="text-2xl font-bold text-slate-800">Support Center</h1>
+                
+                {/* Main Toggle */}
+                <div className="bg-slate-100 p-1 rounded-xl flex shadow-sm">
+                    <button 
+                        onClick={() => { setViewType('REPORT'); setStatusFilter('ALL'); }}
+                        className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${
+                            viewType === 'REPORT' 
+                            ? 'bg-white shadow text-amber-600' 
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <AlertCircle size={16} className="mr-2" /> Reports
+                    </button>
+                    <button 
+                        onClick={() => { setViewType('QA'); setStatusFilter('ALL'); }}
+                        className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center ${
+                            viewType === 'QA' 
+                            ? 'bg-white shadow text-emerald-600' 
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <MessageSquare size={16} className="mr-2" /> Q&A
+                    </button>
+                </div>
             </div>
             
             {/* 1. Monitoring Dashboard */}
@@ -101,7 +130,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                         <Inbox size={24} />
                     </div>
                     <div>
-                        <p className="text-slate-500 text-sm font-medium">Total Appeals</p>
+                        <p className="text-slate-500 text-sm font-medium">Total {viewType === 'QA' ? 'Questions' : 'Reports'}</p>
                         <h3 className="text-2xl font-bold text-slate-800">{stats.total}</h3>
                     </div>
                 </Card>
@@ -110,7 +139,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                         <AlertCircle size={24} />
                     </div>
                     <div>
-                        <p className="text-slate-500 text-sm font-medium">Pending Action</p>
+                        <p className="text-slate-500 text-sm font-medium">Pending</p>
                         <h3 className="text-2xl font-bold text-slate-800">{stats.pending}</h3>
                     </div>
                 </Card>
@@ -135,10 +164,10 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
             </div>
 
             {/* 2. Filter & List */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
                 <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-lg font-bold text-slate-800 flex items-center">
-                        Student Appeals
+                        {viewType === 'QA' ? 'Student Questions' : 'Content Issues'}
                         <span className="ml-2 text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
                             {filteredAppeals.length}
                         </span>
@@ -146,20 +175,20 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                     
                     <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
                         <button 
-                            onClick={() => setFilter('ALL')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${filter === 'ALL' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setStatusFilter('ALL')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${statusFilter === 'ALL' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             All
                         </button>
                         <button 
-                            onClick={() => setFilter('PENDING')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${filter === 'PENDING' ? 'bg-white shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setStatusFilter('PENDING')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${statusFilter === 'PENDING' ? 'bg-white shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Pending
                         </button>
                         <button 
-                            onClick={() => setFilter('REPLIED')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${filter === 'REPLIED' ? 'bg-white shadow text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            onClick={() => setStatusFilter('REPLIED')}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${statusFilter === 'REPLIED' ? 'bg-white shadow text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             Resolved
                         </button>
@@ -168,9 +197,9 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                 
                 <div className="divide-y divide-slate-100">
                     {filteredAppeals.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400">
-                            <CheckCircle size={40} className="mx-auto mb-2 opacity-20" />
-                            No appeals found matching filter.
+                        <div className="text-center py-20 text-slate-400">
+                            {viewType === 'QA' ? <FileQuestion size={40} className="mx-auto mb-2 opacity-20" /> : <AlertTriangle size={40} className="mx-auto mb-2 opacity-20" />}
+                            No items found matching filter.
                         </div>
                     ) : (
                         filteredAppeals.map(appeal => (
@@ -180,7 +209,9 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-bold text-slate-800 text-sm">{appeal.contentTitle}</h3>
+                                                <h3 className="font-bold text-slate-800 text-sm">
+                                                    {appeal.contentTitle || (viewType === 'QA' ? 'General Query' : 'Unknown Content')}
+                                                </h3>
                                                 {appeal.status === 'PENDING' && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
                                             </div>
                                             <p className="text-xs text-slate-500 mt-0.5">
@@ -223,7 +254,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                 <div className="flex items-center md:items-start md:border-l md:border-slate-100 md:pl-4">
                                     {appeal.status === 'PENDING' ? (
                                         <Button onClick={() => openReplyModal(appeal)} size="sm" className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700">
-                                            <MessageSquare size={16} className="mr-2" /> Resolve
+                                            <MessageSquare size={16} className="mr-2" /> {viewType === 'QA' ? 'Answer' : 'Resolve'}
                                         </Button>
                                     ) : (
                                         <Button variant="outline" size="sm" onClick={() => openReplyModal(appeal)} className="w-full md:w-auto text-slate-400">
@@ -237,8 +268,8 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                 </div>
             </div>
 
-            {/* SMART REPLY MODAL - FIXED LAYOUT */}
-            <Modal isOpen={!!selectedAppeal} onClose={() => setSelectedAppeal(null)} title="Resolve Appeal">
+            {/* SMART REPLY MODAL */}
+            <Modal isOpen={!!selectedAppeal} onClose={() => setSelectedAppeal(null)} title={viewType === 'QA' ? "Answer Question" : "Resolve Report"}>
                 {selectedAppeal && (
                     <div className="flex flex-col h-[80vh]">
                         {/* Scrollable Body */}
@@ -246,10 +277,10 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                             {/* Student Context */}
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded">STUDENT REPORT</span>
+                                    <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded">STUDENT {viewType === 'QA' ? 'ASKED' : 'REPORTED'}</span>
                                     <span className="text-xs text-slate-400">{selectedAppeal.timestamp}</span>
                                 </div>
-                                <h3 className="font-bold text-slate-800 mb-1">{selectedAppeal.contentTitle}</h3>
+                                {selectedAppeal.contentTitle && <h3 className="font-bold text-slate-800 mb-1">{selectedAppeal.contentTitle}</h3>}
                                 <p className="text-sm text-slate-700 mb-3">{selectedAppeal.text}</p>
                                 
                                 {selectedAppeal.image && (
@@ -260,10 +291,10 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                 )}
                             </div>
 
-                            {/* Smart Reply Section */}
+                            {/* Reply Section */}
                             <div className="space-y-3 pb-4">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-sm font-bold text-slate-700">Your Reply</label>
+                                    <label className="text-sm font-bold text-slate-700">Your Response</label>
                                     <span className="text-xs text-indigo-600 font-medium">Smart Suggestions</span>
                                 </div>
                                 
@@ -281,8 +312,8 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                 </div>
 
                                 <textarea 
-                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[100px] text-sm"
-                                    placeholder="Type a custom reply here..."
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[120px] text-sm"
+                                    placeholder={viewType === 'QA' ? "Write your answer/explanation here..." : "Type how you resolved the issue..."}
                                     value={replyText}
                                     onChange={(e) => setReplyText(e.target.value)}
                                 />
@@ -304,7 +335,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                             onClick={() => fileInputRef.current?.click()}
                                             className="flex items-center text-xs"
                                         >
-                                            <Upload size={14} className="mr-2" /> Attach Solution Image
+                                            <Upload size={14} className="mr-2" /> Attach Image/Solution
                                         </Button>
                                         {replyImage && (
                                             <span className="text-xs text-emerald-600 font-bold flex items-center">
@@ -328,11 +359,11 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                             </div>
                         </div>
 
-                        {/* Footer Buttons - Always Visible */}
+                        {/* Footer Buttons */}
                         <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 mt-auto bg-white sticky bottom-0">
                             <Button variant="outline" onClick={() => setSelectedAppeal(null)}>Cancel</Button>
                             <Button onClick={handleSendReply} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
-                                <Send size={16} className="mr-2" /> Mark Resolved
+                                <Send size={16} className="mr-2" /> {viewType === 'QA' ? 'Send Answer' : 'Mark Resolved'}
                             </Button>
                         </div>
                     </div>

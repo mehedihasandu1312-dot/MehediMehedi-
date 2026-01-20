@@ -1,3 +1,4 @@
+
 import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog, StoreProduct, StoreOrder } from './types';
 
 // --- CONFIGURATION ---
@@ -200,6 +201,7 @@ export const MOCK_SUBMISSIONS: ExamSubmission[] = [
 export const MOCK_APPEALS: Appeal[] = [
   { 
     id: 'a1', 
+    type: 'REPORT',
     contentId: 'c1', 
     contentTitle: 'Newton\'s Laws Notes', 
     studentName: 'Rahim Ahmed', 
@@ -210,6 +212,7 @@ export const MOCK_APPEALS: Appeal[] = [
   },
   { 
     id: 'a2', 
+    type: 'REPORT',
     contentId: 'c3', 
     contentTitle: 'Hydrocarbons Summary', 
     studentName: 'Rahim Ahmed', 
@@ -220,12 +223,21 @@ export const MOCK_APPEALS: Appeal[] = [
   },
   { 
     id: 'a3', 
+    type: 'REPORT',
     contentId: 'c2', 
     contentTitle: 'Motion Practice MCQ', 
     studentName: 'Karim Ullah', 
     text: 'Question 5 has two correct options (A and C).', 
     status: 'PENDING', 
     timestamp: '5h ago' 
+  },
+  { 
+    id: 'qa1', 
+    type: 'QA',
+    studentName: 'Rahim Ahmed', 
+    text: 'Can you please explain how to solve differentiation of e^x * sin(x)?', 
+    status: 'PENDING', 
+    timestamp: '10m ago' 
   },
 ];
 

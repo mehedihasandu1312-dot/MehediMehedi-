@@ -167,8 +167,9 @@ export interface Folder {
 
 export interface Appeal {
   id: string;
-  contentId: string;
-  contentTitle: string;
+  type: 'REPORT' | 'QA'; // NEW: Distinguish between Content Report and Q&A
+  contentId?: string; // Optional for Q&A
+  contentTitle?: string; // Optional for Q&A
   studentName: string;
   text: string;
   image?: string; // Optional screenshot/image URL

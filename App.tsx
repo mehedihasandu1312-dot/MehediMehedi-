@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -234,11 +235,13 @@ const App: React.FC = () => {
       ));
   };
 
-  const handleAddAppeal = (appealData: { contentId: string; contentTitle: string; text: string; image?: string }) => {
+  // Updated to handle both Reports and Q&A
+  const handleAddAppeal = (appealData: { contentId: string; contentTitle: string; text: string; image?: string; type?: 'REPORT' | 'QA' }) => {
       if (!user) return;
       
       const newAppeal: Appeal = {
           id: `appeal_${Date.now()}`,
+          type: appealData.type || 'REPORT', // Default to REPORT
           contentId: appealData.contentId,
           contentTitle: appealData.contentTitle,
           studentName: user.name,
@@ -251,8 +254,8 @@ const App: React.FC = () => {
       setAppeals(prev => [newAppeal, ...prev]);
       setGlobalModal({
           isOpen: true,
-          title: "Appeal Submitted",
-          message: "Appeal submitted successfully! Admin will review it shortly.",
+          title: newAppeal.type === 'QA' ? "Question Submitted" : "Appeal Submitted",
+          message: newAppeal.type === 'QA' ? "Your question has been sent to the instructor." : "Appeal submitted successfully! Admin will review it shortly.",
           type: 'SUCCESS'
       });
   };
@@ -361,7 +364,7 @@ const App: React.FC = () => {
                     <StudyContentPage 
                         folders={studentFolders} 
                         contents={contents} 
-                        onAppealSubmit={handleAddAppeal} 
+                        onAppealSubmit={(data) => handleAddAppeal({...data, type: 'REPORT'})} 
                     />
                 } 
               />
@@ -389,7 +392,13 @@ const App: React.FC = () => {
               <Route path="/student/profile" element={<ProfileSettings educationLevels={currentEducationLevels} />} />
               <Route 
                 path="/student/appeals" 
-                element={<StudentAppeals appeals={appeals} studentName={user.name} />} 
+                element={
+                    <StudentAppeals 
+                        appeals={appeals} 
+                        studentName={user.name} 
+                        onAddQA={(data) => handleAddAppeal({...data, contentId: 'general_qa', contentTitle: 'General Question', type: 'QA'})}
+                    />
+                } 
               />
             </>
           )}
