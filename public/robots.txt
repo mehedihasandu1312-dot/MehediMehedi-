@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Prevent indexing of admin and private student routes to save crawl budget
+Disallow: /#/admin/
+Disallow: /#/student/dashboard
+Disallow: /#/student/profile
+
+# Sitemap location
+Sitemap: https://edumaster.pro/sitemap.xml
