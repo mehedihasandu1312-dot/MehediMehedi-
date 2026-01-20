@@ -140,6 +140,8 @@ export interface MCQQuestion {
   questionText: string;
   options: string[]; // Array of 4 strings
   correctOptionIndex: number; // 0-3
+  explanation?: string; // NEW: Detailed explanation
+  explanationImage?: string; // NEW: Image for explanation
 }
 
 export interface StudyContent {

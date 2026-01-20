@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Card, Badge } from './UI';
 import { Folder, MCQQuestion } from '../types';
-import { Plus, Trash2, CheckCircle, AlertCircle, Save, Crown } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, AlertCircle, Save, Crown, BookOpen, Image as ImageIcon, Upload, Loader2, X } from 'lucide-react';
+import { storage } from '../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface McqContentFormProps {
   folders: Folder[];
@@ -18,8 +21,12 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
 
   // Question Builder State
   const [questions, setQuestions] = useState<MCQQuestion[]>([
-    { id: 'q1', questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }
+    { id: 'q1', questionText: '', options: ['', '', '', ''], correctOptionIndex: 0, explanation: '' }
   ]);
+
+  const [activeUploadIndex, setActiveUploadIndex] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -29,14 +36,13 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
       if (initialData.questionList && initialData.questionList.length > 0) {
         setQuestions(initialData.questionList);
       } else {
-         // Fallback if editing legacy data without detailed questions
-         setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+         setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0, explanation: '' }]);
       }
     } else {
       setTitle('');
       setFolderId(fixedFolderId || '');
       setIsPremium(false);
-      setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+      setQuestions([{ id: `q${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0, explanation: '' }]);
     }
   }, [initialData, fixedFolderId]);
 
@@ -48,7 +54,8 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
         id: `q${Date.now()}`, 
         questionText: '', 
         options: ['', '', '', ''], 
-        correctOptionIndex: 0 
+        correctOptionIndex: 0,
+        explanation: ''
       }
     ]);
   };
@@ -69,6 +76,18 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
     setQuestions(newQ);
   };
 
+  const updateExplanation = (index: number, text: string) => {
+    const newQ = [...questions];
+    newQ[index].explanation = text;
+    setQuestions(newQ);
+  };
+
+  const updateExplanationImage = (index: number, url: string) => {
+    const newQ = [...questions];
+    newQ[index].explanationImage = url;
+    setQuestions(newQ);
+  };
+
   const updateOptionText = (qIndex: number, optIndex: number, text: string) => {
     const newQ = [...questions];
     newQ[qIndex].options[optIndex] = text;
@@ -79,6 +98,51 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
     const newQ = [...questions];
     newQ[qIndex].correctOptionIndex = optIndex;
     setQuestions(newQ);
+  };
+
+  // Image Upload Logic
+  const triggerImageUpload = (index: number) => {
+      setActiveUploadIndex(index);
+      if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || activeUploadIndex === null) return;
+
+      setIsUploading(true);
+
+      if (file.size < 500 * 1024) {
+          // Base64 for small files
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  updateExplanationImage(activeUploadIndex, event.target.result as string);
+                  setIsUploading(false);
+                  setActiveUploadIndex(null);
+              }
+          };
+          reader.readAsDataURL(file);
+      } else {
+          // Storage for larger files
+          const storageRef = ref(storage, `explanation_images/${Date.now()}_${file.name}`);
+          const uploadTask = uploadBytesResumable(storageRef, file);
+
+          uploadTask.on('state_changed', null, 
+              (error) => {
+                  console.error(error);
+                  alert("Upload failed.");
+                  setIsUploading(false);
+                  setActiveUploadIndex(null);
+              },
+              async () => {
+                  const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                  updateExplanationImage(activeUploadIndex, downloadURL);
+                  setIsUploading(false);
+                  setActiveUploadIndex(null);
+              }
+          );
+      }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -109,15 +173,17 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
     });
 
     if (!initialData) {
-        // Reset only if creating new
         setTitle('');
-        setQuestions([{ id: `q_${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0 }]);
+        setQuestions([{ id: `q_${Date.now()}`, questionText: '', options: ['', '', '', ''], correctOptionIndex: 0, explanation: '' }]);
         setIsPremium(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in h-[70vh] flex flex-col">
+      {/* Hidden File Input */}
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+
       {/* 1. Header Info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
@@ -209,39 +275,80 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
                     />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {q.options.map((opt, optIndex) => (
-                        <div key={optIndex} className="relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {q.options.map((opt, optIdx) => (
+                        <div key={optIdx} className="relative">
                             <div className="flex items-center mb-1">
-                                <span className={`text-xs font-bold w-6 ${q.correctOptionIndex === optIndex ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                    {String.fromCharCode(65 + optIndex)}.
+                                <span className={`text-xs font-bold w-6 ${q.correctOptionIndex === optIdx ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {String.fromCharCode(65 + optIdx)}.
                                 </span>
                                 <input 
                                     type="text"
                                     className={`w-full p-2 text-sm border rounded-lg focus:outline-none ${
-                                        q.correctOptionIndex === optIndex 
+                                        q.correctOptionIndex === optIdx
                                         ? 'border-emerald-400 bg-emerald-50 focus:ring-2 focus:ring-emerald-500' 
                                         : 'border-slate-300 focus:ring-2 focus:ring-indigo-500'
                                     }`}
-                                    placeholder={`Option ${String.fromCharCode(65 + optIndex)}`}
+                                    placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
                                     value={opt}
-                                    onChange={e => updateOptionText(qIndex, optIndex, e.target.value)}
+                                    onChange={e => updateOptionText(qIndex, optIdx, e.target.value)}
                                 />
                             </div>
                             <div className="ml-6 flex items-center">
                                 <input 
                                     type="radio"
                                     name={`correct-${q.id}`}
-                                    checked={q.correctOptionIndex === optIndex}
-                                    onChange={() => setCorrectOption(qIndex, optIndex)}
+                                    checked={q.correctOptionIndex === optIdx}
+                                    onChange={() => setCorrectOption(qIndex, optIdx)}
                                     className="mr-1.5 text-emerald-600 focus:ring-emerald-500"
                                 />
-                                <span className={`text-[10px] cursor-pointer ${q.correctOptionIndex === optIndex ? 'text-emerald-600 font-bold' : 'text-slate-400'}`} onClick={() => setCorrectOption(qIndex, optIndex)}>
-                                    {q.correctOptionIndex === optIndex ? 'Correct Answer' : 'Mark as Correct'}
+                                <span className={`text-[10px] cursor-pointer ${q.correctOptionIndex === optIdx ? 'text-emerald-600 font-bold' : 'text-slate-400'}`} onClick={() => setCorrectOption(qIndex, optIdx)}>
+                                    {q.correctOptionIndex === optIdx ? 'Correct Answer' : 'Mark as Correct'}
                                 </span>
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* EXPLANATION SECTION */}
+                <div className="pt-4 border-t border-slate-100 bg-indigo-50/50 p-3 rounded-b-lg -mx-6 -mb-6 px-6">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center">
+                        <BookOpen size={14} className="mr-1" /> Answer Explanation (SEO Optimized)
+                    </label>
+                    <textarea 
+                        className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm resize-none"
+                        rows={3}
+                        placeholder="Explain why the answer is correct (optional)..."
+                        value={q.explanation || ''}
+                        onChange={e => updateExplanation(qIndex, e.target.value)}
+                    />
+                    
+                    <div className="mt-2 flex items-center gap-2">
+                        {q.explanationImage ? (
+                            <div className="relative group inline-block">
+                                <img src={q.explanationImage} alt="Exp" className="h-16 rounded border border-slate-300 bg-white" />
+                                <button 
+                                    type="button" 
+                                    onClick={() => updateExplanationImage(qIndex, '')}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ) : (
+                            <Button 
+                                type="button" 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => triggerImageUpload(qIndex)}
+                                disabled={isUploading}
+                                className="text-xs h-8"
+                            >
+                                {isUploading && activeUploadIndex === qIndex ? <Loader2 size={12} className="animate-spin mr-1"/> : <ImageIcon size={14} className="mr-1" />}
+                                Add Explanation Image
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </Card>
         ))}
