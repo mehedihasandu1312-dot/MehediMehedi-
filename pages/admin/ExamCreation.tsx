@@ -1,11 +1,13 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import ExamCreationForm from '../../components/ExamCreationForm';
-import { Exam, Folder } from '../../types';
+import { Exam, Folder, ContentType } from '../../types';
 import { 
     Plus, Trash2, Clock, Calendar, FileQuestion, 
     Eye, EyeOff, Folder as FolderIcon, Users, FolderPlus, 
-    FolderOpen, ArrowLeft, Edit, Upload, X, Target, AlertTriangle, CheckCircle 
+    FolderOpen, ArrowLeft, Edit, Upload, X, Target, AlertTriangle, CheckCircle,
+    List, FileText, Grid
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -22,6 +24,9 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   
+  // Filter State
+  const [filterFormat, setFilterFormat] = useState<'ALL' | 'MCQ' | 'WRITTEN'>('ALL');
+
   // Folder Creation/Edit State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
@@ -209,13 +214,17 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   // 2. Folder Detail View
   if (currentFolderId) {
       const currentFolder = folders.find(f => f.id === currentFolderId);
-      const folderExams = exams.filter(e => e.folderId === currentFolderId);
+      const folderExams = exams.filter(e => {
+          const folderMatch = e.folderId === currentFolderId;
+          const formatMatch = filterFormat === 'ALL' || e.examFormat === filterFormat;
+          return folderMatch && formatMatch;
+      });
 
       return (
           <div className="space-y-6 animate-fade-in pb-10">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center">
-                      <Button variant="outline" className="mr-4 bg-white shadow-sm hover:bg-slate-50" onClick={() => setCurrentFolderId(null)}>
+                      <Button variant="outline" className="mr-4 bg-white shadow-sm hover:bg-slate-50" onClick={() => { setCurrentFolderId(null); setFilterFormat('ALL'); }}>
                           <ArrowLeft size={16} />
                       </Button>
                       <div>
@@ -228,21 +237,59 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
                               {currentFolder?.name}
                           </h1>
                           <p className="text-sm text-slate-500 ml-9">
-                              {folderExams.length} Exams in this folder 
+                              Managing exams
                               {currentFolder?.targetClass && <span className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-bold">{currentFolder.targetClass}</span>}
                           </p>
                       </div>
                   </div>
-                  <Button onClick={() => setIsCreating(true)} className="flex items-center">
-                      <Plus size={18} className="mr-2" /> Create Exam
-                  </Button>
+                  <div className="flex items-center gap-3">
+                      <Button onClick={() => setIsCreating(true)} className="flex items-center">
+                          <Plus size={18} className="mr-2" /> Create Exam
+                      </Button>
+                  </div>
+              </div>
+
+              {/* FILTER TABS */}
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <button 
+                      onClick={() => setFilterFormat('ALL')}
+                      className={`flex items-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                          filterFormat === 'ALL' 
+                          ? 'bg-slate-800 text-white shadow-md' 
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                      }`}
+                  >
+                      <Grid size={14} className="mr-2"/> All
+                  </button>
+                  <button 
+                      onClick={() => setFilterFormat('MCQ')}
+                      className={`flex items-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                          filterFormat === 'MCQ'
+                          ? 'bg-pink-600 text-white shadow-md shadow-pink-200' 
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                      }`}
+                  >
+                      <List size={14} className="mr-2"/> MCQ
+                  </button>
+                  <button 
+                      onClick={() => setFilterFormat('WRITTEN')}
+                      className={`flex items-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                          filterFormat === 'WRITTEN'
+                          ? 'bg-orange-600 text-white shadow-md shadow-orange-200' 
+                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                      }`}
+                  >
+                      <FileText size={14} className="mr-2"/> Written
+                  </button>
               </div>
 
               {folderExams.length === 0 ? (
                   <Card className="text-center py-16 text-slate-400 border-2 border-dashed border-slate-200">
                       <FileQuestion size={48} className="mx-auto mb-4 opacity-20" />
-                      <p className="mb-4">No exams in this folder yet.</p>
-                      <Button variant="outline" onClick={() => setIsCreating(true)}>Set First Exam</Button>
+                      <p className="mb-4">No exams found matching your filter.</p>
+                      {filterFormat === 'ALL' && (
+                          <Button variant="outline" onClick={() => setIsCreating(true)}>Set First Exam</Button>
+                      )}
                   </Card>
               ) : (
                   <div className="space-y-4">

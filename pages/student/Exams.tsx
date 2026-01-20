@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Exam, Folder, StudentResult, ExamSubmission, User } from '../../types';
-import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen, FileQuestion, Target, Layers, History, CheckCircle, MessageSquare, X, Lock, Crown, Timer, Award, BarChart2 } from 'lucide-react';
+import { Clock, AlertCircle, Folder as FolderIcon, ChevronRight, PlayCircle, Calendar, ArrowLeft, Zap, BookOpen, FileQuestion, Target, Layers, History, CheckCircle, MessageSquare, X, Lock, Crown, Timer, Award, BarChart2, List, FileText, Grid } from 'lucide-react';
 import ExamLiveInterface from './ExamLiveInterface';
 import AdModal from '../../components/AdModal'; 
 import { authService } from '../../services/authService';
@@ -54,69 +54,70 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
     const { status, label, color, text, animate } = getExamStatus(exam);
     
     return (
-      <div className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${isLocked ? 'border-slate-200 opacity-80' : 'border-slate-200 hover:border-pink-300'}`}>
-          {/* Status Ribbon */}
-          <div className={`absolute top-4 right-0 ${color} ${text} text-[10px] font-bold px-3 py-1 rounded-l-full shadow-sm z-10 flex items-center`}>
-              {animate && <span className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>}
+      <div className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full flex flex-col ${isLocked ? 'border-slate-200 opacity-80' : 'border-slate-200 hover:border-pink-300'}`}>
+          {/* Status Ribbon - Smaller on Mobile */}
+          <div className={`absolute top-0 right-0 rounded-bl-xl ${color} ${text} text-[8px] md:text-[10px] font-bold px-2 py-1 z-10 flex items-center shadow-sm`}>
+              {animate && <span className="w-1.5 h-1.5 bg-white rounded-full mr-1.5 animate-pulse"></span>}
               {label}
           </div>
 
-          <div className="p-6 flex flex-col h-full">
+          <div className="p-3 md:p-5 flex flex-col h-full">
               <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                      <Badge color={exam.examFormat === 'MCQ' ? 'bg-pink-50 text-pink-700' : 'bg-orange-50 text-orange-700'}>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2 mt-2">
+                      <Badge color={exam.examFormat === 'MCQ' ? 'bg-pink-50 text-pink-700 border-pink-100 text-[10px]' : 'bg-orange-50 text-orange-700 border-orange-100 text-[10px]'}>
                           {exam.examFormat}
                       </Badge>
                       {exam.isPremium && (
-                          <Badge color="bg-amber-100 text-amber-700 flex items-center gap-1 border-amber-200">
-                              <Crown size={10} fill="currentColor"/> PRO
+                          <Badge color="bg-amber-100 text-amber-700 flex items-center gap-1 border-amber-200 text-[10px]">
+                              <Crown size={8} fill="currentColor"/> PRO
                           </Badge>
                       )}
                   </div>
                   
-                  <h3 className="text-xl font-bold text-slate-800 mb-2 line-clamp-2 leading-tight group-hover:text-pink-600 transition-colors">
+                  <h3 className="text-sm md:text-lg font-bold text-slate-800 mb-1 leading-snug line-clamp-2 group-hover:text-pink-600 transition-colors h-[2.5em]">
                       {exam.title}
                   </h3>
                   
                   {status === 'UPCOMING' && (
-                      <p className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit mb-4 flex items-center">
-                          <Calendar size={12} className="mr-1.5"/> 
+                      <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit mb-2 flex items-center">
+                          <Calendar size={10} className="mr-1"/> 
                           {new Date(exam.startTime!).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})}
                       </p>
                   )}
 
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
+                  <div className="grid grid-cols-3 gap-1 mt-2 pt-2 border-t border-slate-100">
                       <div className="text-center">
-                          <div className="flex items-center justify-center text-slate-400 mb-1"><Clock size={16}/></div>
-                          <span className="text-xs font-bold text-slate-700">{exam.durationMinutes}m</span>
+                          <div className="flex items-center justify-center text-slate-400 mb-0.5"><Clock size={12}/></div>
+                          <span className="text-[10px] font-bold text-slate-600">{exam.durationMinutes}m</span>
                       </div>
                       <div className="text-center border-l border-slate-100">
-                          <div className="flex items-center justify-center text-slate-400 mb-1"><Target size={16}/></div>
-                          <span className="text-xs font-bold text-slate-700">{exam.totalMarks}</span>
+                          <div className="flex items-center justify-center text-slate-400 mb-0.5"><Target size={12}/></div>
+                          <span className="text-[10px] font-bold text-slate-600">{exam.totalMarks}</span>
                       </div>
                       <div className="text-center border-l border-slate-100">
-                          <div className="flex items-center justify-center text-slate-400 mb-1"><FileQuestion size={16}/></div>
-                          <span className="text-xs font-bold text-slate-700">{exam.questionsCount}</span>
+                          <div className="flex items-center justify-center text-slate-400 mb-0.5"><FileQuestion size={12}/></div>
+                          <span className="text-[10px] font-bold text-slate-600">{exam.questionsCount}</span>
                       </div>
                   </div>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-3">
                   <Button 
+                      size="sm"
                       variant={isLocked || status === 'UPCOMING' ? "outline" : "primary"}
                       onClick={() => onStart(exam)}
-                      className={`w-full py-3 rounded-xl font-bold shadow-md transition-all ${
+                      className={`w-full py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-bold shadow-sm transition-all ${
                           status === 'LIVE' && !isLocked ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-200' : 
-                          isLocked ? 'bg-slate-100 text-slate-400 border-transparent' : 
+                          isLocked ? 'bg-slate-50 text-slate-400 border-slate-200' : 
                           'bg-pink-600 hover:bg-pink-700 text-white shadow-pink-200'
                       }`}
                   >
                       {isLocked ? (
-                          <span className="flex items-center justify-center"><Lock size={16} className="mr-2"/> Locked</span>
+                          <span className="flex items-center justify-center"><Lock size={12} className="mr-1"/> Locked</span>
                       ) : status === 'UPCOMING' ? (
-                          "Coming Soon"
+                          "Wait"
                       ) : (
-                          <span className="flex items-center justify-center"><PlayCircle size={18} className="mr-2 fill-current"/> Start Exam</span>
+                          <span className="flex items-center justify-center"><PlayCircle size={14} className="mr-1 fill-current"/> Start</span>
                       )}
                   </Button>
               </div>
@@ -128,6 +129,10 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
 const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, submissions = [], onSubmissionCreate, currentUser }) => {
   const [activeTab, setActiveTab] = useState<'AVAILABLE' | 'HISTORY'>('AVAILABLE');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  
+  // New Filter State
+  const [filterFormat, setFilterFormat] = useState<'ALL' | 'MCQ' | 'WRITTEN'>('ALL');
+
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
   const [selectedResult, setSelectedResult] = useState<ExamSubmission | null>(null);
   const [showExamAd, setShowExamAd] = useState(false);
@@ -160,6 +165,16 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       }
   };
 
+  // Filter Logic
+  const filteredExams = useMemo(() => {
+      return exams.filter(e => {
+          const folderMatch = e.folderId === selectedFolderId;
+          const publishedMatch = e.isPublished;
+          const formatMatch = filterFormat === 'ALL' || e.examFormat === filterFormat;
+          return folderMatch && publishedMatch && formatMatch;
+      });
+  }, [exams, selectedFolderId, filterFormat]);
+
   if (activeExam) {
       return (
         <ExamLiveInterface exam={activeExam} onExit={() => setActiveExam(null)} onComplete={onExamComplete} onSubmissionCreate={onSubmissionCreate} />
@@ -167,7 +182,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
   }
 
   return (
-      <div className="space-y-8 animate-fade-in pb-10">
+      <div className="space-y-6 animate-fade-in pb-10">
           <SEO title="Exam Portal" description="Take online model tests." />
           
           {/* HERO HEADER */}
@@ -205,7 +220,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                   <div 
                                       key={folder.id} 
                                       onClick={() => setSelectedFolderId(folder.id)}
-                                      className={`relative overflow-hidden rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white border border-white/20`}
+                                      className={`relative overflow-hidden rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg h-40 md:h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white border border-white/20`}
                                   >
                                       {/* Background Decoration */}
                                       <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
@@ -217,7 +232,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                       </div>
 
                                       <div className="relative z-10">
-                                          <h3 className="text-xl md:text-2xl font-bold leading-tight mb-2 drop-shadow-md font-sans tracking-tight line-clamp-2">
+                                          <h3 className="text-lg md:text-2xl font-bold leading-tight mb-2 drop-shadow-md font-sans tracking-tight line-clamp-2">
                                               {folder.name}
                                           </h3>
                                           <p className="text-white/80 text-xs md:text-sm font-medium line-clamp-1">
@@ -228,7 +243,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                       <div className="relative z-10 flex items-center justify-between mt-auto">
                                           <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 group-hover:bg-white/30 transition-colors">
                                               <FileQuestion size={12} className="text-white" />
-                                              <span>{examCount} Exams</span>
+                                              <span>{examCount}</span>
                                           </div>
                                           
                                           <span className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white text-white hover:text-pink-600 transition-all shadow-sm">
@@ -241,18 +256,68 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                       </div>
                   ) : (
                       <div className="animate-fade-in">
-                          <div className="flex items-center mb-6">
-                              <Button variant="ghost" onClick={() => setSelectedFolderId(null)} className="mr-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl p-2 h-10 w-10 flex items-center justify-center">
-                                  <ArrowLeft size={20} className="text-slate-600" />
-                              </Button>
-                              <h2 className="text-2xl font-bold text-slate-800">{folders.find(f=>f.id===selectedFolderId)?.name}</h2>
+                          {/* Folder Header & Filter */}
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                  <div className="flex items-center">
+                                      <Button variant="ghost" onClick={() => { setSelectedFolderId(null); setFilterFormat('ALL'); }} className="mr-3 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-xl p-2 h-10 w-10 flex items-center justify-center">
+                                          <ArrowLeft size={20} className="text-slate-600" />
+                                      </Button>
+                                      <div>
+                                          <h2 className="text-xl font-bold text-slate-800">{folders.find(f=>f.id===selectedFolderId)?.name}</h2>
+                                          <p className="text-xs text-slate-500">Browsing exams</p>
+                                      </div>
+                                  </div>
+
+                                  {/* FILTER BUTTONS */}
+                                  <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                                      <button 
+                                          onClick={() => setFilterFormat('ALL')}
+                                          className={`flex items-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                                              filterFormat === 'ALL' 
+                                              ? 'bg-slate-800 text-white shadow-md' 
+                                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                          }`}
+                                      >
+                                          <Grid size={14} className="mr-2"/> All
+                                      </button>
+                                      <button 
+                                          onClick={() => setFilterFormat('MCQ')}
+                                          className={`flex items-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                                              filterFormat === 'MCQ'
+                                              ? 'bg-pink-600 text-white shadow-md shadow-pink-200' 
+                                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                          }`}
+                                      >
+                                          <List size={14} className="mr-2"/> MCQ
+                                      </button>
+                                      <button 
+                                          onClick={() => setFilterFormat('WRITTEN')}
+                                          className={`flex items-center px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                                              filterFormat === 'WRITTEN'
+                                              ? 'bg-orange-600 text-white shadow-md shadow-orange-200' 
+                                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                          }`}
+                                      >
+                                          <FileText size={14} className="mr-2"/> Written
+                                      </button>
+                                  </div>
+                              </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {exams.filter(e => e.folderId === selectedFolderId && e.isPublished).map(exam => (
-                                  <ExamCard key={exam.id} exam={exam} onStart={handleStartExam} isLocked={(exam.isPremium || false) && !isPro} />
-                              ))}
-                          </div>
+                          {filteredExams.length === 0 ? (
+                              <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+                                  <FileQuestion size={40} className="mx-auto mb-3 opacity-20"/>
+                                  <p>No exams found in this category.</p>
+                              </div>
+                          ) : (
+                              // MOBILE: 2 Columns, DESKTOP: 3/4 Columns
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                  {filteredExams.map(exam => (
+                                      <ExamCard key={exam.id} exam={exam} onStart={handleStartExam} isLocked={(exam.isPremium || false) && !isPro} />
+                                  ))}
+                              </div>
+                          )}
                       </div>
                   )}
               </>
@@ -295,7 +360,6 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                           <div className="text-4xl font-black text-pink-600 mb-1">{selectedResult.obtainedMarks}</div>
                           <span className="text-xs font-bold text-pink-400 uppercase tracking-widest">Total Score</span>
                       </div>
-                      {/* Detailed list... (Keep logic from previous version, just styling updated) */}
                       <Button className="w-full" onClick={() => setSelectedResult(null)}>Close</Button>
                   </div>
               )}
