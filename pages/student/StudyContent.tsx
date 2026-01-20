@@ -243,7 +243,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                 </div>
             </div>
 
-            {/* TAB FILTERS */}
+            {/* TAB FILTERS (Updated Labels and Order) */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 <button 
                     onClick={() => setActiveTab('ALL')}
@@ -263,7 +263,17 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                     }`}
                 >
-                    <FileText size={14} className="mr-2"/> Notes ({noteCount})
+                    <FileText size={14} className="mr-2"/> Written ({noteCount})
+                </button>
+                <button 
+                    onClick={() => setActiveTab(ContentType.MCQ)}
+                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                        activeTab === ContentType.MCQ
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-200' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    <CheckSquare size={14} className="mr-2"/> MCQ ({quizCount})
                 </button>
                 <button 
                     onClick={() => setActiveTab(ContentType.VIDEO)}
@@ -274,16 +284,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                     }`}
                 >
                     <Youtube size={14} className="mr-2"/> Videos ({videoCount})
-                </button>
-                <button 
-                    onClick={() => setActiveTab(ContentType.MCQ)}
-                    className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                        activeTab === ContentType.MCQ
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-200' 
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                >
-                    <CheckSquare size={14} className="mr-2"/> Quizzes ({quizCount})
                 </button>
             </div>
         </div>

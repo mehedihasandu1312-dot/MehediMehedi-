@@ -18,7 +18,7 @@ import {
     HardDrive, 
     Layers, 
     PieChart, 
-    Search,
+    Search, 
     FolderOpen,
     ArrowUp,
     Edit,
@@ -484,19 +484,19 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     onClick={() => setFilterType(ContentType.WRITTEN)}
                     className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.WRITTEN ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                 >
-                    Notes Only
-                </button>
-                <button 
-                    onClick={() => setFilterType(ContentType.VIDEO)}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.VIDEO ? 'bg-red-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                    Videos Only
+                    Written
                 </button>
                 <button 
                     onClick={() => setFilterType(ContentType.MCQ)}
                     className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.MCQ ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                 >
-                    Quizzes Only
+                    MCQ
+                </button>
+                <button 
+                    onClick={() => setFilterType(ContentType.VIDEO)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === ContentType.VIDEO ? 'bg-red-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                    Videos
                 </button>
             </div>
         )}
@@ -540,7 +540,8 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                                 <FileText size={14} className="mr-2" /> 
                                 {filterType === 'ALL' ? 'Files' : 
                                  filterType === ContentType.WRITTEN ? 'Written Notes' :
-                                 filterType === ContentType.VIDEO ? 'Videos' : 'Quizzes'}
+                                 filterType === ContentType.MCQ ? 'MCQ Sets' :
+                                 'Videos'}
                             </h4>
                             
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
