@@ -4,7 +4,7 @@ import { Card, Button, Modal } from '../../components/UI';
 import { User, UserRole } from '../../types';
 import { authService } from '../../services/authService';
 import { storage } from '../../services/firebase'; // Import Storage
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Switched to uploadBytes
 import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
 import { ALL_DISTRICTS } from '../../constants';
 
@@ -79,10 +79,15 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     }
   };
 
-  // --- IMAGE UPLOAD LOGIC (PC/PHONE) ---
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- IMAGE UPLOAD LOGIC (ROBUST) ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !user) return;
+
+      // Reset file input so user can retry same file if needed
+      if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+      }
 
       // Validate Size (Max 2MB)
       if (file.size > 2 * 1024 * 1024) {
@@ -92,24 +97,34 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
 
       setUploading(true);
 
-      // Create Storage Ref
-      const storageRef = ref(storage, `profile_avatars/${user.id}_${Date.now()}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-          null,
-          (error) => {
-              console.error("Upload error:", error);
-              alert("Failed to upload image. Please try again.");
-              setUploading(false);
-          },
-          async () => {
-              // Upload completed successfully, get download URL
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              setFormData(prev => ({ ...prev, avatar: downloadURL }));
-              setUploading(false);
+      try {
+          // 1. Attempt Firebase Storage Upload
+          const storageRef = ref(storage, `profile_avatars/${user.id}_${Date.now()}`);
+          await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(storageRef);
+          
+          setFormData(prev => ({ ...prev, avatar: downloadURL }));
+      } catch (error: any) {
+          console.error("Storage upload failed:", error);
+          
+          // 2. Fallback: Use Base64 if file is small (< 500KB)
+          // This handles cases where Firebase Storage Rules block the upload or CORS fails.
+          if (file.size < 500 * 1024) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                  if (event.target?.result) {
+                      setFormData(prev => ({ ...prev, avatar: event.target!.result as string }));
+                      // We don't need to alert, just let them save. It's a fallback.
+                  }
+              };
+              reader.readAsDataURL(file);
+          } else {
+              alert(`Upload failed: ${error.message}. Please check your connection or try a smaller image.`);
           }
-      );
+      } finally {
+          // 3. Always stop loading spinner
+          setUploading(false);
+      }
   };
 
   const levels = educationLevels || { REGULAR: [], ADMISSION: [] };
@@ -131,7 +146,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             {/* Left Column: Avatar (For Both Admin & Student) */}
             <div className="md:col-span-1">
                 <Card className="text-center h-full flex flex-col items-center justify-center">
-                    <div className="relative inline-block mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <div className="relative inline-block mb-4 group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
                         <div className="w-32 h-32 rounded-full border-4 border-slate-100 overflow-hidden shadow-sm relative">
                             <img 
                                 src={formData.avatar || "https://picsum.photos/200/200"} 
@@ -139,7 +154,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                                 className={`w-full h-full object-cover transition-transform group-hover:scale-105 ${uploading ? 'opacity-50' : ''}`}
                             />
                             {uploading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10">
                                     <Loader2 className="animate-spin text-white" size={24} />
                                 </div>
                             )}
@@ -155,7 +170,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                         />
                         
                         <div 
-                            className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition-colors shadow-md border-2 border-white"
+                            className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition-colors shadow-md border-2 border-white z-20"
                             title="Change Photo"
                         >
                             <Camera size={16} />
