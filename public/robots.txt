@@ -1,7 +1,8 @@
 User-agent: *
 Allow: /
 
-# Prevent indexing of admin and private student routes to save crawl budget
+# Prevent indexing of private areas (Admin & Dashboard)
+# Note: Google sees the full URL including the hash
 Disallow: /#/admin/
 Disallow: /#/student/dashboard
 Disallow: /#/student/profile

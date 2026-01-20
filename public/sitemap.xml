@@ -16,5 +16,6 @@
     <priority>0.8</priority>
   </url>
 
-  <!-- Public Content (If you make blog public later, add links here) -->
+  <!-- IMPORTANT: Google DOES index hash URLs now. 
+       Adding the hash link tells Google exactly where the content is. -->
 </urlset>
