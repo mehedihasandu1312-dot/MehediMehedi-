@@ -88,6 +88,9 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
   const highlightInputRef = useRef<HTMLInputElement>(null);
+  
+  // Ref to store selection range for table insertion
+  const savedSelection = useRef<Range | null>(null);
 
   // Initialize
   useEffect(() => {
@@ -165,6 +168,14 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   };
 
   const openTableModal = () => {
+      // Save current selection before opening modal
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+          savedSelection.current = selection.getRangeAt(0);
+      } else {
+          savedSelection.current = null;
+      }
+
       setTableRows(3);
       setTableCols(3);
       setIsTableModalOpen(true);
@@ -172,20 +183,43 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
   const handleInsertTable = (e: React.FormEvent) => {
       e.preventDefault();
-      
-      if (tableRows > 0 && tableCols > 0) {
-          let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1;"><tbody>';
-          for (let i = 0; i < tableRows; i++) {
-              html += '<tr>';
-              for (let j = 0; j < tableCols; j++) {
-                  html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
-              }
-              html += '</tr>';
-          }
-          html += '</tbody></table><p><br/></p>';
-          execCmd('insertHTML', html);
-      }
       setIsTableModalOpen(false);
+      
+      // Slight delay to allow modal to close and focus to reset
+      setTimeout(() => {
+          if (editorRef.current) {
+              editorRef.current.focus();
+          }
+
+          // Restore selection
+          if (savedSelection.current) {
+              const selection = window.getSelection();
+              if (selection) {
+                  selection.removeAllRanges();
+                  selection.addRange(savedSelection.current);
+              }
+          }
+
+          if (tableRows > 0 && tableCols > 0) {
+              // Optimized HTML string construction
+              let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1; table-layout: fixed;"><tbody>';
+              
+              // Generate rows
+              for (let i = 0; i < tableRows; i++) {
+                  html += '<tr>';
+                  // Generate cols
+                  for (let j = 0; j < tableCols; j++) {
+                      html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
+                  }
+                  html += '</tr>';
+              }
+              html += '</tbody></table><p><br/></p>';
+              
+              // Insert HTML at cursor
+              document.execCommand('insertHTML', false, html);
+              updateStats();
+          }
+      }, 50);
   };
 
   // --- TABLE MANIPULATION HELPERS ---
@@ -636,7 +670,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   <input 
                       type="number" 
                       min="1" 
-                      max="50"
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                       value={tableRows}
                       onChange={(e) => setTableRows(parseInt(e.target.value) || 0)}
@@ -647,7 +680,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   <input 
                       type="number" 
                       min="1" 
-                      max="20"
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                       value={tableCols}
                       onChange={(e) => setTableCols(parseInt(e.target.value) || 0)}
