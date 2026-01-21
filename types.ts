@@ -142,6 +142,7 @@ export interface MCQQuestion {
   correctOptionIndex: number; // 0-3
   explanation?: string; // NEW: Detailed explanation
   explanationImage?: string; // NEW: Image for explanation
+  questionImage?: string; // NEW: Image for the question itself
 }
 
 export interface StudyContent {

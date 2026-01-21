@@ -564,9 +564,14 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                               <span className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-slate-900 text-white font-bold rounded-xl text-lg shadow-md">
                                   {index + 1}
                               </span>
-                              <h3 className="text-lg md:text-xl font-bold text-slate-800 leading-snug pt-1">
-                                  {q.questionText}
-                              </h3>
+                              <div className="flex-1">
+                                  <h3 className="text-lg md:text-xl font-bold text-slate-800 leading-snug pt-1">
+                                      {q.questionText}
+                                  </h3>
+                                  {q.questionImage && (
+                                      <img src={q.questionImage} alt="Question Reference" className="mt-3 max-h-60 rounded-lg border border-slate-200" />
+                                  )}
+                              </div>
                           </div>
 
                           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">

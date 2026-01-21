@@ -25,6 +25,7 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
   ]);
 
   const [activeUploadIndex, setActiveUploadIndex] = useState<number | null>(null);
+  const [activeUploadType, setActiveUploadType] = useState<'QUESTION' | 'EXPLANATION'>('QUESTION');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,6 +77,12 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
     setQuestions(newQ);
   };
 
+  const updateQuestionImage = (index: number, url: string) => {
+    const newQ = [...questions];
+    newQ[index].questionImage = url;
+    setQuestions(newQ);
+  };
+
   const updateExplanation = (index: number, text: string) => {
     const newQ = [...questions];
     newQ[index].explanation = text;
@@ -101,8 +108,9 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
   };
 
   // Image Upload Logic
-  const triggerImageUpload = (index: number) => {
+  const triggerImageUpload = (index: number, type: 'QUESTION' | 'EXPLANATION') => {
       setActiveUploadIndex(index);
+      setActiveUploadType(type);
       if (fileInputRef.current) fileInputRef.current.click();
   };
 
@@ -117,7 +125,12 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
           const reader = new FileReader();
           reader.onload = (event) => {
               if (event.target?.result) {
-                  updateExplanationImage(activeUploadIndex, event.target.result as string);
+                  const resultUrl = event.target.result as string;
+                  if (activeUploadType === 'QUESTION') {
+                      updateQuestionImage(activeUploadIndex, resultUrl);
+                  } else {
+                      updateExplanationImage(activeUploadIndex, resultUrl);
+                  }
                   setIsUploading(false);
                   setActiveUploadIndex(null);
               }
@@ -125,7 +138,7 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
           reader.readAsDataURL(file);
       } else {
           // Storage for larger files
-          const storageRef = ref(storage, `explanation_images/${Date.now()}_${file.name}`);
+          const storageRef = ref(storage, `mcq_images/${Date.now()}_${file.name}`);
           const uploadTask = uploadBytesResumable(storageRef, file);
 
           uploadTask.on('state_changed', null, 
@@ -137,12 +150,17 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
               },
               async () => {
                   const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                  updateExplanationImage(activeUploadIndex, downloadURL);
+                  if (activeUploadType === 'QUESTION') {
+                      updateQuestionImage(activeUploadIndex, downloadURL);
+                  } else {
+                      updateExplanationImage(activeUploadIndex, downloadURL);
+                  }
                   setIsUploading(false);
                   setActiveUploadIndex(null);
               }
           );
       }
+      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -154,8 +172,8 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
 
     // Validation
     for (let i = 0; i < questions.length; i++) {
-        if (!questions[i].questionText.trim()) {
-            alert(`Question ${i + 1} is empty.`);
+        if (!questions[i].questionText.trim() && !questions[i].questionImage) {
+            alert(`Question ${i + 1} must have text or an image.`);
             return;
         }
         if (questions[i].options.some(opt => !opt.trim())) {
@@ -273,6 +291,34 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
                         value={q.questionText}
                         onChange={e => updateQuestionText(qIndex, e.target.value)}
                     />
+                    
+                    {/* Question Image Section */}
+                    <div className="mt-2">
+                        {q.questionImage ? (
+                            <div className="relative group inline-block">
+                                <img src={q.questionImage} alt="Question" className="max-h-40 rounded border border-slate-300 bg-white" />
+                                <button 
+                                    type="button" 
+                                    onClick={() => updateQuestionImage(qIndex, '')}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ) : (
+                            <Button 
+                                type="button" 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => triggerImageUpload(qIndex, 'QUESTION')}
+                                disabled={isUploading}
+                                className="text-xs h-8"
+                            >
+                                {isUploading && activeUploadIndex === qIndex && activeUploadType === 'QUESTION' ? <Loader2 size={12} className="animate-spin mr-1"/> : <ImageIcon size={14} className="mr-1" />}
+                                Add Question Image
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -340,11 +386,11 @@ const McqContentForm: React.FC<McqContentFormProps> = ({ folders, fixedFolderId,
                                 type="button" 
                                 size="sm" 
                                 variant="outline" 
-                                onClick={() => triggerImageUpload(qIndex)}
+                                onClick={() => triggerImageUpload(qIndex, 'EXPLANATION')}
                                 disabled={isUploading}
                                 className="text-xs h-8"
                             >
-                                {isUploading && activeUploadIndex === qIndex ? <Loader2 size={12} className="animate-spin mr-1"/> : <ImageIcon size={14} className="mr-1" />}
+                                {isUploading && activeUploadIndex === qIndex && activeUploadType === 'EXPLANATION' ? <Loader2 size={12} className="animate-spin mr-1"/> : <ImageIcon size={14} className="mr-1" />}
                                 Add Explanation Image
                             </Button>
                         )}
