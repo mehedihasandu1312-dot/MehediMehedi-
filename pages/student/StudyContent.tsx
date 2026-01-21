@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
-import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library, PlayCircle, Youtube, Grid, Filter, Lightbulb } from 'lucide-react';
+import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library, PlayCircle, Youtube, Grid, Filter, Lightbulb, ExternalLink } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; 
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -60,14 +60,17 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     }));
   };
 
+  // Enhanced Video Helper
   const getEmbedUrl = (url?: string) => {
       if (!url) return '';
-      // YouTube Standard
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-      const match = url.match(regExp);
-      if (match && match[2].length === 11) {
-          return `https://www.youtube.com/embed/${match[2]}`;
+      
+      // YouTube
+      const ytRegExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const ytMatch = url.match(ytRegExp);
+      if (ytMatch && ytMatch[2].length === 11) {
+          return `https://www.youtube.com/embed/${ytMatch[2]}`;
       }
+      
       // Vimeo
       const vimeoRegex = /(?:www\.|player\.)?vimeo.com\/(?:channels\/(?:\w+\/)?|groups\/(?:[^\/]*)\/videos\/|album\/(?:\d+)\/video\/|video\/|)(\d+)(?:[a-zA-Z0-9_\-]+)?/i;
       const vimeoMatch = url.match(vimeoRegex);
@@ -75,7 +78,22 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
       }
 
-      return url; // Return original if no match (might be direct embed link)
+      // Google Drive (Convert view to preview for iframe)
+      if (url.includes('drive.google.com')) {
+          return url.replace(/\/view.*/, '/preview');
+      }
+
+      // Facebook (Use plugin iframe if raw link provided)
+      if ((url.includes('facebook.com') || url.includes('fb.watch')) && !url.includes('plugins/video.php')) {
+           return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&t=0`;
+      }
+
+      return url; 
+  };
+
+  const isDirectVideoFile = (url?: string) => {
+      if (!url) return false;
+      return /\.(mp4|webm|ogg|mov|mkv)$/i.test(url);
   };
 
   // Updated to accept full Question Object
@@ -449,7 +467,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
           {(selectedContent.type === ContentType.WRITTEN || selectedContent.type === ContentType.VIDEO) && (
             <div className="animate-fade-in space-y-6">
-                {/* ... Existing Written/Video Rendering Code (Unchanged) ... */}
                 <article className="bg-white rounded-none md:rounded-3xl shadow-xl border border-slate-100 min-h-[80vh] relative overflow-hidden">
                     <div className="h-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 w-full"></div>
                     <div className="p-6 md:p-12 pb-24">
@@ -473,15 +490,39 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
 
                         {selectedContent.type === ContentType.VIDEO && selectedContent.videoUrl && (
                             <div className="mb-10">
-                                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-black">
-                                    <iframe 
-                                        src={getEmbedUrl(selectedContent.videoUrl)} 
-                                        title={selectedContent.title}
-                                        className="w-full h-full"
-                                        frameBorder="0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                                        allowFullScreen
-                                    ></iframe>
+                                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-black relative group">
+                                    {/* Direct File Support */}
+                                    {isDirectVideoFile(selectedContent.videoUrl) ? (
+                                        <video 
+                                            controls 
+                                            controlsList="nodownload" 
+                                            className="w-full h-full"
+                                            poster="https://via.placeholder.com/1280x720.png?text=Video+Player"
+                                        >
+                                            <source src={selectedContent.videoUrl} />
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ) : (
+                                        <iframe 
+                                            src={getEmbedUrl(selectedContent.videoUrl)} 
+                                            title={selectedContent.title}
+                                            className="w-full h-full"
+                                            frameBorder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                            allowFullScreen
+                                        ></iframe>
+                                    )}
+                                    
+                                    {/* Fallback Link for Robustness */}
+                                    <a 
+                                        href={selectedContent.videoUrl} 
+                                        target="_blank" 
+                                        rel="noreferrer"
+                                        className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                        title="Open externally if player fails"
+                                    >
+                                        <ExternalLink size={16} />
+                                    </a>
                                 </div>
                             </div>
                         )}
