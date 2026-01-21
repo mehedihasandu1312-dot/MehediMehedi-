@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './UI';
 import { Folder } from '../types';
-import { Youtube, Link as LinkIcon, Crown, Save, PlayCircle, Upload, FileVideo, CheckCircle2, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Youtube, Link as LinkIcon, Crown, Save, PlayCircle, Upload, FileVideo, CheckCircle2, X, Loader2, AlertTriangle, Info, ExternalLink } from 'lucide-react';
 import { storage } from '../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -55,7 +55,7 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // UPDATED: Size limit check increased to 500MB
+      // Size limit check increased to 500MB
       const MAX_SIZE_MB = 500;
       if (file.size > MAX_SIZE_MB * 1024 * 1024) {
           alert(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB)! Please upload videos smaller than ${MAX_SIZE_MB}MB.`);
@@ -75,11 +75,22 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
           }, 
           (error) => {
               console.error("Upload error:", error);
-              // Better error messaging
               let msg = "Upload failed.";
-              if (error.code === 'storage/unauthorized') msg = "Permission denied. Check Firebase Rules.";
-              if (error.code === 'storage/retry-limit-exceeded') msg = "Upload failed due to network issues.";
-              alert(`${msg} (${error.message})`);
+              
+              // Specific Error Handling for User Feedback
+              if (error.code === 'storage/unauthorized') {
+                  msg = "Permission Denied! Please check Firebase Storage Rules in your console.";
+                  alert(`${msg}\n\nHint: Go to Firebase Console > Storage > Rules and allow read/write.`);
+              } else if (error.code === 'storage/quota-exceeded') {
+                  msg = "Storage Quota Exceeded! Your free tier (5GB) is full.";
+                  alert(`${msg}\n\nRecommendation: Use the 'External Link' option with YouTube/Google Drive to save money.`);
+              } else if (error.code === 'storage/retry-limit-exceeded') {
+                  msg = "Network issue. Upload took too long.";
+                  alert(msg);
+              } else {
+                  alert(`${msg} (${error.message})`);
+              }
+              
               setIsUploading(false);
           }, 
           async () => {
@@ -160,7 +171,7 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
                     onClick={() => setUploadMethod('LINK')}
                     className={`px-4 py-2 text-sm font-bold rounded-md transition-all flex items-center ${uploadMethod === 'LINK' ? 'bg-white shadow text-red-600' : 'text-slate-500'}`}
                   >
-                      <LinkIcon size={14} className="mr-2"/> External Link
+                      <LinkIcon size={14} className="mr-2"/> External Link (Free)
                   </button>
                   <button 
                     type="button"
@@ -172,7 +183,7 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
               </div>
 
               {uploadMethod === 'LINK' ? (
-                  <div>
+                  <div className="space-y-3">
                       <div className="flex items-center">
                           <div className="bg-red-50 p-3 rounded-l-lg border-y border-l border-red-200 text-red-600">
                               <Youtube size={20} />
@@ -185,7 +196,17 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
                             onChange={e => setFormData({ ...formData, videoUrl: e.target.value })}
                           />
                       </div>
-                      <p className="text-xs text-slate-400 mt-2 ml-1">Paste URL from YouTube, Vimeo, Facebook, or Google Drive.</p>
+                      
+                      {/* Cost Saving Tip */}
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start">
+                          <Info size={18} className="text-emerald-600 mt-0.5 mr-2 shrink-0" />
+                          <div>
+                              <p className="text-sm font-bold text-emerald-800">Pro Tip: Save Storage Costs!</p>
+                              <p className="text-xs text-emerald-700 mt-1">
+                                  Upload videos to YouTube as "Unlisted" and paste the link here. It's completely free, unlimited, and faster for students.
+                              </p>
+                          </div>
+                      </div>
                   </div>
               ) : (
                   <div className={`border-2 border-dashed rounded-xl p-6 text-center relative transition-colors ${isUploading ? 'border-indigo-400 bg-indigo-50' : 'border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50'}`}>
@@ -224,8 +245,9 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
                               </div>
                               <p className="text-indigo-900 font-bold">Click to upload video</p>
                               <p className="text-xs text-indigo-600/70 mt-1">MP4, WebM, Ogg (Max 500MB)</p>
-                              <div className="mt-3 flex items-center justify-center text-xs text-amber-600 bg-amber-50 py-1 px-2 rounded-full w-fit mx-auto border border-amber-100">
-                                  <AlertTriangle size={12} className="mr-1" /> Large files may take time
+                              <div className="mt-3 flex flex-col items-center justify-center text-xs text-amber-600 bg-amber-50 py-2 px-3 rounded-lg w-fit mx-auto border border-amber-100">
+                                  <div className="flex items-center font-bold mb-1"><AlertTriangle size={12} className="mr-1" /> Important</div>
+                                  <span>Large files count towards your Firebase Storage limit.</span>
                               </div>
                           </div>
                       )}
