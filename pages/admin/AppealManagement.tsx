@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal, StudyContent, MCQQuestion } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion, Edit3, Save } from 'lucide-react';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion, Edit3, Save, Search, Link as LinkIcon, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
@@ -34,6 +34,12 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState<MCQQuestion | null>(null);
     const [editingContentId, setEditingContentId] = useState<string | null>(null);
+
+    // --- MANUAL FIX LOCATOR STATE ---
+    const [manualFixAppeal, setManualFixAppeal] = useState<Appeal | null>(null);
+    const [manualSearchTerm, setManualSearchTerm] = useState('');
+    const [manualSelectedContent, setManualSelectedContent] = useState<StudyContent | null>(null);
+    const [manualSelectedQuestionId, setManualSelectedQuestionId] = useState<string>('');
 
     // Info Modal State
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
@@ -100,49 +106,67 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
         setSelectedAppeal(null);
     };
 
-    // --- QUICK FIX LOGIC ---
+    // --- QUICK FIX LOGIC (ENHANCED) ---
     const openQuickFix = (appeal: Appeal) => {
-        if (!appeal.contentId) {
-            setInfoModal({ isOpen: true, title: "Error", message: "Missing content reference.", type: 'ERROR' });
-            return;
-        }
-
-        const content = contents.find(c => c.id === appeal.contentId);
-        if (!content || !content.questionList) {
-            setInfoModal({ isOpen: true, title: "Error", message: "Content not found or deleted.", type: 'ERROR' });
-            return;
-        }
-
+        // 1. Try finding content
+        let content = contents.find(c => c.id === appeal.contentId);
         let question: MCQQuestion | undefined;
 
-        // Strategy 1: Find by ID (New System)
-        if (appeal.questionId) {
-            question = content.questionList.find(q => q.id === appeal.questionId);
+        if (content && content.questionList) {
+            // Strategy 1: Find by ID (New System - Exact Match)
+            if (appeal.questionId) {
+                question = content.questionList.find(q => q.id === appeal.questionId);
+            }
+            
+            // Strategy 2: Find by Text matching (Fallback - Fuzzy Match)
+            if (!question && appeal.contentTitle) {
+                // contentTitle usually comes as "Q: [Question Text]"
+                const cleanTitle = appeal.contentTitle.replace(/^Q:\s*/, '').trim().toLowerCase();
+                question = content.questionList.find(q => 
+                    q.questionText.trim().toLowerCase() === cleanTitle || 
+                    q.questionText.trim().toLowerCase().includes(cleanTitle.substring(0, 30))
+                );
+            }
         }
 
-        // Strategy 2: Find by Text matching (Fallback for Old Reports)
-        if (!question && appeal.contentTitle) {
-            // contentTitle usually comes as "Q: [Question Text]"
-            const cleanTitle = appeal.contentTitle.replace(/^Q:\s*/, '').trim();
-            question = content.questionList.find(q => q.questionText.trim() === cleanTitle || q.questionText.includes(cleanTitle.substring(0, 20)));
-        }
-
-        if (!question) {
-            setInfoModal({ isOpen: true, title: "Error", message: "Could not automatically find the specific question. Please check Content Management.", type: 'ERROR' });
+        // IF AUTOMATIC LOOKUP FAILS -> OPEN MANUAL LOCATOR
+        if (!content || !question) {
+            setManualFixAppeal(appeal);
+            setManualSearchTerm(''); // Reset search
+            setManualSelectedContent(content || null); // Pre-select file if found
+            setManualSelectedQuestionId('');
             return;
         }
 
+        // IF FOUND -> OPEN EDITOR DIRECTLY
         setEditingContentId(content.id);
-        setEditingQuestion({ ...question }); // Clone to edit
+        setEditingQuestion({ ...question }); 
         setIsEditModalOpen(true);
+    };
+
+    // Triggered from Manual Locator Modal
+    const proceedToEditFromManual = () => {
+        if (manualSelectedContent && manualSelectedQuestionId) {
+            const question = manualSelectedContent.questionList?.find(q => q.id === manualSelectedQuestionId);
+            if (question) {
+                setEditingContentId(manualSelectedContent.id);
+                setEditingQuestion({ ...question });
+                setIsEditModalOpen(true);
+                setManualFixAppeal(null); // Close locator
+            }
+        }
     };
 
     const saveQuestionEdit = () => {
         if (editingContentId && editingQuestion && onUpdateQuestion) {
             onUpdateQuestion(editingContentId, editingQuestion);
             
-            // Auto resolve the appeal if it's pending
-            const relatedAppeal = appeals.find(a => a.questionId === editingQuestion.id || (a.contentTitle?.includes(editingQuestion.questionText.substring(0,10))));
+            // Auto resolve the appeal if it's pending (Find related appeal even if ID mismatch via Manual Flow)
+            const relatedAppeal = manualFixAppeal || appeals.find(a => 
+                a.questionId === editingQuestion.id || 
+                (a.contentTitle && a.contentTitle.includes(editingQuestion.questionText.substring(0,10)))
+            );
+            
             if (relatedAppeal && relatedAppeal.status === 'PENDING') {
                  setAppeals(prev => prev.map(a => a.id === relatedAppeal.id ? { ...a, status: 'REPLIED', reply: 'Question has been corrected.' } : a));
             }
@@ -150,6 +174,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
             setIsEditModalOpen(false);
             setEditingQuestion(null);
             setEditingContentId(null);
+            setManualFixAppeal(null);
         }
     };
 
@@ -164,6 +189,11 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
         newOptions[idx] = val;
         setEditingQuestion({ ...editingQuestion, options: newOptions });
     };
+
+    // Filter contents for manual search
+    const manualFilteredContents = contents.filter(c => 
+        c.type === 'MCQ' && c.title.toLowerCase().includes(manualSearchTerm.toLowerCase())
+    );
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
@@ -351,6 +381,93 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
                     )}
                 </div>
             </div>
+
+            {/* MANUAL LOCATOR MODAL (For Broken Links) */}
+            <Modal isOpen={!!manualFixAppeal} onClose={() => setManualFixAppeal(null)} title="Locate Question Manually" size="lg">
+                <div className="space-y-4 h-[60vh] flex flex-col">
+                    <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-sm text-amber-800 flex items-start">
+                        <AlertTriangle size={16} className="mr-2 mt-0.5 shrink-0" />
+                        <p>We couldn't automatically match this report to a question. This can happen if the Question ID changed or text was updated. Please verify the report text below and find the question manually.</p>
+                    </div>
+
+                    <div className="bg-slate-50 p-3 rounded border border-slate-200 text-sm">
+                        <p className="font-bold text-slate-700 mb-1">Student Reported:</p>
+                        <p className="text-slate-600 italic">"{manualFixAppeal?.text}"</p>
+                        {manualFixAppeal?.contentTitle && <p className="text-xs text-slate-400 mt-2">Context: {manualFixAppeal.contentTitle}</p>}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-4">
+                        {/* Step 1: Select Content File */}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">1. Select Content File</label>
+                            {!manualSelectedContent ? (
+                                <div className="space-y-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-3 text-slate-400" size={16} />
+                                        <input 
+                                            type="text" 
+                                            className="w-full pl-10 p-2 border rounded-lg" 
+                                            placeholder="Search file name..." 
+                                            value={manualSearchTerm}
+                                            onChange={e => setManualSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="max-h-40 overflow-y-auto border rounded-lg bg-white">
+                                        {manualFilteredContents.length === 0 && <div className="p-3 text-slate-400 text-sm text-center">No matching files.</div>}
+                                        {manualFilteredContents.map(c => (
+                                            <div 
+                                                key={c.id} 
+                                                onClick={() => setManualSelectedContent(c)}
+                                                className="p-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"
+                                            >
+                                                <span className="text-sm font-medium text-slate-700">{c.title}</span>
+                                                <ChevronRight size={14} className="text-slate-400" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                                    <span className="font-bold text-indigo-700 flex items-center"><FileQuestion size={16} className="mr-2"/> {manualSelectedContent.title}</span>
+                                    <button onClick={() => { setManualSelectedContent(null); setManualSelectedQuestionId(''); }} className="text-xs text-indigo-500 hover:underline">Change File</button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Step 2: Select Question */}
+                        {manualSelectedContent && (
+                            <div className="animate-fade-in">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">2. Select Question to Fix</label>
+                                <div className="max-h-60 overflow-y-auto border rounded-lg bg-white">
+                                    {manualSelectedContent.questionList?.map((q, idx) => (
+                                        <div 
+                                            key={q.id || idx} 
+                                            onClick={() => setManualSelectedQuestionId(q.id)}
+                                            className={`p-3 border-b border-slate-50 cursor-pointer transition-colors ${manualSelectedQuestionId === q.id ? 'bg-emerald-50 border-emerald-200' : 'hover:bg-slate-50'}`}
+                                        >
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-1.5 rounded mt-0.5">{idx + 1}</span>
+                                                <p className="text-sm text-slate-700 line-clamp-2">{q.questionText}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setManualFixAppeal(null)}>Cancel</Button>
+                        <Button 
+                            onClick={proceedToEditFromManual} 
+                            disabled={!manualSelectedContent || !manualSelectedQuestionId}
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            Proceed to Edit
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* QUICK EDIT QUESTION MODAL */}
             <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Quick Fix Question">
