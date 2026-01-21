@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './UI';
 import { Folder } from '../types';
-import { Youtube, Link as LinkIcon, Crown, Save, PlayCircle, Upload, FileVideo, CheckCircle2, X, Loader2 } from 'lucide-react';
+import { Youtube, Link as LinkIcon, Crown, Save, PlayCircle, Upload, FileVideo, CheckCircle2, X, Loader2, AlertTriangle } from 'lucide-react';
 import { storage } from '../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -55,9 +55,10 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // Size limit check (e.g., 100MB)
-      if (file.size > 100 * 1024 * 1024) {
-          alert("File is too large! Please upload videos smaller than 100MB.");
+      // UPDATED: Size limit check increased to 500MB
+      const MAX_SIZE_MB = 500;
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+          alert(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB)! Please upload videos smaller than ${MAX_SIZE_MB}MB.`);
           return;
       }
 
@@ -74,7 +75,11 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
           }, 
           (error) => {
               console.error("Upload error:", error);
-              alert("Upload failed. Please try again.");
+              // Better error messaging
+              let msg = "Upload failed.";
+              if (error.code === 'storage/unauthorized') msg = "Permission denied. Check Firebase Rules.";
+              if (error.code === 'storage/retry-limit-exceeded') msg = "Upload failed due to network issues.";
+              alert(`${msg} (${error.message})`);
               setIsUploading(false);
           }, 
           async () => {
@@ -86,9 +91,11 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
   };
 
   const removeUploadedVideo = () => {
-      setFormData(prev => ({ ...prev, videoUrl: '' }));
-      setUploadProgress(0);
-      if(fileInputRef.current) fileInputRef.current.value = '';
+      if (confirm("Are you sure you want to remove this video?")) {
+          setFormData(prev => ({ ...prev, videoUrl: '' }));
+          setUploadProgress(0);
+          if(fileInputRef.current) fileInputRef.current.value = '';
+      }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -181,7 +188,7 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
                       <p className="text-xs text-slate-400 mt-2 ml-1">Paste URL from YouTube, Vimeo, Facebook, or Google Drive.</p>
                   </div>
               ) : (
-                  <div className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 rounded-xl p-6 text-center relative">
+                  <div className={`border-2 border-dashed rounded-xl p-6 text-center relative transition-colors ${isUploading ? 'border-indigo-400 bg-indigo-50' : 'border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50'}`}>
                       <input 
                           type="file" 
                           ref={fileInputRef}
@@ -197,25 +204,29 @@ const VideoContentForm: React.FC<VideoContentFormProps> = ({ folders, fixedFolde
                               <div className="w-full bg-indigo-200 rounded-full h-2 max-w-xs mx-auto overflow-hidden">
                                   <div className="bg-indigo-600 h-2 transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
                               </div>
+                              <p className="text-xs text-indigo-500">Please keep this window open.</p>
                           </div>
                       ) : formData.videoUrl && uploadMethod === 'FILE' ? (
-                          <div className="flex flex-col items-center">
+                          <div className="flex flex-col items-center animate-fade-in">
                               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-2">
                                   <CheckCircle2 size={24} />
                               </div>
                               <p className="text-emerald-800 font-bold mb-1">Video Uploaded Successfully</p>
-                              <p className="text-xs text-slate-500 mb-4 break-all max-w-md">{formData.videoUrl}</p>
+                              <p className="text-xs text-slate-500 mb-4 break-all max-w-md truncate">{formData.videoUrl}</p>
                               <Button type="button" size="sm" variant="danger" onClick={removeUploadedVideo} className="flex items-center">
                                   <X size={14} className="mr-1" /> Remove / Change
                               </Button>
                           </div>
                       ) : (
                           <div className="cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-400 mx-auto mb-3 shadow-sm">
+                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-400 mx-auto mb-3 shadow-sm group-hover:scale-110 transition-transform">
                                   <FileVideo size={24} />
                               </div>
                               <p className="text-indigo-900 font-bold">Click to upload video</p>
-                              <p className="text-xs text-indigo-600/70 mt-1">MP4, WebM, Ogg (Max 100MB)</p>
+                              <p className="text-xs text-indigo-600/70 mt-1">MP4, WebM, Ogg (Max 500MB)</p>
+                              <div className="mt-3 flex items-center justify-center text-xs text-amber-600 bg-amber-50 py-1 px-2 rounded-full w-fit mx-auto border border-amber-100">
+                                  <AlertTriangle size={12} className="mr-1" /> Large files may take time
+                              </div>
                           </div>
                       )}
                   </div>
