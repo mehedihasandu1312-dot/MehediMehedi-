@@ -49,6 +49,15 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
     navigate('/login');
   };
 
+  const handleHomeClick = () => {
+    if (user.role === UserRole.ADMIN) {
+      navigate('/admin/dashboard');
+    } else {
+      navigate('/student/dashboard');
+    }
+    setIsSidebarOpen(false);
+  };
+
   // Updated NavItem to accept badgeCount
   const NavItem = ({ to, icon: Icon, label, badgeCount }: { to: string; icon: any; label: string; badgeCount?: number }) => {
     const isActive = location.pathname === to;
@@ -129,7 +138,10 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
         }`}
       >
         <div className="p-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
+          <div 
+            className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={handleHomeClick}
+          >
             <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-soft transform rotate-3">
               <span className="text-white font-extrabold text-xl">E</span>
             </div>
@@ -190,7 +202,12 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
               <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 mr-2">
                 <Menu size={28} />
               </button>
-              <span className="font-extrabold text-lg text-slate-800">Edu<span className="text-brand-600">Master</span></span>
+              <span 
+                className="font-extrabold text-lg text-slate-800 cursor-pointer"
+                onClick={handleHomeClick}
+              >
+                Edu<span className="text-brand-600">Master</span>
+              </span>
           </div>
           {/* Mobile Badge for Notices if count > 0 */}
           {user.role === UserRole.STUDENT && unseenNoticeCount > 0 && (
