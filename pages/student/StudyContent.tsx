@@ -12,7 +12,7 @@ import ShareTools from '../../components/ShareTools';
 interface StudyContentPageProps {
     folders: Folder[];
     contents: StudyContent[];
-    onAppealSubmit?: (data: { contentId: string; contentTitle: string; text: string; image?: string }) => void;
+    onAppealSubmit?: (data: { contentId: string; questionId?: string; contentTitle: string; text: string; image?: string }) => void;
 }
 
 // Updated Gradient Palette to match PINK/WARM Theme
@@ -39,7 +39,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   
   // Appeal State
   const [isAppealModalOpen, setIsAppealModalOpen] = useState(false);
-  const [appealTarget, setAppealTarget] = useState<{ id: string, title: string } | null>(null);
+  const [appealTarget, setAppealTarget] = useState<{ id: string, title: string, questionId?: string } | null>(null);
   const [appealText, setAppealText] = useState('');
   const [appealImage, setAppealImage] = useState<string>(''); 
   const [appealContext, setAppealContext] = useState(''); // Stores hidden MCQ details
@@ -82,14 +82,15 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const openAppealModal = (question: MCQQuestion) => {
     if (!selectedContent) return;
 
-    // Set the Title as the Question Text for visibility
+    // Set the Title as the Question Text for visibility AND capture questionId
     setAppealTarget({ 
         id: selectedContent.id, 
-        title: `Q: ${question.questionText}` 
+        title: `Q: ${question.questionText}`,
+        questionId: question.id
     });
 
-    // Create a detailed context string for the Admin
-    const contextData = `\n\n--- [SYSTEM DATA FOR ADMIN] ---\nQuestion ID: ${question.id}\nOptions:\n${question.options.map((o, i) => `[${String.fromCharCode(65+i)}] ${o}`).join('\n')}\n\nCorrect Answer Index: ${question.correctOptionIndex} (${String.fromCharCode(65+question.correctOptionIndex)})`;
+    // Detailed context for display
+    const contextData = `\n\n--- [SYSTEM DATA] ---\nOptions:\n${question.options.map((o, i) => `[${String.fromCharCode(65+i)}] ${o}`).join('\n')}\nCorrect: ${String.fromCharCode(65+question.correctOptionIndex)}`;
 
     setAppealContext(contextData);
     setAppealText('');
@@ -113,6 +114,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
     if (appealTarget && onAppealSubmit) {
         onAppealSubmit({
             contentId: appealTarget.id,
+            questionId: appealTarget.questionId, // Pass the question ID separately
             contentTitle: appealTarget.title,
             text: appealText + appealContext, // Append the hidden context
             image: appealImage || undefined

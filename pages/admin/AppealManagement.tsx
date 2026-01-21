@@ -1,12 +1,14 @@
 
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
-import { Appeal } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion } from 'lucide-react';
+import { Appeal, StudyContent, MCQQuestion } from '../../types';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion, Edit3, Save } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
     setAppeals: React.Dispatch<React.SetStateAction<Appeal[]>>;
+    contents?: StudyContent[]; // To find the original question
+    onUpdateQuestion?: (contentId: string, question: MCQQuestion) => void; // Handler to save edits
 }
 
 const CANNED_RESPONSES = [
@@ -18,15 +20,20 @@ const CANNED_RESPONSES = [
     "Great question! Here is the explanation..."
 ];
 
-const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
+const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [], onUpdateQuestion }) => {
     const [viewType, setViewType] = useState<'REPORT' | 'QA'>('REPORT'); // High level filter
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'REPLIED'>('ALL');
     
-    // Modal State
+    // Reply Modal State
     const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
     const [replyText, setReplyText] = useState('');
     const [replyImage, setReplyImage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Edit Question Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingQuestion, setEditingQuestion] = useState<MCQQuestion | null>(null);
+    const [editingContentId, setEditingContentId] = useState<string | null>(null);
 
     // Info Modal State
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
@@ -91,6 +98,51 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
             type: 'SUCCESS'
         });
         setSelectedAppeal(null);
+    };
+
+    // --- QUICK FIX LOGIC ---
+    const openQuickFix = (appeal: Appeal) => {
+        if (!appeal.contentId || !appeal.questionId) {
+            setInfoModal({ isOpen: true, title: "Error", message: "Missing content reference.", type: 'ERROR' });
+            return;
+        }
+
+        const content = contents.find(c => c.id === appeal.contentId);
+        if (!content || !content.questionList) {
+            setInfoModal({ isOpen: true, title: "Error", message: "Content not found or deleted.", type: 'ERROR' });
+            return;
+        }
+
+        const question = content.questionList.find(q => q.id === appeal.questionId);
+        if (!question) {
+            setInfoModal({ isOpen: true, title: "Error", message: "Question ID not found in content.", type: 'ERROR' });
+            return;
+        }
+
+        setEditingContentId(content.id);
+        setEditingQuestion({ ...question }); // Clone to edit
+        setIsEditModalOpen(true);
+    };
+
+    const saveQuestionEdit = () => {
+        if (editingContentId && editingQuestion && onUpdateQuestion) {
+            onUpdateQuestion(editingContentId, editingQuestion);
+            setIsEditModalOpen(false);
+            setEditingQuestion(null);
+            setEditingContentId(null);
+        }
+    };
+
+    const updateEditField = (field: keyof MCQQuestion, value: any) => {
+        if (!editingQuestion) return;
+        setEditingQuestion({ ...editingQuestion, [field]: value });
+    };
+
+    const updateOption = (idx: number, val: string) => {
+        if (!editingQuestion) return;
+        const newOptions = [...editingQuestion.options];
+        newOptions[idx] = val;
+        setEditingQuestion({ ...editingQuestion, options: newOptions });
     };
 
     return (
@@ -251,7 +303,19 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                 </div>
 
                                 {/* Right: Action */}
-                                <div className="flex items-center md:items-start md:border-l md:border-slate-100 md:pl-4">
+                                <div className="flex items-center md:items-start md:border-l md:border-slate-100 md:pl-4 flex-col gap-2">
+                                    {/* FIX QUESTION BUTTON (ONLY IF QUESTION ID IS PRESENT) */}
+                                    {viewType === 'REPORT' && appeal.questionId && (
+                                        <Button 
+                                            onClick={() => openQuickFix(appeal)} 
+                                            size="sm" 
+                                            variant="outline"
+                                            className="w-full md:w-auto text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"
+                                        >
+                                            <Edit3 size={14} className="mr-2" /> Fix Question
+                                        </Button>
+                                    )}
+
                                     {appeal.status === 'PENDING' ? (
                                         <Button onClick={() => openReplyModal(appeal)} size="sm" className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700">
                                             <MessageSquare size={16} className="mr-2" /> {viewType === 'QA' ? 'Answer' : 'Resolve'}
@@ -267,6 +331,68 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                     )}
                 </div>
             </div>
+
+            {/* QUICK EDIT QUESTION MODAL */}
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Quick Fix Question">
+                {editingQuestion ? (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Question Text</label>
+                            <textarea 
+                                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none min-h-[80px]"
+                                value={editingQuestion.questionText}
+                                onChange={e => updateEditField('questionText', e.target.value)}
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {editingQuestion.options.map((opt, idx) => (
+                                <div key={idx}>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Option {String.fromCharCode(65+idx)}</label>
+                                    <input 
+                                        type="text" 
+                                        className={`w-full p-2 border rounded-lg text-sm ${editingQuestion.correctOptionIndex === idx ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300'}`}
+                                        value={opt}
+                                        onChange={e => updateOption(idx, e.target.value)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="flex gap-4">
+                            <div className="flex-1">
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Correct Answer</label>
+                                <select 
+                                    className="w-full p-2 border rounded-lg bg-emerald-50 border-emerald-300 text-emerald-900 font-bold"
+                                    value={editingQuestion.correctOptionIndex}
+                                    onChange={e => updateEditField('correctOptionIndex', Number(e.target.value))}
+                                >
+                                    {editingQuestion.options.map((_, i) => (
+                                        <option key={i} value={i}>Option {String.fromCharCode(65+i)}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Explanation</label>
+                            <textarea 
+                                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none min-h-[60px]"
+                                value={editingQuestion.explanation || ''}
+                                onChange={e => updateEditField('explanation', e.target.value)}
+                            />
+                        </div>
+
+                        <div className="pt-4 flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                            <Button onClick={saveQuestionEdit} className="bg-emerald-600 hover:bg-emerald-700">
+                                <Save size={16} className="mr-2" /> Save Correction
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-10">Loading question data...</div>
+                )}
+            </Modal>
 
             {/* SMART REPLY MODAL */}
             <Modal isOpen={!!selectedAppeal} onClose={() => setSelectedAppeal(null)} title={viewType === 'QA' ? "Answer Question" : "Resolve Report"}>

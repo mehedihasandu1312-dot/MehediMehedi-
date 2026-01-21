@@ -28,7 +28,7 @@ import ExamGrading from './pages/admin/ExamGrading';
 import SystemSettingsPage from './pages/admin/SystemSettings';
 import PaymentManagement from './pages/admin/PaymentManagement'; 
 import StoreManagement from './pages/admin/StoreManagement'; // NEW
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder } from './types';
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder, MCQQuestion } from './types';
 import { authService } from './services/authService';
 import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS, MOCK_PRODUCTS, MOCK_STORE_ORDERS } from './constants';
 import { db } from './services/firebase';
@@ -235,14 +235,15 @@ const App: React.FC = () => {
       ));
   };
 
-  // Updated to handle both Reports and Q&A
-  const handleAddAppeal = (appealData: { contentId: string; contentTitle: string; text: string; image?: string; type?: 'REPORT' | 'QA' }) => {
+  // Updated to handle both Reports and Q&A with QuestionID
+  const handleAddAppeal = (appealData: { contentId: string; questionId?: string; contentTitle: string; text: string; image?: string; type?: 'REPORT' | 'QA' }) => {
       if (!user) return;
       
       const newAppeal: Appeal = {
           id: `appeal_${Date.now()}`,
           type: appealData.type || 'REPORT', // Default to REPORT
           contentId: appealData.contentId,
+          questionId: appealData.questionId, // New field for direct question access
           contentTitle: appealData.contentTitle,
           studentName: user.name,
           text: appealData.text,
@@ -256,6 +257,25 @@ const App: React.FC = () => {
           isOpen: true,
           title: newAppeal.type === 'QA' ? "Question Submitted" : "Appeal Submitted",
           message: newAppeal.type === 'QA' ? "Your question has been sent to the instructor." : "Appeal submitted successfully! Admin will review it shortly.",
+          type: 'SUCCESS'
+      });
+  };
+
+  // --- NEW: DIRECT QUESTION UPDATE HANDLER ---
+  const handleUpdateQuestion = (contentId: string, updatedQuestion: MCQQuestion) => {
+      setContents(prev => prev.map(c => {
+          if (c.id === contentId && c.questionList) {
+              const newQuestions = c.questionList.map(q => 
+                  q.id === updatedQuestion.id ? updatedQuestion : q
+              );
+              return { ...c, questionList: newQuestions };
+          }
+          return c;
+      }));
+      setGlobalModal({
+          isOpen: true,
+          title: "Success",
+          message: "Question corrected successfully!",
           type: 'SUCCESS'
       });
   };
@@ -410,7 +430,18 @@ const App: React.FC = () => {
                 path="/admin/dashboard" 
                 element={<AdminDashboard exams={exams} users={users} appeals={appeals} onLogout={handleLogout} />} 
               />
-              <Route path="/admin/appeals" element={<AppealManagement appeals={appeals} setAppeals={setAppeals} />} />
+              {/* Pass contents and update handler for Direct Edit */}
+              <Route 
+                path="/admin/appeals" 
+                element={
+                    <AppealManagement 
+                        appeals={appeals} 
+                        setAppeals={setAppeals} 
+                        contents={contents} 
+                        onUpdateQuestion={handleUpdateQuestion} 
+                    />
+                } 
+              />
               <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} currentUser={user} educationLevels={currentEducationLevels} />} />
               <Route 
                 path="/admin/content" 

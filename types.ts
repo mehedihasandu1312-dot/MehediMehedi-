@@ -171,6 +171,7 @@ export interface Appeal {
   id: string;
   type: 'REPORT' | 'QA'; // NEW: Distinguish between Content Report and Q&A
   contentId?: string; // Optional for Q&A
+  questionId?: string; // NEW: Direct ID to the specific question being reported
   contentTitle?: string; // Optional for Q&A
   studentName: string;
   text: string;
