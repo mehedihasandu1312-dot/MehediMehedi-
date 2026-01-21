@@ -528,11 +528,10 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                         )}
 
                         {selectedContent.body && (
-                            <div className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700">
-                                {selectedContent.body?.split('\n').map((paragraph, idx) => (
-                                    <p key={idx} className="mb-6">{paragraph}</p>
-                                ))}
-                            </div>
+                            <div 
+                                className="prose prose-lg prose-slate max-w-none font-serif leading-loose text-slate-700"
+                                dangerouslySetInnerHTML={{ __html: selectedContent.body }}
+                            />
                         )}
                         
                         <div className="my-12"><AdBanner slotId="CONTENT_BODY_AD" /></div>
