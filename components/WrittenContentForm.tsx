@@ -293,7 +293,76 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
   // --- KEYBOARD HANDLING (Shortcuts & Tab) ---
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-      // 1. Tab Key Handling (Indent/Outdent)
+      
+      // 1. TABLE NAVIGATION (Tab Key)
+      if (e.key === 'Tab') {
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) return;
+
+          let node = selection.anchorNode as Node | null;
+          // Traverse up to find TD/TH, stop at editor root
+          while (node && node !== editorRef.current && node.nodeName !== 'TD' && node.nodeName !== 'TH') {
+              node = node.parentElement;
+          }
+
+          if (node && (node.nodeName === 'TD' || node.nodeName === 'TH')) {
+              e.preventDefault(); // Stop indent/focus loss or default tab behavior
+              
+              const cell = node as HTMLTableCellElement;
+              const row = cell.parentElement as HTMLTableRowElement;
+              const table = row.closest('table') as HTMLTableElement;
+              
+              const rows = Array.from(table.querySelectorAll('tr'));
+              const currentRowIndex = rows.indexOf(row);
+              const cells = Array.from(row.querySelectorAll('td, th')) as HTMLElement[];
+              const currentCellIndex = cells.indexOf(cell);
+
+              if (e.shiftKey) {
+                  // SHIFT + TAB: Previous Cell
+                  if (currentCellIndex > 0) {
+                      // Same row, prev cell
+                      const target = cells[currentCellIndex - 1];
+                      moveCursorToNode(target);
+                  } else if (currentRowIndex > 0) {
+                      // Prev row, last cell
+                      const prevRow = rows[currentRowIndex - 1];
+                      const prevRowCells = prevRow.querySelectorAll('td, th');
+                      const target = prevRowCells[prevRowCells.length - 1] as HTMLElement;
+                      moveCursorToNode(target);
+                  }
+              } else {
+                  // TAB: Next Cell
+                  if (currentCellIndex < cells.length - 1) {
+                      // Same row, next cell
+                      const target = cells[currentCellIndex + 1];
+                      moveCursorToNode(target);
+                  } else if (currentRowIndex < rows.length - 1) {
+                      // Next row, first cell
+                      const nextRow = rows[currentRowIndex + 1];
+                      const target = nextRow.querySelectorAll('td, th')[0] as HTMLElement;
+                      moveCursorToNode(target);
+                  } else {
+                      // Last cell of last row -> ADD NEW ROW
+                      const newRow = row.cloneNode(true) as HTMLTableRowElement;
+                      // Clear content of cloned cells but keep styles
+                      Array.from(newRow.querySelectorAll('td, th')).forEach(c => c.innerHTML = '<br>');
+                      
+                      // Append to tbody (or table if no tbody)
+                      const parent = row.parentElement;
+                      if(parent) parent.appendChild(newRow);
+                      
+                      // Move focus to first cell of new row
+                      const target = newRow.querySelectorAll('td, th')[0] as HTMLElement;
+                      moveCursorToNode(target);
+                      
+                      updateStats();
+                  }
+              }
+              return; // Exit function so we don't trigger generic indent logic below
+          }
+      }
+
+      // 2. GENERIC TEXT INDENTATION (If not in table)
       if (e.key === 'Tab') {
           e.preventDefault();
           if (e.shiftKey) {
@@ -305,7 +374,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           return;
       }
 
-      // 2. Custom Shortcuts (Ctrl/Cmd + Key)
+      // 3. CUSTOM SHORTCUTS (Ctrl+B, etc)
       if (e.ctrlKey || e.metaKey) {
           const key = e.key.toLowerCase();
           
@@ -359,6 +428,20 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   break;
           }
       }
+  };
+
+  // Helper to place cursor inside a cell
+  const moveCursorToNode = (node: HTMLElement) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      range.collapse(true); // Collapse to start
+      const selection = window.getSelection();
+      if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+      }
+      // Ensure element is visible if scrolled out of view
+      node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
   const handleFontNameChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
