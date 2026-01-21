@@ -180,6 +180,85 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTableGrid]);
 
+  // --- TABLE RESIZING LOGIC ---
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    let currentResizer: { el: HTMLElement, type: 'col' | 'row', startVal: number, startPos: number } | null = null;
+
+    const onMouseDown = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        // Only handle if target is a table cell (TD or TH)
+        if (target.tagName !== 'TD' && target.tagName !== 'TH') return;
+
+        const rect = target.getBoundingClientRect();
+        // Check if mouse is near right border (Column Resize)
+        const isRightEdge = e.clientX > rect.right - 8;
+        // Check if mouse is near bottom border (Row Resize)
+        const isBottomEdge = e.clientY > rect.bottom - 8;
+
+        if (isRightEdge) {
+            currentResizer = { el: target, type: 'col', startVal: target.offsetWidth, startPos: e.clientX };
+            e.preventDefault(); // Prevent text selection
+        } else if (isBottomEdge) {
+            currentResizer = { el: target, type: 'row', startVal: target.offsetHeight, startPos: e.clientY };
+            e.preventDefault();
+        }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+        if (currentResizer) {
+            if (currentResizer.type === 'col') {
+                const diff = e.clientX - currentResizer.startPos;
+                const newVal = Math.max(20, currentResizer.startVal + diff);
+                currentResizer.el.style.width = `${newVal}px`;
+                // Also setting minWidth prevents collapse
+                currentResizer.el.style.minWidth = `${newVal}px`;
+            } else {
+                const diff = e.clientY - currentResizer.startPos;
+                const newVal = Math.max(20, currentResizer.startVal + diff);
+                currentResizer.el.style.height = `${newVal}px`;
+                // Apply height to the parent TR to ensure consistency
+                const tr = currentResizer.el.parentElement;
+                if(tr) tr.style.height = `${newVal}px`;
+            }
+            return;
+        }
+
+        // Hover Effect to show cursor
+        const target = e.target as HTMLElement;
+        if ((target.tagName === 'TD' || target.tagName === 'TH') && editor.contains(target)) {
+            const rect = target.getBoundingClientRect();
+            const isRightEdge = e.clientX > rect.right - 8;
+            const isBottomEdge = e.clientY > rect.bottom - 8;
+            
+            if (isRightEdge) editor.style.cursor = 'col-resize';
+            else if (isBottomEdge) editor.style.cursor = 'row-resize';
+            else editor.style.cursor = 'text';
+        } else {
+            // Reset cursor if moved out of cell range but still in editor
+            if(editor.style.cursor !== 'text') editor.style.cursor = 'text';
+        }
+    };
+
+    const onMouseUp = () => {
+        currentResizer = null;
+        if(editor) editor.style.cursor = 'text';
+    };
+
+    // Attach listeners
+    editor.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove); // Global move to prevent cursor slip
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+        editor.removeEventListener('mousedown', onMouseDown);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   const updateStats = () => {
       if (!editorRef.current) return;
       const text = editorRef.current.innerText || '';
@@ -228,11 +307,14 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       editor.focus();
 
       if (rows > 0 && cols > 0) {
-          let html = '<table style="border-collapse: collapse; width: 100%; margin: 10px 0; border: 1px solid #ccc;"><tbody>';
+          // Setting table layout fixed helps with resizing predictability
+          let html = '<table style="border-collapse: collapse; width: 100%; margin: 10px 0; border: 1px solid #ccc; table-layout: fixed;"><tbody>';
+          const colWidth = Math.floor(100 / cols); // Distribute width evenly
           for (let i = 0; i < rows; i++) {
               html += '<tr>';
               for (let j = 0; j < cols; j++) {
-                  html += '<td style="border: 1px solid #ccc; padding: 5px; min-width: 30px;">&nbsp;</td>';
+                  // Added explicit width style to cells for resize logic
+                  html += `<td style="border: 1px solid #ccc; padding: 5px; width: ${colWidth}%; min-width: 30px; vertical-align: top;">&nbsp;</td>`;
               }
               html += '</tr>';
           }
@@ -289,7 +371,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
   const handleComparisonInsert = () => {
       const html = `
-        <table style="border-collapse: collapse; width: 100%; margin: 15px 0; font-family: sans-serif;">
+        <table style="border-collapse: collapse; width: 100%; margin: 15px 0; font-family: sans-serif; table-layout: fixed;">
             <thead>
                 <tr style="background-color: #f3f4f6;">
                     <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; width: 33%;">Feature / Basis</th>
