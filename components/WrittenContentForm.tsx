@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from './UI';
+import { Button, Modal } from './UI';
 import { Folder } from '../types';
 import { 
   Bold, Italic, Underline, Strikethrough, 
@@ -78,6 +78,11 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const [pageSize, setPageSize] = useState<'A4' | 'Letter'>('A4');
   const [orientation, setOrientation] = useState<'Portrait' | 'Landscape'>('Portrait');
   const [margins, setMargins] = useState<'Normal' | 'Narrow' | 'Wide'>('Normal');
+
+  // Table Modal State
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -159,20 +164,20 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     updateStats();
   };
 
-  const insertTable = () => {
-      const rowsStr = prompt('Enter number of rows (e.g., 3):', '3');
-      const colsStr = prompt('Enter number of columns (e.g., 3):', '3');
+  const openTableModal = () => {
+      setTableRows(3);
+      setTableCols(3);
+      setIsTableModalOpen(true);
+  };
+
+  const handleInsertTable = (e: React.FormEvent) => {
+      e.preventDefault();
       
-      if (!rowsStr || !colsStr) return;
-
-      const rows = parseInt(rowsStr);
-      const cols = parseInt(colsStr);
-
-      if (rows > 0 && cols > 0) {
+      if (tableRows > 0 && tableCols > 0) {
           let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1;"><tbody>';
-          for (let i = 0; i < rows; i++) {
+          for (let i = 0; i < tableRows; i++) {
               html += '<tr>';
-              for (let j = 0; j < cols; j++) {
+              for (let j = 0; j < tableCols; j++) {
                   html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
               }
               html += '</tr>';
@@ -180,6 +185,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           html += '</tbody></table><p><br/></p>';
           execCmd('insertHTML', html);
       }
+      setIsTableModalOpen(false);
   };
 
   // --- TABLE MANIPULATION HELPERS ---
@@ -447,7 +453,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
                   {/* INSERT GROUP ADDED TO HOME */}
                   <RibbonGroup label="Insert">
-                      <RibbonButton icon={TableIcon} label="Table" onClick={insertTable} />
+                      <RibbonButton icon={TableIcon} label="Table" onClick={openTableModal} />
                       <div className="relative">
                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                           <RibbonButton icon={ImageIcon} label="Picture" onClick={() => fileInputRef.current?.click()} />
@@ -464,7 +470,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           {activeTab === 'Insert' && (
               <>
                   <RibbonGroup label="Tables">
-                      <RibbonButton icon={TableIcon} label="Table" onClick={insertTable} />
+                      <RibbonButton icon={TableIcon} label="Table" onClick={openTableModal} />
                   </RibbonGroup>
                   <RibbonGroup label="Illustrations">
                       <div className="relative">
@@ -621,6 +627,38 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               </div>
           </div>
       </div>
+
+      {/* Insert Table Modal */}
+      <Modal isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} title="Insert Table" size="sm">
+          <form onSubmit={handleInsertTable} className="space-y-4">
+              <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Rows</label>
+                  <input 
+                      type="number" 
+                      min="1" 
+                      max="50"
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={tableRows}
+                      onChange={(e) => setTableRows(parseInt(e.target.value) || 0)}
+                  />
+              </div>
+              <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Columns</label>
+                  <input 
+                      type="number" 
+                      min="1" 
+                      max="20"
+                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={tableCols}
+                      onChange={(e) => setTableCols(parseInt(e.target.value) || 0)}
+                  />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setIsTableModalOpen(false)}>Cancel</Button>
+                  <Button type="submit">Insert Table</Button>
+              </div>
+          </form>
+      </Modal>
 
     </form>
   );
