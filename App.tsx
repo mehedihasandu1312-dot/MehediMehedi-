@@ -274,8 +274,8 @@ const App: React.FC = () => {
       }));
       setGlobalModal({
           isOpen: true,
-          title: "Success",
-          message: "Question corrected successfully!",
+          title: "Study Material Updated",
+          message: "The question has been updated in the database and will be reflected for all students immediately.",
           type: 'SUCCESS'
       });
   };

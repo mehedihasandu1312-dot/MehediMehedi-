@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal, StudyContent, MCQQuestion } from '../../types';
-import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion, Edit3, Save, Search, Link as LinkIcon, ChevronRight, RefreshCw } from 'lucide-react';
+import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion, Edit3, Save, Search, Link as LinkIcon, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
 
 interface Props {
     appeals: Appeal[];
@@ -34,6 +34,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState<MCQQuestion | null>(null);
     const [editingContentId, setEditingContentId] = useState<string | null>(null);
+    const [isSavingQuestion, setIsSavingQuestion] = useState(false);
 
     // --- MANUAL FIX LOCATOR STATE ---
     const [manualFixAppeal, setManualFixAppeal] = useState<Appeal | null>(null);
@@ -158,7 +159,15 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
     };
 
     const saveQuestionEdit = () => {
-        if (editingContentId && editingQuestion && onUpdateQuestion) {
+        if (!onUpdateQuestion) {
+            setInfoModal({ isOpen: true, title: "System Error", message: "Update handler missing. Please reload.", type: 'ERROR' });
+            return;
+        }
+
+        if (editingContentId && editingQuestion) {
+            setIsSavingQuestion(true);
+            
+            // Call the App handler to update content in real-time
             onUpdateQuestion(editingContentId, editingQuestion);
             
             // Auto resolve the appeal if it's pending (Find related appeal even if ID mismatch via Manual Flow)
@@ -168,13 +177,16 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
             );
             
             if (relatedAppeal && relatedAppeal.status === 'PENDING') {
-                 setAppeals(prev => prev.map(a => a.id === relatedAppeal.id ? { ...a, status: 'REPLIED', reply: 'Question has been corrected.' } : a));
+                 setAppeals(prev => prev.map(a => a.id === relatedAppeal.id ? { ...a, status: 'REPLIED', reply: 'Thank you. We have corrected the question in the study material.' } : a));
             }
 
-            setIsEditModalOpen(false);
-            setEditingQuestion(null);
-            setEditingContentId(null);
-            setManualFixAppeal(null);
+            setTimeout(() => {
+                setIsSavingQuestion(false);
+                setIsEditModalOpen(false);
+                setEditingQuestion(null);
+                setEditingContentId(null);
+                setManualFixAppeal(null);
+            }, 500); // Small delay for UX
         }
     };
 
@@ -521,8 +533,9 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
 
                         <div className="pt-4 flex justify-end gap-2">
                             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-                            <Button onClick={saveQuestionEdit} className="bg-emerald-600 hover:bg-emerald-700">
-                                <Save size={16} className="mr-2" /> Save Correction
+                            <Button onClick={saveQuestionEdit} className="bg-emerald-600 hover:bg-emerald-700" disabled={isSavingQuestion}>
+                                {isSavingQuestion ? <Loader2 className="animate-spin mr-2" size={16}/> : <Save size={16} className="mr-2" />} 
+                                {isSavingQuestion ? 'Updating...' : 'Update & Persist'}
                             </Button>
                         </div>
                     </div>
