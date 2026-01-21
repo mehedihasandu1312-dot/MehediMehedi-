@@ -1,27 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { PaymentRequest } from '../../types';
 import { authService } from '../../services/authService';
 import { db } from '../../services/firebase';
-import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
-import { CreditCard, CheckCircle, XCircle, Search, Clock, DollarSign, Smartphone, Copy, Filter, TrendingUp, Users, PieChart, BarChart2 } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { CreditCard, CheckCircle, XCircle, Clock, DollarSign, Copy, Filter, Users, PieChart, BarChart2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 
-const PaymentManagement: React.FC = () => {
-    const [requests, setRequests] = useState<PaymentRequest[]>([]);
+interface Props {
+    requests: PaymentRequest[];
+    setRequests: React.Dispatch<React.SetStateAction<PaymentRequest[]>>;
+}
+
+const PaymentManagement: React.FC<Props> = ({ requests, setRequests }) => {
     const [filter, setFilter] = useState<'PENDING' | 'HISTORY'>('PENDING');
     const [filterClass, setFilterClass] = useState<string>('ALL');
-    const [isLoading, setIsLoading] = useState(true);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; request: PaymentRequest | null; action: 'APPROVE' | 'REJECT' }>({ isOpen: false, request: null, action: 'APPROVE' });
-
-    useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, "payment_requests"), (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as PaymentRequest);
-            setRequests(data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, []);
 
     // --- ANALYTICS CALCULATION ---
     const analytics = useMemo(() => {
@@ -79,8 +74,6 @@ const PaymentManagement: React.FC = () => {
             setConfirmModal({ isOpen: false, request: null, action: 'APPROVE' });
         }
     };
-
-    if (isLoading) return <div className="p-8 text-center text-slate-500">Loading requests...</div>;
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
