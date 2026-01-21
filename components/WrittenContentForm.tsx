@@ -159,24 +159,26 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   };
 
   const insertTable = () => {
-      const html = `
-        <table style="width:100%; border-collapse: collapse; margin-bottom: 1em;">
-            <tbody>
-                <tr>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 1</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 2</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 3</td>
-                </tr>
-                <tr>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 4</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 5</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 6</td>
-                </tr>
-            </tbody>
-        </table>
-        <p><br/></p>
-      `;
-      execCmd('insertHTML', html);
+      const rowsStr = prompt('Enter number of rows (e.g., 3):', '3');
+      const colsStr = prompt('Enter number of columns (e.g., 3):', '3');
+      
+      if (!rowsStr || !colsStr) return;
+
+      const rows = parseInt(rowsStr);
+      const cols = parseInt(colsStr);
+
+      if (rows > 0 && cols > 0) {
+          let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1;"><tbody>';
+          for (let i = 0; i < rows; i++) {
+              html += '<tr>';
+              for (let j = 0; j < cols; j++) {
+                  html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
+              }
+              html += '</tr>';
+          }
+          html += '</tbody></table><p><br/></p>';
+          execCmd('insertHTML', html);
+      }
   };
 
   const insertDate = () => {
@@ -370,6 +372,15 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                               <SmallRibbonButton icon={AlignRight} onClick={() => execCmd('justifyRight')} active={activeFormats.justifyRight} title="Align Right" />
                               <SmallRibbonButton icon={AlignJustify} onClick={() => execCmd('justifyFull')} active={activeFormats.justifyFull} title="Justify" />
                           </div>
+                      </div>
+                  </RibbonGroup>
+
+                  {/* INSERT GROUP ADDED TO HOME */}
+                  <RibbonGroup label="Insert">
+                      <RibbonButton icon={TableIcon} label="Table" onClick={insertTable} />
+                      <div className="relative">
+                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                          <RibbonButton icon={ImageIcon} label="Picture" onClick={() => fileInputRef.current?.click()} />
                       </div>
                   </RibbonGroup>
 
