@@ -102,7 +102,7 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
 
     // --- QUICK FIX LOGIC ---
     const openQuickFix = (appeal: Appeal) => {
-        if (!appeal.contentId || !appeal.questionId) {
+        if (!appeal.contentId) {
             setInfoModal({ isOpen: true, title: "Error", message: "Missing content reference.", type: 'ERROR' });
             return;
         }
@@ -113,9 +113,22 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
             return;
         }
 
-        const question = content.questionList.find(q => q.id === appeal.questionId);
+        let question: MCQQuestion | undefined;
+
+        // Strategy 1: Find by ID (New System)
+        if (appeal.questionId) {
+            question = content.questionList.find(q => q.id === appeal.questionId);
+        }
+
+        // Strategy 2: Find by Text matching (Fallback for Old Reports)
+        if (!question && appeal.contentTitle) {
+            // contentTitle usually comes as "Q: [Question Text]"
+            const cleanTitle = appeal.contentTitle.replace(/^Q:\s*/, '').trim();
+            question = content.questionList.find(q => q.questionText.trim() === cleanTitle || q.questionText.includes(cleanTitle.substring(0, 20)));
+        }
+
         if (!question) {
-            setInfoModal({ isOpen: true, title: "Error", message: "Question ID not found in content.", type: 'ERROR' });
+            setInfoModal({ isOpen: true, title: "Error", message: "Could not automatically find the specific question. Please check Content Management.", type: 'ERROR' });
             return;
         }
 
@@ -127,6 +140,13 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
     const saveQuestionEdit = () => {
         if (editingContentId && editingQuestion && onUpdateQuestion) {
             onUpdateQuestion(editingContentId, editingQuestion);
+            
+            // Auto resolve the appeal if it's pending
+            const relatedAppeal = appeals.find(a => a.questionId === editingQuestion.id || (a.contentTitle?.includes(editingQuestion.questionText.substring(0,10))));
+            if (relatedAppeal && relatedAppeal.status === 'PENDING') {
+                 setAppeals(prev => prev.map(a => a.id === relatedAppeal.id ? { ...a, status: 'REPLIED', reply: 'Question has been corrected.' } : a));
+            }
+
             setIsEditModalOpen(false);
             setEditingQuestion(null);
             setEditingContentId(null);
@@ -304,8 +324,8 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
 
                                 {/* Right: Action */}
                                 <div className="flex items-center md:items-start md:border-l md:border-slate-100 md:pl-4 flex-col gap-2">
-                                    {/* FIX QUESTION BUTTON (ONLY IF QUESTION ID IS PRESENT) */}
-                                    {viewType === 'REPORT' && appeal.questionId && (
+                                    {/* FIX QUESTION BUTTON (VISIBLE FOR ALL REPORTS NOW) */}
+                                    {viewType === 'REPORT' && (
                                         <Button 
                                             onClick={() => openQuickFix(appeal)} 
                                             size="sm" 
