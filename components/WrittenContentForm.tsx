@@ -19,7 +19,15 @@ import {
   Undo,
   Redo,
   Loader2,
-  Upload
+  Upload,
+  FilePlus,
+  FolderOpen,
+  Copy as CopyIcon,
+  Share2,
+  Mail,
+  Download,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { storage } from '../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -75,6 +83,27 @@ const ToolbarButton = ({ icon: Icon, onClick, active = false, title = '', disabl
 
 const ToolbarSeparator = () => <div className="w-px h-5 bg-slate-300 mx-1 self-center"></div>;
 
+const MenuItem = ({ icon: Icon, label, shortcut, onClick, arrow }: any) => (
+    <div 
+        className="flex items-center justify-between px-4 py-1.5 hover:bg-slate-100 cursor-pointer text-sm group"
+        onClick={(e) => {
+            e.stopPropagation();
+            if (onClick) onClick();
+        }}
+    >
+        <div className="flex items-center gap-3">
+            {Icon ? <Icon size={16} className="text-slate-500 group-hover:text-slate-700" /> : <div className="w-4" />}
+            <span className="text-slate-700 group-hover:text-black">{label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+            {shortcut && <span className="text-xs text-slate-400 font-medium">{shortcut}</span>}
+            {arrow && <ChevronDown size={12} className="text-slate-400 -rotate-90" />}
+        </div>
+    </div>
+);
+
+const MenuSeparator = () => <div className="my-1 border-t border-slate-200"></div>;
+
 const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedFolderId, initialData, onSubmit }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -91,6 +120,10 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   // Table Picker
   const [showTableGrid, setShowTableGrid] = useState(false);
   const [tableGridSize, setTableGridSize] = useState({ rows: 0, cols: 0 });
+
+  // Menu State
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,11 +148,14 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     }
   }, [initialData]);
 
-  // Click outside to close popups
+  // Click outside to close popups and menus
   useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
           if (showTableGrid && !(event.target as Element).closest('.table-picker-container')) {
               setShowTableGrid(false);
+          }
+          if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+              setActiveMenu(null);
           }
       };
       document.addEventListener('mousedown', handleClickOutside);
@@ -274,7 +310,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                         onChange={e => setFormData({...formData, title: e.target.value})}
                       />
                       
-                      {/* NEW: Direct Image Upload Button next to Title */}
+                      {/* Direct Image Upload Button next to Title */}
                       <button 
                         type="button"
                         onClick={triggerUpload}
@@ -297,8 +333,41 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                       </label>
                   </div>
                   
-                  <div className="flex items-center gap-3 text-[13px] text-slate-600 mt-0.5 select-none">
-                      <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">File</span>
+                  {/* MENUS (FILE, EDIT, VIEW...) */}
+                  <div className="flex items-center gap-1 text-[13px] text-slate-600 mt-0.5 select-none relative" ref={menuRef}>
+                      <div className="relative">
+                          <span 
+                              className={`hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors ${activeMenu === 'File' ? 'bg-slate-200 text-slate-800' : ''}`}
+                              onClick={() => setActiveMenu(activeMenu === 'File' ? null : 'File')}
+                          >
+                              File
+                          </span>
+                          {activeMenu === 'File' && (
+                              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-slate-200 shadow-xl rounded-lg py-2 z-[100] text-slate-700 font-normal">
+                                  <MenuItem icon={FilePlus} label="New" onClick={() => { 
+                                      setFormData({ title: '', folderId: fixedFolderId || '', body: '', isPremium: false }); 
+                                      if(editorRef.current) editorRef.current.innerHTML = ''; 
+                                      setWordCount(0);
+                                      setActiveMenu(null);
+                                  }} />
+                                  <MenuItem icon={FolderOpen} label="Open" shortcut="Ctrl+O" />
+                                  <MenuItem icon={CopyIcon} label="Make a copy" />
+                                  <MenuSeparator />
+                                  <MenuItem icon={Share2} label="Share" />
+                                  <MenuItem icon={Mail} label="Email" />
+                                  <MenuItem icon={Download} label="Download" arrow />
+                                  <MenuSeparator />
+                                  <MenuItem icon={Edit3} label="Rename" onClick={() => {
+                                      document.querySelector<HTMLInputElement>('input[placeholder="Untitled Document (Type Question Here)"]')?.focus();
+                                      setActiveMenu(null);
+                                  }} />
+                                  <MenuItem icon={Trash2} label="Move to bin" />
+                                  <MenuSeparator />
+                                  <MenuItem icon={Printer} label="Print" shortcut="Ctrl+P" onClick={() => { window.print(); setActiveMenu(null); }} />
+                              </div>
+                          )}
+                      </div>
+
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Edit</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">View</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors" onClick={triggerUpload}>Insert</span>
