@@ -291,6 +291,76 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     updateStats();
   };
 
+  // --- KEYBOARD HANDLING (Shortcuts & Tab) ---
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // 1. Tab Key Handling (Indent/Outdent)
+      if (e.key === 'Tab') {
+          e.preventDefault();
+          if (e.shiftKey) {
+              document.execCommand('outdent', false, undefined);
+          } else {
+              document.execCommand('indent', false, undefined);
+          }
+          updateStats();
+          return;
+      }
+
+      // 2. Custom Shortcuts (Ctrl/Cmd + Key)
+      if (e.ctrlKey || e.metaKey) {
+          const key = e.key.toLowerCase();
+          
+          switch (key) {
+              case 'b': // Bold
+                  e.preventDefault();
+                  execCmd('bold');
+                  break;
+              case 'i': // Italic
+                  e.preventDefault();
+                  execCmd('italic');
+                  break;
+              case 'u': // Underline
+                  e.preventDefault();
+                  execCmd('underline');
+                  break;
+              case 'z': // Undo / Redo
+                  e.preventDefault();
+                  if (e.shiftKey) {
+                      execCmd('redo');
+                  } else {
+                      execCmd('undo');
+                  }
+                  break;
+              case 'y': // Redo
+                  e.preventDefault();
+                  execCmd('redo');
+                  break;
+              case 'k': // Link
+                  e.preventDefault();
+                  const url = prompt('Enter URL:');
+                  if (url) execCmd('createLink', url);
+                  break;
+              case 'p': // Print
+                  e.preventDefault();
+                  window.print();
+                  break;
+              case 's': // Save
+                  e.preventDefault();
+                  // Trigger Submit manually
+                  if (formData.title && formData.folderId) {
+                      const content = editorRef.current?.innerHTML || '';
+                      if (content.trim()) {
+                          onSubmit({ ...formData, body: content });
+                      } else {
+                          alert("Body is empty");
+                      }
+                  } else {
+                      alert("Please fill title and folder first");
+                  }
+                  break;
+          }
+      }
+  };
+
   const handleFontNameChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       execCmd('fontName', e.target.value);
   };
@@ -772,6 +842,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
             onInput={updateStats}
             onKeyUp={checkFormats}
             onMouseUp={checkFormats}
+            onKeyDown={handleEditorKeyDown} // NEW: KEYDOWN HANDLER
             className="bg-white shadow-lg outline-none text-slate-900 leading-relaxed print:shadow-none print:w-full print:h-auto print:m-0"
             style={{
                 width: '8.27in', // A4 Width
