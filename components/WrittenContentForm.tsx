@@ -35,12 +35,12 @@ const RibbonGroup = ({ label, children, className = '' }: { label: string, child
     </div>
 );
 
-const RibbonButton = ({ icon: Icon, label, onClick, sub, active = false }: any) => (
+const RibbonButton = ({ icon: Icon, label, onClick, sub, active = false, className = '' }: any) => (
     <button 
       type="button"
-      onMouseDown={(e) => e.preventDefault()}
+      onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
       onClick={onClick}
-      className={`flex flex-col items-center justify-center p-1 rounded hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition-all min-w-[40px] ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-700 shadow-inner' : 'text-slate-700'}`}
+      className={`flex flex-col items-center justify-center p-1 rounded hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition-all min-w-[40px] ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-700 shadow-inner' : 'text-slate-700'} ${className}`}
       title={label}
     >
         <Icon size={20} />
@@ -52,7 +52,7 @@ const RibbonButton = ({ icon: Icon, label, onClick, sub, active = false }: any) 
 const SmallRibbonButton = ({ icon: Icon, onClick, active = false, className = '', title = '' }: any) => (
     <button 
       type="button"
-      onMouseDown={(e) => e.preventDefault()}
+      onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
       onClick={onClick}
       title={title}
       className={`p-1 rounded hover:bg-indigo-50 border border-transparent hover:border-indigo-200 ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-700 shadow-inner' : 'text-slate-700'} ${className}`}
@@ -79,10 +79,9 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const [orientation, setOrientation] = useState<'Portrait' | 'Landscape'>('Portrait');
   const [margins, setMargins] = useState<'Normal' | 'Narrow' | 'Wide'>('Normal');
 
-  // Table Modal State
-  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
-  const [tableRows, setTableRows] = useState(3);
-  const [tableCols, setTableCols] = useState(3);
+  // GOOGLE DOCS STYLE TABLE PICKER STATE
+  const [showTableGrid, setShowTableGrid] = useState(false);
+  const [tableGridSize, setTableGridSize] = useState({ rows: 0, cols: 0 });
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +108,17 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
         if (editorRef.current) editorRef.current.innerHTML = '';
     }
   }, [initialData, fixedFolderId]);
+
+  // Click outside to close table grid
+  useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+          if (showTableGrid && !(event.target as Element).closest('.table-picker-container')) {
+              setShowTableGrid(false);
+          }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTableGrid]);
 
   const updateStats = () => {
       if (!editorRef.current) return;
@@ -167,68 +177,52 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     updateStats();
   };
 
-  const openTableModal = () => {
-      // Robust Selection Saving
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-          // Verify the selection is actually inside our editor
-          const range = selection.getRangeAt(0);
-          if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
-              savedSelection.current = range.cloneRange();
-          } else {
-              savedSelection.current = null;
+  const toggleTablePicker = () => {
+      if (!showTableGrid) {
+          // Save selection
+          const selection = window.getSelection();
+          if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
+                  savedSelection.current = range.cloneRange();
+              }
           }
-      } else {
-          savedSelection.current = null;
       }
-
-      setTableRows(3);
-      setTableCols(3);
-      setIsTableModalOpen(true);
+      setShowTableGrid(!showTableGrid);
+      setTableGridSize({ rows: 0, cols: 0 });
   };
 
-  const handleInsertTable = (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsTableModalOpen(false);
+  const insertTableFromGrid = (rows: number, cols: number) => {
+      setShowTableGrid(false);
       
-      // Delay to handle modal closing interaction
-      setTimeout(() => {
-          const editor = editorRef.current;
-          if (!editor) return;
+      const editor = editorRef.current;
+      if (!editor) return;
 
-          editor.focus();
+      editor.focus();
 
-          const selection = window.getSelection();
-          if (!selection) return;
-
-          // RESTORE SELECTION or FALLBACK to end
+      // Restore selection
+      const selection = window.getSelection();
+      if (selection) {
           if (savedSelection.current) {
               selection.removeAllRanges();
               selection.addRange(savedSelection.current);
-          } else {
-              // Fallback: If focus was lost, append to end
-              const range = document.createRange();
-              range.selectNodeContents(editor);
-              range.collapse(false); // false = collapse to end
-              selection.removeAllRanges();
-              selection.addRange(range);
           }
+      }
 
-          if (tableRows > 0 && tableCols > 0) {
-              let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1; table-layout: fixed;"><tbody>';
-              for (let i = 0; i < tableRows; i++) {
-                  html += '<tr>';
-                  for (let j = 0; j < tableCols; j++) {
-                      html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
-                  }
-                  html += '</tr>';
+      if (rows > 0 && cols > 0) {
+          let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1; table-layout: fixed;"><tbody>';
+          for (let i = 0; i < rows; i++) {
+              html += '<tr>';
+              for (let j = 0; j < cols; j++) {
+                  html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
               }
-              html += '</tbody></table><p><br/></p>';
-              
-              document.execCommand('insertHTML', false, html);
-              updateStats();
+              html += '</tr>';
           }
-      }, 50);
+          html += '</tbody></table><p><br/></p>';
+          
+          document.execCommand('insertHTML', false, html);
+          updateStats();
+      }
   };
 
   // --- TABLE MANIPULATION HELPERS ---
@@ -494,9 +488,36 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                       </div>
                   </RibbonGroup>
 
-                  {/* INSERT GROUP ADDED TO HOME */}
+                  {/* INSERT GROUP WITH GOOGLE DOCS STYLE TABLE PICKER */}
                   <RibbonGroup label="Insert">
-                      <RibbonButton icon={TableIcon} label="Table" onClick={openTableModal} />
+                      <div className="relative table-picker-container">
+                          <RibbonButton icon={TableIcon} label="Table" onClick={toggleTablePicker} sub active={showTableGrid} />
+                          
+                          {/* Table Grid Popover */}
+                          {showTableGrid && (
+                              <div className="absolute top-full left-0 mt-1 bg-white border border-slate-300 shadow-2xl rounded-lg p-2 z-50 w-52 animate-fade-in select-none">
+                                  <div className="grid grid-cols-10 gap-0.5 mb-2">
+                                      {[...Array(10)].map((_, r) => (
+                                          [...Array(10)].map((_, c) => {
+                                              const isSelected = r < tableGridSize.rows && c < tableGridSize.cols;
+                                              return (
+                                                  <div
+                                                      key={`${r}-${c}`}
+                                                      onMouseEnter={() => setTableGridSize({ rows: r + 1, cols: c + 1 })}
+                                                      onClick={() => insertTableFromGrid(r + 1, c + 1)}
+                                                      className={`w-4 h-4 border border-slate-200 cursor-pointer ${isSelected ? 'bg-indigo-500 border-indigo-600' : 'bg-white hover:border-slate-400'}`}
+                                                  />
+                                              );
+                                          })
+                                      ))}
+                                  </div>
+                                  <div className="text-center text-xs font-bold text-slate-700">
+                                      {tableGridSize.rows > 0 ? `${tableGridSize.rows} x ${tableGridSize.cols} Table` : 'Insert Table'}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+
                       <div className="relative">
                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                           <RibbonButton icon={ImageIcon} label="Picture" onClick={() => fileInputRef.current?.click()} />
@@ -513,7 +534,31 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           {activeTab === 'Insert' && (
               <>
                   <RibbonGroup label="Tables">
-                      <RibbonButton icon={TableIcon} label="Table" onClick={openTableModal} />
+                      <div className="relative table-picker-container">
+                          <RibbonButton icon={TableIcon} label="Table" onClick={toggleTablePicker} sub active={showTableGrid} />
+                          {showTableGrid && (
+                              <div className="absolute top-full left-0 mt-1 bg-white border border-slate-300 shadow-2xl rounded-lg p-2 z-50 w-52 animate-fade-in select-none">
+                                  <div className="grid grid-cols-10 gap-0.5 mb-2">
+                                      {[...Array(10)].map((_, r) => (
+                                          [...Array(10)].map((_, c) => {
+                                              const isSelected = r < tableGridSize.rows && c < tableGridSize.cols;
+                                              return (
+                                                  <div
+                                                      key={`${r}-${c}`}
+                                                      onMouseEnter={() => setTableGridSize({ rows: r + 1, cols: c + 1 })}
+                                                      onClick={() => insertTableFromGrid(r + 1, c + 1)}
+                                                      className={`w-4 h-4 border border-slate-200 cursor-pointer ${isSelected ? 'bg-indigo-500 border-indigo-600' : 'bg-white hover:border-slate-400'}`}
+                                                  />
+                                              );
+                                          })
+                                      ))}
+                                  </div>
+                                  <div className="text-center text-xs font-bold text-slate-700">
+                                      {tableGridSize.rows > 0 ? `${tableGridSize.rows} x ${tableGridSize.cols} Table` : 'Insert Table'}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
                   </RibbonGroup>
                   <RibbonGroup label="Illustrations">
                       <div className="relative">
@@ -670,36 +715,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               </div>
           </div>
       </div>
-
-      {/* Insert Table Modal */}
-      <Modal isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} title="Insert Table" size="sm">
-          <form onSubmit={handleInsertTable} className="space-y-4">
-              <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Rows</label>
-                  <input 
-                      type="number" 
-                      min="1" 
-                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={tableRows}
-                      onChange={(e) => setTableRows(parseInt(e.target.value) || 0)}
-                  />
-              </div>
-              <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Columns</label>
-                  <input 
-                      type="number" 
-                      min="1" 
-                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={tableCols}
-                      onChange={(e) => setTableCols(parseInt(e.target.value) || 0)}
-                  />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setIsTableModalOpen(false)}>Cancel</Button>
-                  <Button type="submit">Insert Table</Button>
-              </div>
-          </form>
-      </Modal>
 
     </form>
   );
