@@ -11,7 +11,10 @@ import {
   ChevronDown, Scissors, Copy, Clipboard,
   Highlighter, Type, Subscript, Superscript,
   Search, MousePointer, Crown,
-  CheckCircle, Minus, Plus
+  CheckCircle, Minus, Plus,
+  Table as TableIcon, Calendar, MinusSquare,
+  LayoutTemplate, Maximize, Printer, FileText,
+  Settings, Grid
 } from 'lucide-react';
 
 interface WrittenContentFormProps {
@@ -21,8 +24,8 @@ interface WrittenContentFormProps {
   onSubmit: (data: { title: string; folderId: string; body: string; isPremium: boolean }) => void;
 }
 
-// Helper Components moved outside to avoid re-creation on render and fix TS inference
-const RibbonGroup = ({ label, children, className = '' }: { label: string, children: React.ReactNode, className?: string }) => (
+// Helper Components
+const RibbonGroup = ({ label, children, className = '' }: { label: string, children?: React.ReactNode, className?: string }) => (
     <div className={`flex flex-col px-2 border-r border-slate-300 h-full justify-between ${className}`}>
         <div className="flex gap-1 items-start justify-center flex-wrap">
             {children}
@@ -34,23 +37,26 @@ const RibbonGroup = ({ label, children, className = '' }: { label: string, child
 const RibbonButton = ({ icon: Icon, label, onClick, sub, active = false }: any) => (
     <button 
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className={`flex flex-col items-center justify-center p-1 rounded hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition-all min-w-[40px] ${active ? 'bg-indigo-100 border-indigo-300' : ''}`}
+      className={`flex flex-col items-center justify-center p-1 rounded hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition-all min-w-[40px] ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-700 shadow-inner' : 'text-slate-700'}`}
       title={label}
     >
-        <Icon size={20} className={active ? 'text-indigo-700' : 'text-slate-700'} />
-        {label && <span className="text-[10px] text-slate-600 mt-0.5 leading-none">{label}</span>}
+        <Icon size={20} />
+        {label && <span className="text-[10px] mt-0.5 leading-none">{label}</span>}
         {sub && <ChevronDown size={8} className="text-slate-400 mt-0.5"/>}
     </button>
 );
 
-const SmallRibbonButton = ({ icon: Icon, onClick, active = false }: any) => (
+const SmallRibbonButton = ({ icon: Icon, onClick, active = false, className = '', title = '' }: any) => (
     <button 
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className={`p-1 rounded hover:bg-indigo-50 border border-transparent hover:border-indigo-200 ${active ? 'bg-indigo-100 border-indigo-300' : ''}`}
+      title={title}
+      className={`p-1 rounded hover:bg-indigo-50 border border-transparent hover:border-indigo-200 ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-700 shadow-inner' : 'text-slate-700'} ${className}`}
     >
-        <Icon size={16} className={active ? 'text-indigo-700' : 'text-slate-700'} />
+        <Icon size={16} />
     </button>
 );
 
@@ -65,7 +71,13 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const [activeTab, setActiveTab] = useState('Home');
   const [wordCount, setWordCount] = useState(0);
   const [zoom, setZoom] = useState(100);
+  const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   
+  // Page Layout State
+  const [pageSize, setPageSize] = useState<'A4' | 'Letter'>('A4');
+  const [orientation, setOrientation] = useState<'Portrait' | 'Landscape'>('Portrait');
+  const [margins, setMargins] = useState<'Normal' | 'Narrow' | 'Wide'>('Normal');
+
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +107,26 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
       setWordCount(count);
       setFormData(prev => ({ ...prev, body: editorRef.current?.innerHTML || '' }));
+      
+      // Update active states for buttons
+      checkFormats();
+  };
+
+  const checkFormats = () => {
+      setActiveFormats({
+          bold: document.queryCommandState('bold'),
+          italic: document.queryCommandState('italic'),
+          underline: document.queryCommandState('underline'),
+          strikethrough: document.queryCommandState('strikethrough'),
+          subscript: document.queryCommandState('subscript'),
+          superscript: document.queryCommandState('superscript'),
+          justifyLeft: document.queryCommandState('justifyLeft'),
+          justifyCenter: document.queryCommandState('justifyCenter'),
+          justifyRight: document.queryCommandState('justifyRight'),
+          justifyFull: document.queryCommandState('justifyFull'),
+          insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+          insertOrderedList: document.queryCommandState('insertOrderedList'),
+      });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -113,14 +145,43 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     if (!initialData) {
         setFormData({ title: '', folderId: fixedFolderId || '', body: '', isPremium: false }); 
         if (editorRef.current) editorRef.current.innerHTML = '';
+        setWordCount(0);
     }
   };
 
   // --- EDITOR COMMANDS ---
   const execCmd = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
+    if (editorRef.current) {
+        editorRef.current.focus();
+    }
     updateStats();
+  };
+
+  const insertTable = () => {
+      const html = `
+        <table style="width:100%; border-collapse: collapse; margin-bottom: 1em;">
+            <tbody>
+                <tr>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 1</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 2</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 3</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 4</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 5</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 8px;">Cell 6</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><br/></p>
+      `;
+      execCmd('insertHTML', html);
+  };
+
+  const insertDate = () => {
+      const date = new Date().toLocaleDateString();
+      execCmd('insertText', date);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,10 +197,46 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     }
   };
 
+  const handlePrint = () => {
+      window.print();
+  };
+
+  // --- STYLE GENERATORS ---
+  const getPageStyle = () => {
+      const base: React.CSSProperties = {
+          fontFamily: 'Arial, sans-serif',
+          transform: `scale(${zoom / 100})`,
+          backgroundColor: 'white',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          minHeight: '11in',
+          outline: 'none',
+          color: '#0f172a',
+          lineHeight: '1.6',
+          transformOrigin: 'top center',
+          transition: 'all 0.2s ease-in-out'
+      };
+
+      // Size
+      if (pageSize === 'A4') {
+          base.width = orientation === 'Portrait' ? '8.27in' : '11.69in';
+          base.minHeight = orientation === 'Portrait' ? '11.69in' : '8.27in';
+      } else {
+          base.width = orientation === 'Portrait' ? '8.5in' : '11in';
+          base.minHeight = orientation === 'Portrait' ? '11in' : '8.5in';
+      }
+
+      // Margins
+      if (margins === 'Normal') base.padding = '1in';
+      if (margins === 'Narrow') base.padding = '0.5in';
+      if (margins === 'Wide') base.padding = '2in';
+
+      return base;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-[85vh] bg-[#f3f4f6] overflow-hidden rounded-xl border border-slate-300 shadow-2xl">
       
-      {/* 1. TOP BAR (File Info) */}
+      {/* 1. TOP BAR */}
       <div className="bg-[#2b579a] text-white px-4 py-2 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4 w-full">
               <div className="flex items-center gap-2 flex-1">
@@ -153,14 +250,13 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   />
               </div>
               
-              {/* Folder Select in Top Bar */}
               <div className="hidden md:flex items-center gap-2">
                   <span className="text-xs text-blue-200">Save to:</span>
                   {fixedFolderId ? (
                       <span className="text-xs font-bold">{folders.find(f => f.id === fixedFolderId)?.name}</span>
                   ) : (
                       <select 
-                        className="text-xs bg-white/10 border border-blue-400 rounded px-2 py-1 outline-none focus:bg-white/20"
+                        className="text-xs bg-white/10 border border-blue-400 rounded px-2 py-1 outline-none focus:bg-white/20 text-white option:text-black"
                         value={formData.folderId}
                         onChange={e => setFormData({...formData, folderId: e.target.value})}
                       >
@@ -170,8 +266,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   )}
               </div>
 
-              {/* Premium Toggle */}
-              <label className="flex items-center cursor-pointer bg-black/20 px-3 py-1 rounded-full hover:bg-black/30 transition-colors">
+              <label className="flex items-center cursor-pointer bg-black/20 px-3 py-1 rounded-full hover:bg-black/30 transition-colors select-none">
                   <input 
                     type="checkbox" 
                     className="mr-2"
@@ -190,7 +285,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
       {/* 2. RIBBON TABS */}
       <div className="bg-white border-b border-slate-300 px-2 flex gap-1 shrink-0">
-          {['File', 'Home', 'Insert', 'Draw', 'Design', 'Layout', 'References', 'Review', 'View'].map(tab => (
+          {['File', 'Home', 'Insert', 'Layout', 'View'].map(tab => (
               <button 
                 key={tab}
                 type="button"
@@ -206,15 +301,15 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           ))}
       </div>
 
-      {/* 3. RIBBON TOOLBAR (Dynamic based on Tab) */}
+      {/* 3. RIBBON TOOLBAR */}
       <div className="bg-[#f9fafb] border-b border-slate-300 h-28 flex items-center px-2 shadow-sm shrink-0 overflow-x-auto whitespace-nowrap">
           {activeTab === 'Home' && (
               <>
                   <RibbonGroup label="Clipboard">
                       <RibbonButton icon={Clipboard} label="Paste" onClick={() => navigator.clipboard.readText().then(text => execCmd('insertText', text))} sub />
                       <div className="flex flex-col gap-1">
-                          <SmallRibbonButton icon={Scissors} onClick={() => execCmd('cut')} />
-                          <SmallRibbonButton icon={Copy} onClick={() => execCmd('copy')} />
+                          <SmallRibbonButton icon={Scissors} onClick={() => execCmd('cut')} title="Cut" />
+                          <SmallRibbonButton icon={Copy} onClick={() => execCmd('copy')} title="Copy" />
                       </div>
                   </RibbonGroup>
 
@@ -225,11 +320,13 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                               <option value="SolaimanLipi">SolaimanLipi</option>
                               <option value="Times New Roman">Times New Roman</option>
                               <option value="Courier New">Courier New</option>
+                              <option value="Verdana">Verdana</option>
+                              <option value="Georgia">Georgia</option>
                           </select>
                           <select className="text-xs border border-slate-300 rounded p-0.5 w-12 h-6" onChange={(e) => execCmd('fontSize', e.target.value)}>
-                              <option value="3">12</option>
                               <option value="1">8</option>
                               <option value="2">10</option>
+                              <option value="3">12</option>
                               <option value="4">14</option>
                               <option value="5">18</option>
                               <option value="6">24</option>
@@ -237,23 +334,23 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                           </select>
                       </div>
                       <div className="flex gap-0.5">
-                          <SmallRibbonButton icon={Bold} onClick={() => execCmd('bold')} />
-                          <SmallRibbonButton icon={Italic} onClick={() => execCmd('italic')} />
-                          <SmallRibbonButton icon={Underline} onClick={() => execCmd('underline')} />
-                          <SmallRibbonButton icon={Strikethrough} onClick={() => execCmd('strikethrough')} />
+                          <SmallRibbonButton icon={Bold} onClick={() => execCmd('bold')} active={activeFormats.bold} title="Bold (Ctrl+B)" />
+                          <SmallRibbonButton icon={Italic} onClick={() => execCmd('italic')} active={activeFormats.italic} title="Italic (Ctrl+I)" />
+                          <SmallRibbonButton icon={Underline} onClick={() => execCmd('underline')} active={activeFormats.underline} title="Underline (Ctrl+U)" />
+                          <SmallRibbonButton icon={Strikethrough} onClick={() => execCmd('strikethrough')} active={activeFormats.strikethrough} title="Strikethrough" />
                           <div className="w-px h-6 bg-slate-300 mx-1"></div>
-                          <SmallRibbonButton icon={Subscript} onClick={() => execCmd('subscript')} />
-                          <SmallRibbonButton icon={Superscript} onClick={() => execCmd('superscript')} />
+                          <SmallRibbonButton icon={Subscript} onClick={() => execCmd('subscript')} active={activeFormats.subscript} title="Subscript" />
+                          <SmallRibbonButton icon={Superscript} onClick={() => execCmd('superscript')} active={activeFormats.superscript} title="Superscript" />
                           <div className="w-px h-6 bg-slate-300 mx-1"></div>
                           
                           {/* Color Pickers */}
-                          <div className="relative">
-                              <input type="color" ref={highlightInputRef} className="absolute opacity-0 w-full h-full cursor-pointer" onChange={(e) => execCmd('hiliteColor', e.target.value)} />
-                              <SmallRibbonButton icon={Highlighter} className="text-yellow-500" />
+                          <div className="relative group">
+                              <input type="color" ref={highlightInputRef} className="absolute opacity-0 w-full h-full cursor-pointer z-10" onChange={(e) => execCmd('hiliteColor', e.target.value)} />
+                              <SmallRibbonButton icon={Highlighter} className="text-yellow-500" title="Highlight Color" />
                           </div>
-                          <div className="relative">
-                              <input type="color" ref={colorInputRef} className="absolute opacity-0 w-full h-full cursor-pointer" onChange={(e) => execCmd('foreColor', e.target.value)} />
-                              <SmallRibbonButton icon={Type} className="text-red-600" />
+                          <div className="relative group">
+                              <input type="color" ref={colorInputRef} className="absolute opacity-0 w-full h-full cursor-pointer z-10" onChange={(e) => execCmd('foreColor', e.target.value)} />
+                              <SmallRibbonButton icon={Type} className="text-red-600" title="Font Color" />
                           </div>
                       </div>
                   </RibbonGroup>
@@ -261,90 +358,132 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   <RibbonGroup label="Paragraph">
                       <div className="flex flex-col gap-1 w-full">
                           <div className="flex gap-0.5 justify-center">
-                              <SmallRibbonButton icon={List} onClick={() => execCmd('insertUnorderedList')} />
-                              <SmallRibbonButton icon={ListOrdered} onClick={() => execCmd('insertOrderedList')} />
+                              <SmallRibbonButton icon={List} onClick={() => execCmd('insertUnorderedList')} active={activeFormats.insertUnorderedList} title="Bullet List" />
+                              <SmallRibbonButton icon={ListOrdered} onClick={() => execCmd('insertOrderedList')} active={activeFormats.insertOrderedList} title="Numbered List" />
                               <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                              <SmallRibbonButton icon={Outdent} onClick={() => execCmd('outdent')} />
-                              <SmallRibbonButton icon={Indent} onClick={() => execCmd('indent')} />
+                              <SmallRibbonButton icon={Outdent} onClick={() => execCmd('outdent')} title="Decrease Indent" />
+                              <SmallRibbonButton icon={Indent} onClick={() => execCmd('indent')} title="Increase Indent" />
                           </div>
                           <div className="flex gap-0.5 justify-center">
-                              <SmallRibbonButton icon={AlignLeft} onClick={() => execCmd('justifyLeft')} />
-                              <SmallRibbonButton icon={AlignCenter} onClick={() => execCmd('justifyCenter')} />
-                              <SmallRibbonButton icon={AlignRight} onClick={() => execCmd('justifyRight')} />
-                              <SmallRibbonButton icon={AlignJustify} onClick={() => execCmd('justifyFull')} />
+                              <SmallRibbonButton icon={AlignLeft} onClick={() => execCmd('justifyLeft')} active={activeFormats.justifyLeft} title="Align Left" />
+                              <SmallRibbonButton icon={AlignCenter} onClick={() => execCmd('justifyCenter')} active={activeFormats.justifyCenter} title="Align Center" />
+                              <SmallRibbonButton icon={AlignRight} onClick={() => execCmd('justifyRight')} active={activeFormats.justifyRight} title="Align Right" />
+                              <SmallRibbonButton icon={AlignJustify} onClick={() => execCmd('justifyFull')} active={activeFormats.justifyFull} title="Justify" />
                           </div>
-                      </div>
-                  </RibbonGroup>
-
-                  <RibbonGroup label="Styles" className="min-w-[150px]">
-                      <div className="flex gap-2 h-[50px] overflow-hidden">
-                          <button onClick={() => execCmd('formatBlock', 'P')} className="border border-slate-200 bg-white px-2 rounded hover:bg-slate-50 text-left min-w-[60px]">
-                              <span className="block text-[20px] leading-none mb-1 font-serif">Aa</span>
-                              <span className="text-[9px] font-bold text-slate-600">Normal</span>
-                          </button>
-                          <button onClick={() => execCmd('formatBlock', 'H1')} className="border border-slate-200 bg-white px-2 rounded hover:bg-slate-50 text-left min-w-[60px]">
-                              <span className="block text-[20px] leading-none mb-1 font-bold text-blue-600">Aa</span>
-                              <span className="text-[9px] font-bold text-slate-600">Heading 1</span>
-                          </button>
-                          <button onClick={() => execCmd('formatBlock', 'H2')} className="border border-slate-200 bg-white px-2 rounded hover:bg-slate-50 text-left min-w-[60px]">
-                              <span className="block text-[18px] leading-none mb-1 font-bold text-slate-700">Aa</span>
-                              <span className="text-[9px] font-bold text-slate-600">Heading 2</span>
-                          </button>
                       </div>
                   </RibbonGroup>
 
                   <RibbonGroup label="Editing">
-                      <RibbonButton icon={Search} label="Find" />
-                      <RibbonButton icon={MousePointer} label="Select" />
+                      <RibbonButton icon={Search} label="Find" onClick={() => (window as any).find(prompt("Enter text to find:") || '')} />
+                      <RibbonButton icon={MousePointer} label="Select" onClick={() => execCmd('selectAll')} />
                   </RibbonGroup>
               </>
           )}
 
           {activeTab === 'Insert' && (
               <>
-                  <RibbonGroup label="Media">
+                  <RibbonGroup label="Tables">
+                      <RibbonButton icon={TableIcon} label="Table" onClick={insertTable} />
+                  </RibbonGroup>
+                  <RibbonGroup label="Illustrations">
                       <div className="relative">
                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                           <RibbonButton icon={ImageIcon} label="Pictures" onClick={() => fileInputRef.current?.click()} />
                       </div>
+                  </RibbonGroup>
+                  <RibbonGroup label="Links">
                       <RibbonButton icon={LinkIcon} label="Link" onClick={() => { const url = prompt('Enter URL:'); if(url) execCmd('createLink', url); }} />
+                  </RibbonGroup>
+                  <RibbonGroup label="Text">
+                      <RibbonButton icon={Calendar} label="Date & Time" onClick={insertDate} />
+                      <RibbonButton icon={MinusSquare} label="Horiz. Line" onClick={() => execCmd('insertHorizontalRule')} />
                   </RibbonGroup>
               </>
           )}
-          
-          {/* Other tabs can be placeholders */}
-          {['File', 'Layout', 'View'].includes(activeTab) && (
-              <div className="px-4 text-sm text-slate-400 italic">Options for {activeTab} coming soon...</div>
+
+          {activeTab === 'Layout' && (
+              <>
+                  <RibbonGroup label="Page Setup">
+                      <div className="flex gap-1">
+                          <div className="flex flex-col gap-1">
+                              <span className="text-[10px] text-slate-500">Margins:</span>
+                              <select className="text-xs border rounded p-1" value={margins} onChange={(e) => setMargins(e.target.value as any)}>
+                                  <option value="Normal">Normal</option>
+                                  <option value="Narrow">Narrow</option>
+                                  <option value="Wide">Wide</option>
+                              </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                              <span className="text-[10px] text-slate-500">Orientation:</span>
+                              <select className="text-xs border rounded p-1" value={orientation} onChange={(e) => setOrientation(e.target.value as any)}>
+                                  <option value="Portrait">Portrait</option>
+                                  <option value="Landscape">Landscape</option>
+                              </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                              <span className="text-[10px] text-slate-500">Size:</span>
+                              <select className="text-xs border rounded p-1" value={pageSize} onChange={(e) => setPageSize(e.target.value as any)}>
+                                  <option value="A4">A4</option>
+                                  <option value="Letter">Letter</option>
+                              </select>
+                          </div>
+                      </div>
+                  </RibbonGroup>
+                  <RibbonGroup label="Paragraph">
+                      <div className="flex items-center">
+                          <SmallRibbonButton icon={LayoutTemplate} title="Paragraph Settings" />
+                          <span className="text-xs ml-1 text-slate-500">Spacing</span>
+                      </div>
+                  </RibbonGroup>
+              </>
+          )}
+
+          {activeTab === 'View' && (
+              <>
+                  <RibbonGroup label="Views">
+                      <RibbonButton icon={FileText} label="Print Layout" active={true} />
+                      <RibbonButton icon={Grid} label="Web Layout" />
+                  </RibbonGroup>
+                  <RibbonGroup label="Zoom">
+                      <RibbonButton icon={Search} label="100%" onClick={() => setZoom(100)} />
+                      <div className="flex flex-col gap-1">
+                          <SmallRibbonButton icon={Plus} onClick={() => setZoom(z => Math.min(200, z + 10))} title="Zoom In" />
+                          <SmallRibbonButton icon={Minus} onClick={() => setZoom(z => Math.max(10, z - 10))} title="Zoom Out" />
+                      </div>
+                  </RibbonGroup>
+                  <RibbonGroup label="Window">
+                      <RibbonButton icon={Maximize} label="Full Screen" onClick={() => document.documentElement.requestFullscreen()} />
+                  </RibbonGroup>
+              </>
+          )}
+
+          {activeTab === 'File' && (
+              <RibbonGroup label="Print">
+                  <RibbonButton icon={Printer} label="Print" onClick={handlePrint} />
+              </RibbonGroup>
           )}
       </div>
 
-      {/* 4. EDITOR WORKSPACE (Gray Background + White Paper) */}
+      {/* 4. EDITOR WORKSPACE */}
       <div 
-        className="flex-1 overflow-y-auto bg-[#e3e5e8] relative p-8 flex justify-center cursor-text"
+        className="flex-1 overflow-y-auto bg-[#e3e5e8] relative p-8 flex justify-center cursor-text print:p-0 print:bg-white print:overflow-visible"
         onClick={() => editorRef.current?.focus()}
       >
-          {/* Ruler Simulation */}
-          {/* <div className="absolute top-0 left-0 right-0 h-6 bg-white border-b border-slate-300 flex items-end px-[calc(50%-4in)] text-[8px] text-slate-400">
-              <div className="flex-1 border-l border-slate-300 h-2 ml-4"></div>
-          </div> */}
-
           <div
             ref={editorRef}
             contentEditable
             onInput={updateStats}
-            onKeyDown={updateStats}
-            className="bg-white shadow-xl min-h-[11in] w-[8.5in] p-[1in] outline-none text-slate-900 leading-relaxed print:w-full print:shadow-none transition-transform origin-top"
-            style={{ 
-                fontFamily: 'Arial, sans-serif',
-                transform: `scale(${zoom / 100})`
-            }}
+            onKeyUp={checkFormats}
+            onMouseUp={checkFormats}
+            className="bg-white shadow-xl outline-none text-slate-900 leading-relaxed print:shadow-none print:w-full print:h-auto print:m-0"
+            style={getPageStyle()}
           >
               {/* Content goes here */}
           </div>
       </div>
 
       {/* 5. STATUS BAR */}
-      <div className="bg-[#2b579a] text-white text-[11px] h-6 flex justify-between items-center px-2 shrink-0 select-none">
+      <div className="bg-[#2b579a] text-white text-[11px] h-6 flex justify-between items-center px-2 shrink-0 select-none print:hidden">
           <div className="flex gap-4">
               <span>Page 1 of 1</span>
               <span>{wordCount} words</span>
@@ -353,7 +492,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           <div className="flex items-center gap-3">
               <span>Focus</span>
               <div className="flex items-center gap-2">
-                  <button onClick={() => setZoom(z => Math.max(10, z - 10))}><Minus size={10} /></button>
+                  <button type="button" onClick={() => setZoom(z => Math.max(10, z - 10))}><Minus size={10} /></button>
                   <input 
                     type="range" 
                     min="10" 
@@ -362,7 +501,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                     onChange={(e) => setZoom(Number(e.target.value))}
                     className="w-24 h-1 bg-blue-300 rounded-lg appearance-none cursor-pointer"
                   />
-                  <button onClick={() => setZoom(z => Math.min(200, z + 10))}><Plus size={10} /></button>
+                  <button type="button" onClick={() => setZoom(z => Math.min(200, z + 10))}><Plus size={10} /></button>
                   <span>{zoom}%</span>
               </div>
           </div>
