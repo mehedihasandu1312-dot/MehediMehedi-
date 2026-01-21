@@ -40,8 +40,8 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
     }
   ]);
 
-  const [activeImageInputIndex, setActiveImageInputIndex] = useState<number | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  // Upload state per question index to show loader specific to that question
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
   // Derived Stats
   const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
@@ -103,29 +103,25 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
       updateQuestion(index, 'text', newText);
   };
 
-  const toggleImageInput = (index: number) => {
-      setActiveImageInputIndex(activeImageInputIndex === index ? null : index);
-  };
-
   // --- HYBRID UPLOAD LOGIC ---
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, qIndex: number) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      setIsUploading(true);
+      setUploadingIndex(qIndex);
 
       if (file.size < 700 * 1024) {
-          // Direct Base64
+          // Direct Base64 for small files (faster, saves storage calls)
           const reader = new FileReader();
           reader.onload = (event) => {
               if (event.target?.result) {
                   updateQuestion(qIndex, 'image', event.target.result as string);
-                  setIsUploading(false);
+                  setUploadingIndex(null);
               }
           };
           reader.readAsDataURL(file);
       } else {
-          // Firebase Storage
+          // Firebase Storage for larger files
           const storageRef = ref(storage, `exam_questions/${Date.now()}_${file.name}`);
           const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -134,12 +130,12 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
               (error) => {
                   console.error("Upload error:", error);
                   alert("Upload failed. Try a smaller image.");
-                  setIsUploading(false);
+                  setUploadingIndex(null);
               },
               async () => {
                   const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                   updateQuestion(qIndex, 'image', downloadURL);
-                  setIsUploading(false);
+                  setUploadingIndex(null);
               }
           );
       }
@@ -184,7 +180,7 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
       questionsCount,
       questionList: questions,
       isPublished: false,
-      isPremium: basicInfo.isPremium // Pass premium flag
+      isPremium: basicInfo.isPremium
     });
   };
 
@@ -388,36 +384,8 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
                                       <button type="button" onClick={() => insertTextAtCursor(idx, '∑ ')} className="p-1 hover:bg-slate-200 rounded text-slate-600 font-serif" title="Sum">∑</button>
                                       <button type="button" onClick={() => insertTextAtCursor(idx, 'π ')} className="p-1 hover:bg-slate-200 rounded text-slate-600 font-serif" title="Pi">π</button>
                                       <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                                      <button type="button" onClick={() => toggleImageInput(idx)} className={`p-1 hover:bg-slate-200 rounded ${activeImageInputIndex === idx ? 'bg-indigo-100 text-indigo-600' : 'text-slate-600'}`} title="Add Image"><ImageIcon size={14}/></button>
                                       <button type="button" onClick={() => insertTextAtCursor(idx, '<span style="color:red">Text</span> ')} className="p-1 hover:bg-slate-200 rounded text-red-500 font-bold" title="Red Color">A</button>
                                   </div>
-
-                                  {/* Image Input (Toggle) */}
-                                  {activeImageInputIndex === idx && (
-                                      <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col gap-2 animate-fade-in">
-                                          <div className="flex items-center gap-2">
-                                              <Upload size={14} className="text-slate-400"/>
-                                              <input 
-                                                type="file" 
-                                                accept="image/*"
-                                                className="text-xs text-slate-500"
-                                                onChange={(e) => handleImageUpload(e, idx)}
-                                                disabled={isUploading}
-                                              />
-                                              {isUploading && <Loader2 size={14} className="animate-spin text-indigo-500"/>}
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                              <input 
-                                                type="text" 
-                                                className="flex-1 text-xs p-1.5 border rounded focus:outline-none"
-                                                placeholder="Or Paste Image URL here..."
-                                                value={q.image || ''}
-                                                onChange={e => updateQuestion(idx, 'image', e.target.value)}
-                                              />
-                                              <button type="button" onClick={() => toggleImageInput(idx)} className="text-xs text-slate-500 hover:text-slate-800">Close</button>
-                                          </div>
-                                      </div>
-                                  )}
 
                                   {/* Text Area */}
                                   <textarea 
@@ -427,18 +395,37 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
                                       value={q.text}
                                       onChange={e => updateQuestion(idx, 'text', e.target.value)}
                                   />
-                                  
-                                  {/* Image Preview */}
-                                  {q.image && (
-                                      <div className="p-2 bg-slate-50 border-t border-slate-200 relative group">
-                                          <img src={q.image} alt="Question Attachment" className="max-h-32 rounded border border-slate-200" />
+                              </div>
+
+                              {/* PROMINENT IMAGE UPLOAD SECTION */}
+                              <div className="mt-2">
+                                  {q.image ? (
+                                      <div className="relative group inline-block">
+                                          <img src={q.image} alt="Question Attachment" className="max-h-40 rounded border border-slate-300 bg-slate-50" />
                                           <button 
                                             type="button" 
                                             onClick={() => updateQuestion(idx, 'image', '')}
-                                            className="absolute top-3 left-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+                                            title="Remove Image"
                                           >
-                                              <X size={12} />
+                                              <X size={14} />
                                           </button>
+                                      </div>
+                                  ) : (
+                                      <div className="flex items-center gap-2">
+                                          <label htmlFor={`q-img-upload-${idx}`} className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition-colors ${uploadingIndex === idx ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                              {uploadingIndex === idx ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
+                                              {uploadingIndex === idx ? 'Uploading...' : 'Upload Question Image'}
+                                          </label>
+                                          <input 
+                                              id={`q-img-upload-${idx}`}
+                                              type="file" 
+                                              accept="image/*"
+                                              className="hidden"
+                                              onChange={(e) => handleImageUpload(e, idx)}
+                                              disabled={uploadingIndex !== null}
+                                          />
+                                          <span className="text-[10px] text-slate-400">Optional. Supports JPG/PNG.</span>
                                       </div>
                                   )}
                               </div>
@@ -455,7 +442,7 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
 
                               {/* MCQ Options */}
                               {basicInfo.examFormat === 'MCQ' && (
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                                       {q.options?.map((opt, optIdx) => (
                                           <div key={optIdx} className="flex items-center">
                                               <input 
@@ -501,9 +488,9 @@ const ExamCreationForm: React.FC<ExamCreationFormProps> = ({ onSubmit, folders, 
       </div>
 
       <div className="pt-6 border-t border-slate-200">
-          <Button type="submit" className="w-full py-3 text-lg flex items-center justify-center" disabled={isUploading}>
-              {isUploading ? <Loader2 className="animate-spin mr-2"/> : <Save size={20} className="mr-2" />} 
-              {isUploading ? 'Uploading Images...' : 'Save Exam'}
+          <Button type="submit" className="w-full py-3 text-lg flex items-center justify-center" disabled={uploadingIndex !== null}>
+              {uploadingIndex !== null ? <Loader2 className="animate-spin mr-2"/> : <Save size={20} className="mr-2" />} 
+              {uploadingIndex !== null ? 'Uploading Images...' : 'Save Exam'}
           </Button>
       </div>
 
