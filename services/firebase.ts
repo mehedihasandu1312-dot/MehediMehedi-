@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
@@ -19,15 +19,13 @@ export const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// Initialize Firestore with settings to prevent timeouts
+// Initialize Firestore with robust settings for unstable networks
 const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, // Fixes "Backend didn't respond" errors by using HTTP long-polling
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
+  experimentalForceLongPolling: true, // Forces HTTP polling to bypass websocket timeouts
+  localCache: memoryLocalCache() // Uses RAM instead of disk to prevent IndexedDB errors
 });
 
-const storage = getStorage(app); // Storage initialized
+const storage = getStorage(app); 
 const googleProvider = new GoogleAuthProvider();
 
 export { app, auth, db, storage, googleProvider };

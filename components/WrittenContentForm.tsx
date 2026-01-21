@@ -168,10 +168,16 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   };
 
   const openTableModal = () => {
-      // Save current selection before opening modal
+      // Robust Selection Saving
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
-          savedSelection.current = selection.getRangeAt(0);
+          // Verify the selection is actually inside our editor
+          const range = selection.getRangeAt(0);
+          if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
+              savedSelection.current = range.cloneRange();
+          } else {
+              savedSelection.current = null;
+          }
       } else {
           savedSelection.current = null;
       }
@@ -185,29 +191,33 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       e.preventDefault();
       setIsTableModalOpen(false);
       
-      // Slight delay to allow modal to close and focus to reset
+      // Delay to handle modal closing interaction
       setTimeout(() => {
-          if (editorRef.current) {
-              editorRef.current.focus();
-          }
+          const editor = editorRef.current;
+          if (!editor) return;
 
-          // Restore selection
+          editor.focus();
+
+          const selection = window.getSelection();
+          if (!selection) return;
+
+          // RESTORE SELECTION or FALLBACK to end
           if (savedSelection.current) {
-              const selection = window.getSelection();
-              if (selection) {
-                  selection.removeAllRanges();
-                  selection.addRange(savedSelection.current);
-              }
+              selection.removeAllRanges();
+              selection.addRange(savedSelection.current);
+          } else {
+              // Fallback: If focus was lost, append to end
+              const range = document.createRange();
+              range.selectNodeContents(editor);
+              range.collapse(false); // false = collapse to end
+              selection.removeAllRanges();
+              selection.addRange(range);
           }
 
           if (tableRows > 0 && tableCols > 0) {
-              // Optimized HTML string construction
               let html = '<table style="width:100%; border-collapse: collapse; margin-bottom: 1em; border: 1px solid #cbd5e1; table-layout: fixed;"><tbody>';
-              
-              // Generate rows
               for (let i = 0; i < tableRows; i++) {
                   html += '<tr>';
-                  // Generate cols
                   for (let j = 0; j < tableCols; j++) {
                       html += '<td style="border: 1px solid #cbd5e1; padding: 8px; min-width: 50px;">&nbsp;</td>';
                   }
@@ -215,7 +225,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               }
               html += '</tbody></table><p><br/></p>';
               
-              // Insert HTML at cursor
               document.execCommand('insertHTML', false, html);
               updateStats();
           }
