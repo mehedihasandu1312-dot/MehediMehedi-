@@ -117,6 +117,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   });
 
   const [wordCount, setWordCount] = useState(0);
+  const [pageCount, setPageCount] = useState(1); // NEW: Page Counter
   const [zoom, setZoom] = useState(100);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -256,7 +257,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   }, []);
 
   // --- OPTIMIZED STATS UPDATER ---
-  // Heavy operation: Reads DOM and updates state.
   const forceUpdateStats = () => {
       if (!editorRef.current) return;
       const text = editorRef.current.innerText || '';
@@ -264,6 +264,12 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       setWordCount(count);
       setFormData(prev => ({ ...prev, body: editorRef.current?.innerHTML || '' }));
       checkFormats();
+
+      // PAGE COUNT CALCULATION (A4 height approx 1123px at 96DPI)
+      // Visual Page Break is controlled by CSS background
+      const totalHeight = editorRef.current.scrollHeight;
+      const pages = Math.max(1, Math.ceil(totalHeight / 1145)); // 1123px height + 22px gap/margin
+      setPageCount(pages);
   };
 
   // Debounced handler for onInput (Fixes INP issue)
@@ -584,7 +590,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-[85vh] bg-[#f9fbfd] overflow-hidden rounded-xl border border-slate-300 shadow-2xl relative">
+    <form onSubmit={handleSubmit} className="flex flex-col h-[85vh] bg-[#f0f2f5] overflow-hidden rounded-xl border border-slate-300 shadow-2xl relative">
       
       {/* 1. GOOGLE DOCS HEADER */}
       <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-start shrink-0 z-50">
@@ -878,7 +884,11 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                 transform: `scale(${zoom / 100})`,
                 transformOrigin: 'top center',
                 transition: 'transform 0.2s',
-                marginBottom: '2rem'
+                marginBottom: '2rem',
+                // NEW: Visual Pagination CSS
+                backgroundImage: 'linear-gradient(to bottom, white 0px, white calc(11.69in - 2px), #e2e8f0 calc(11.69in - 2px), #e2e8f0 11.69in)',
+                backgroundSize: '100% 11.69in',
+                backgroundRepeat: 'repeat-y'
             }}
           >
               {/* Content goes here */}
@@ -888,7 +898,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       {/* 5. STATUS BAR */}
       <div className="bg-white border-t border-slate-200 px-4 py-1.5 flex justify-between items-center shrink-0 select-none text-xs text-slate-500 z-50">
           <div className="flex gap-4">
-              <span>Page 1 of 1</span>
+              <span>Page {pageCount}</span>
               <span>{wordCount} words</span>
           </div>
           <div className="flex items-center gap-2">
