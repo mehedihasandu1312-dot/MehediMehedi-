@@ -14,7 +14,8 @@ import {
   CheckCircle, Minus, Plus,
   Table as TableIcon, Calendar, MinusSquare,
   LayoutTemplate, Maximize, Printer, FileText,
-  Settings, Grid
+  Settings, Grid,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Trash2, Layout
 } from 'lucide-react';
 
 interface WrittenContentFormProps {
@@ -181,6 +182,75 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       }
   };
 
+  // --- TABLE MANIPULATION HELPERS ---
+  const getTableElements = () => {
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount) return null;
+      let node = selection.anchorNode;
+      // If text node, get parent
+      if (node && node.nodeType === 3) node = node.parentNode;
+      
+      const element = node as HTMLElement;
+      const td = element.closest('td, th') as HTMLTableCellElement;
+      const tr = element.closest('tr') as HTMLTableRowElement;
+      const table = element.closest('table') as HTMLTableElement;
+      
+      return { table, tr, td };
+  };
+
+  const manipulateTable = (action: 'addRowAbove' | 'addRowBelow' | 'addColLeft' | 'addColRight' | 'delRow' | 'delCol' | 'delTable') => {
+      const els = getTableElements();
+      if (!els || !els.table) {
+          alert("Please place your cursor inside a table cell first.");
+          return;
+      }
+      const { table, tr, td } = els;
+
+      switch(action) {
+          case 'addRowAbove':
+          case 'addRowBelow':
+              if(tr) {
+                  const idx = action === 'addRowAbove' ? tr.rowIndex : tr.rowIndex + 1;
+                  const newRow = table.insertRow(idx);
+                  const colCount = tr.cells.length;
+                  for(let i=0; i<colCount; i++) {
+                      const cell = newRow.insertCell(i);
+                      cell.style.border = '1px solid #cbd5e1';
+                      cell.style.padding = '8px';
+                      cell.innerHTML = '&nbsp;';
+                  }
+              }
+              break;
+          case 'addColLeft':
+          case 'addColRight':
+              if(td) {
+                  const idx = action === 'addColLeft' ? td.cellIndex : td.cellIndex + 1;
+                  for(let i=0; i<table.rows.length; i++) {
+                      const cell = table.rows[i].insertCell(idx);
+                      cell.style.border = '1px solid #cbd5e1';
+                      cell.style.padding = '8px';
+                      cell.innerHTML = '&nbsp;';
+                  }
+              }
+              break;
+          case 'delRow':
+              if(tr) table.deleteRow(tr.rowIndex);
+              break;
+          case 'delCol':
+              if(td) {
+                  const idx = td.cellIndex;
+                  for(let i=0; i<table.rows.length; i++) {
+                      if(table.rows[i].cells.length > idx) table.rows[i].deleteCell(idx);
+                  }
+              }
+              break;
+          case 'delTable':
+              table.remove();
+              break;
+      }
+      updateStats();
+  };
+
   const insertDate = () => {
       const date = new Date().toLocaleDateString();
       execCmd('insertText', date);
@@ -286,13 +356,13 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       </div>
 
       {/* 2. RIBBON TABS */}
-      <div className="bg-white border-b border-slate-300 px-2 flex gap-1 shrink-0">
-          {['File', 'Home', 'Insert', 'Layout', 'View'].map(tab => (
+      <div className="bg-white border-b border-slate-300 px-2 flex gap-1 shrink-0 overflow-x-auto">
+          {['File', 'Home', 'Insert', 'Layout', 'Table Layout', 'View'].map(tab => (
               <button 
                 key={tab}
                 type="button"
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1 text-xs font-medium border-b-2 transition-colors mt-1 ${
+                className={`px-4 py-1 text-xs font-medium border-b-2 transition-colors mt-1 whitespace-nowrap ${
                     activeTab === tab 
                     ? 'border-[#2b579a] text-[#2b579a] font-bold bg-slate-50' 
                     : 'border-transparent text-slate-600 hover:bg-slate-50'
@@ -445,6 +515,40 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                           <SmallRibbonButton icon={LayoutTemplate} title="Paragraph Settings" />
                           <span className="text-xs ml-1 text-slate-500">Spacing</span>
                       </div>
+                  </RibbonGroup>
+              </>
+          )}
+
+          {/* NEW TABLE LAYOUT TAB */}
+          {activeTab === 'Table Layout' && (
+              <>
+                  <RibbonGroup label="Rows & Columns">
+                      <div className="flex gap-1">
+                          <div className="flex flex-col gap-1">
+                              <SmallRibbonButton icon={ArrowUp} onClick={() => manipulateTable('addRowAbove')} title="Insert Above" />
+                              <SmallRibbonButton icon={ArrowDown} onClick={() => manipulateTable('addRowBelow')} title="Insert Below" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                              <SmallRibbonButton icon={ArrowLeft} onClick={() => manipulateTable('addColLeft')} title="Insert Left" />
+                              <SmallRibbonButton icon={ArrowRight} onClick={() => manipulateTable('addColRight')} title="Insert Right" />
+                          </div>
+                      </div>
+                  </RibbonGroup>
+                  <RibbonGroup label="Delete">
+                       <div className="flex flex-col gap-1 w-full justify-center">
+                          <div className="flex items-center gap-1 cursor-pointer hover:bg-red-50 p-1 rounded transition-colors" onClick={() => manipulateTable('delRow')}>
+                              <Trash2 size={14} className="text-red-500" /> <span className="text-[10px] font-medium text-slate-700">Delete Row</span>
+                          </div>
+                          <div className="flex items-center gap-1 cursor-pointer hover:bg-red-50 p-1 rounded transition-colors" onClick={() => manipulateTable('delCol')}>
+                              <Trash2 size={14} className="text-red-500" /> <span className="text-[10px] font-medium text-slate-700">Delete Col</span>
+                          </div>
+                          <div className="flex items-center gap-1 cursor-pointer hover:bg-red-50 p-1 rounded transition-colors border-t border-slate-200 mt-0.5 pt-0.5" onClick={() => manipulateTable('delTable')}>
+                              <Trash2 size={14} className="text-red-600 font-bold" /> <span className="text-[10px] font-bold text-red-600">Delete Table</span>
+                          </div>
+                       </div>
+                  </RibbonGroup>
+                  <RibbonGroup label="Merge">
+                      <RibbonButton icon={Layout} label="Merge Cells" onClick={() => alert("Merge feature coming soon!")} />
                   </RibbonGroup>
               </>
           )}
