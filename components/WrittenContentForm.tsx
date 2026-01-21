@@ -17,8 +17,12 @@ import {
   Crown,
   FileText,
   Undo,
-  Redo
+  Redo,
+  Loader2,
+  Upload
 } from 'lucide-react';
+import { storage } from '../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface WrittenContentFormProps {
   folders: Folder[];
@@ -82,6 +86,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const [wordCount, setWordCount] = useState(0);
   const [zoom, setZoom] = useState(100);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
+  const [isUploading, setIsUploading] = useState(false);
   
   // Table Picker
   const [showTableGrid, setShowTableGrid] = useState(false);
@@ -183,19 +188,50 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- UPDATED IMAGE UPLOAD (FIREBASE STORAGE) ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          execCmd('insertImage', event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+        // Upload to Firebase Storage
+        const storageRef = ref(storage, `content_images/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+            null,
+            (error) => {
+                console.error("Upload failed", error);
+                alert("Image upload failed. Please try again.");
+                setIsUploading(false);
+            },
+            async () => {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                
+                // Insert into Editor
+                if (editorRef.current) {
+                    editorRef.current.focus();
+                    // Insert Image with some default styling
+                    const imgHtml = `<img src="${downloadURL}" style="max-width: 100%; height: auto; margin: 10px 0;" alt="Uploaded Image" /><br/>`;
+                    document.execCommand('insertHTML', false, imgHtml);
+                    updateStats();
+                }
+                setIsUploading(false);
+            }
+        );
+    } catch (error) {
+        console.error("Error:", error);
+        setIsUploading(false);
     }
-    // Reset value so same file can be selected again
+
+    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const triggerUpload = () => {
+      fileInputRef.current?.click();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -228,16 +264,28 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   <FileText size={24} />
               </div>
               <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full">
+                      {/* Title Input (Question) */}
                       <input 
                         type="text" 
                         className="text-lg font-medium text-slate-800 bg-transparent border border-transparent focus:border-blue-500 focus:bg-white rounded px-1.5 py-0.5 focus:ring-0 placeholder:text-slate-400 w-full md:w-96 transition-all hover:border-slate-300"
-                        placeholder="Untitled Document"
+                        placeholder="Untitled Document (Type Question Here)"
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
                       />
+                      
+                      {/* NEW: Direct Image Upload Button next to Title */}
+                      <button 
+                        type="button"
+                        onClick={triggerUpload}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors relative"
+                        title="Upload Image for Question"
+                      >
+                          {isUploading ? <Loader2 className="animate-spin" size={20} /> : <ImageIcon size={20} />}
+                      </button>
+
                       {/* Premium Toggle */}
-                      <label className="flex items-center cursor-pointer bg-amber-50 px-2 py-1 rounded-md hover:bg-amber-100 transition-colors select-none border border-amber-200 ml-2">
+                      <label className="flex items-center cursor-pointer bg-amber-50 px-2 py-1 rounded-md hover:bg-amber-100 transition-colors select-none border border-amber-200 ml-2 whitespace-nowrap">
                           <input 
                             type="checkbox" 
                             className="mr-1.5 h-3 w-3 text-amber-600 rounded focus:ring-amber-500"
@@ -253,7 +301,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">File</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Edit</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">View</span>
-                      <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Insert</span>
+                      <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors" onClick={triggerUpload}>Insert</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Format</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Tools</span>
                       
@@ -350,7 +398,13 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           
           <div className="relative">
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-              <ToolbarButton icon={ImageIcon} onClick={() => fileInputRef.current?.click()} title="Insert Image" />
+              <ToolbarButton 
+                icon={isUploading ? Loader2 : ImageIcon} 
+                onClick={triggerUpload} 
+                title="Insert Image" 
+                disabled={isUploading}
+                className={isUploading ? 'animate-spin text-blue-600' : ''}
+              />
           </div>
 
           {/* Table Picker */}
