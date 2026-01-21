@@ -63,8 +63,9 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   // Navigation State (Explorer)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
-  // Filter State - Default to WRITTEN since ALL is removed
+  // Filter State
   const [filterType, setFilterType] = useState<ContentType>(ContentType.WRITTEN);
+  const [filterClass, setFilterClass] = useState<string>('ALL'); // NEW: Class Filter
 
   // Modal State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -120,7 +121,8 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
 
   const displayedFolders = folders.filter(f => 
     ((currentFolderId === null && !f.parentId) || f.parentId === currentFolderId) &&
-    (!f.type || f.type === 'CONTENT')
+    (!f.type || f.type === 'CONTENT') &&
+    (currentFolderId !== null || filterClass === 'ALL' || f.targetClass === filterClass) // Apply Class Filter only at root
   );
   
   // Apply Type Filter here
@@ -452,8 +454,28 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 </div>
             </div>
 
-            {/* Actions */}
+            {/* Actions & Filters */}
             <div className="flex items-center gap-2">
+                {/* NEW CLASS FILTER */}
+                {currentFolderId === null && (
+                    <div className="relative">
+                        <Target className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                        <select 
+                            className="pl-8 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+                            value={filterClass}
+                            onChange={(e) => setFilterClass(e.target.value)}
+                        >
+                            <option value="ALL">All Classes</option>
+                            <optgroup label="Regular">
+                                {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                            </optgroup>
+                            <optgroup label="Admission">
+                                {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                            </optgroup>
+                        </select>
+                    </div>
+                )}
+
                 <Button 
                     variant="outline" 
                     className="flex items-center text-sm"
@@ -502,17 +524,11 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                     <div className="bg-slate-50 p-6 rounded-full mb-4">
                         <FolderPlus size={48} className="text-slate-300" />
                     </div>
-                    <p>Root directory is empty.</p>
+                    <p>Root directory is empty for this filter.</p>
                     <Button variant="outline" className="mt-4" onClick={openCreateFolderModal}>Create First Folder</Button>
                  </div>
             ) : (
                 <div className="space-y-8">
-                    {/* Render Grouped Folders (Usually folders don't have types like MCQ/Written, so we show them only if no specific type is selected or maybe always?) 
-                        Decision: Since 'ALL' is removed, we only show content files for the selected type. Folders are navigation, so they might not fit under 'Written' or 'MCQ'.
-                        However, the user asked to remove 'All' button. 
-                        Let's hide folders if we are deep inside content filtering, OR show them always at top?
-                        Actually, typical behavior: Folders are always visible for navigation. The filter applies to Files.
-                    */}
                     {sortedClassKeys.length > 0 && (
                         sortedClassKeys.map(className => (
                             <div key={className}>

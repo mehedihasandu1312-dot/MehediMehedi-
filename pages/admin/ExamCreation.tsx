@@ -26,6 +26,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   
   // Filter State
   const [filterFormat, setFilterFormat] = useState<'ALL' | 'MCQ' | 'WRITTEN'>('ALL');
+  const [filterClass, setFilterClass] = useState<string>('ALL'); // NEW: Class Filter
 
   // Folder Creation/Edit State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -174,12 +175,15 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const foldersByClass = useMemo(() => {
       const groups: Record<string, Folder[]> = {};
       examFolders.forEach(folder => {
+          // Class Filter Logic
+          if (filterClass !== 'ALL' && folder.targetClass !== filterClass) return;
+
           const key = folder.targetClass || 'General / Uncategorized';
           if (!groups[key]) groups[key] = [];
           groups[key].push(folder);
       });
       return groups;
-  }, [examFolders]);
+  }, [examFolders, filterClass]);
 
   const sortedClassKeys = Object.keys(foldersByClass).sort((a, b) => {
       if (a.includes('General')) return 1;
@@ -346,14 +350,33 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   return (
     <div className="space-y-8 animate-fade-in pb-10">
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
               <h1 className="text-2xl font-bold text-slate-800">Exam Management</h1>
               <p className="text-slate-500 text-sm">Select a folder to manage or set exams.</p>
           </div>
-          <div className="flex gap-3 mt-4 md:mt-0">
-              <Button variant="outline" onClick={openCreateFolderModal} className="flex items-center">
-                  <FolderPlus size={18} className="mr-2" /> New Folder
+          
+          <div className="flex items-center gap-3 flex-wrap">
+              {/* NEW CLASS FILTER */}
+              <div className="relative">
+                  <Target className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
+                  <select 
+                      className="pl-8 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+                      value={filterClass}
+                      onChange={(e) => setFilterClass(e.target.value)}
+                  >
+                      <option value="ALL">All Classes</option>
+                      <optgroup label="Regular">
+                          {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
+                      <optgroup label="Admission">
+                          {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
+                  </select>
+              </div>
+
+              <Button variant="outline" onClick={openCreateFolderModal} className="flex items-center text-sm">
+                  <FolderPlus size={16} className="mr-2" /> New Folder
               </Button>
           </div>
       </div>
@@ -401,7 +424,10 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
           </h3>
           
           {sortedClassKeys.length === 0 ? (
-              <p className="text-slate-400 italic pl-2">No folders created yet.</p>
+              <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                  <Target size={48} className="mx-auto mb-2 opacity-20" />
+                  <p>No folders found for this class.</p>
+              </div>
           ) : (
               sortedClassKeys.map(className => (
                   <div key={className} className="mb-6">
