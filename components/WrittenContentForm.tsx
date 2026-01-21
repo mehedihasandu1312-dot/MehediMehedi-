@@ -150,6 +150,9 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const colorInputRef = useRef<HTMLInputElement>(null);
   const highlightInputRef = useRef<HTMLInputElement>(null);
 
+  // Debounce Timer Ref for INP Optimization
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Initialize Data
   useEffect(() => {
     if (initialData) {
@@ -161,7 +164,8 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       });
       if (editorRef.current) {
         editorRef.current.innerHTML = initialData.body || '';
-        updateStats();
+        // Calculate initial stats without debounce
+        forceUpdateStats();
       }
     }
   }, [initialData]);
@@ -189,18 +193,15 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
     const onMouseDown = (e: MouseEvent) => {
         const target = e.target as HTMLElement;
-        // Only handle if target is a table cell (TD or TH)
         if (target.tagName !== 'TD' && target.tagName !== 'TH') return;
 
         const rect = target.getBoundingClientRect();
-        // Check if mouse is near right border (Column Resize)
         const isRightEdge = e.clientX > rect.right - 8;
-        // Check if mouse is near bottom border (Row Resize)
         const isBottomEdge = e.clientY > rect.bottom - 8;
 
         if (isRightEdge) {
             currentResizer = { el: target, type: 'col', startVal: target.offsetWidth, startPos: e.clientX };
-            e.preventDefault(); // Prevent text selection
+            e.preventDefault(); 
         } else if (isBottomEdge) {
             currentResizer = { el: target, type: 'row', startVal: target.offsetHeight, startPos: e.clientY };
             e.preventDefault();
@@ -213,20 +214,17 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                 const diff = e.clientX - currentResizer.startPos;
                 const newVal = Math.max(20, currentResizer.startVal + diff);
                 currentResizer.el.style.width = `${newVal}px`;
-                // Also setting minWidth prevents collapse
                 currentResizer.el.style.minWidth = `${newVal}px`;
             } else {
                 const diff = e.clientY - currentResizer.startPos;
                 const newVal = Math.max(20, currentResizer.startVal + diff);
                 currentResizer.el.style.height = `${newVal}px`;
-                // Apply height to the parent TR to ensure consistency
                 const tr = currentResizer.el.parentElement;
                 if(tr) tr.style.height = `${newVal}px`;
             }
             return;
         }
 
-        // Hover Effect to show cursor
         const target = e.target as HTMLElement;
         if ((target.tagName === 'TD' || target.tagName === 'TH') && editor.contains(target)) {
             const rect = target.getBoundingClientRect();
@@ -237,7 +235,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
             else if (isBottomEdge) editor.style.cursor = 'row-resize';
             else editor.style.cursor = 'text';
         } else {
-            // Reset cursor if moved out of cell range but still in editor
             if(editor.style.cursor !== 'text') editor.style.cursor = 'text';
         }
     };
@@ -247,9 +244,8 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
         if(editor) editor.style.cursor = 'text';
     };
 
-    // Attach listeners
     editor.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove); // Global move to prevent cursor slip
+    window.addEventListener('mousemove', onMouseMove); 
     window.addEventListener('mouseup', onMouseUp);
 
     return () => {
@@ -259,13 +255,25 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     };
   }, []);
 
-  const updateStats = () => {
+  // --- OPTIMIZED STATS UPDATER ---
+  // Heavy operation: Reads DOM and updates state.
+  const forceUpdateStats = () => {
       if (!editorRef.current) return;
       const text = editorRef.current.innerText || '';
       const count = text.trim().split(/\s+/).filter(w => w.length > 0).length;
       setWordCount(count);
       setFormData(prev => ({ ...prev, body: editorRef.current?.innerHTML || '' }));
       checkFormats();
+  };
+
+  // Debounced handler for onInput (Fixes INP issue)
+  const handleInput = () => {
+      if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+          forceUpdateStats();
+      }, 300); // 300ms delay to unblock main thread
   };
 
   const checkFormats = () => {
@@ -285,28 +293,27 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   const execCmd = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
     if (editorRef.current) {
-        // Ensure focus remains in editor
         editorRef.current.focus();
     }
-    updateStats();
+    // Immediate update for toolbar actions
+    forceUpdateStats();
   };
 
   // --- KEYBOARD HANDLING (Shortcuts & Tab) ---
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       
-      // 1. TABLE NAVIGATION (Tab Key)
+      // 1. TABLE NAVIGATION
       if (e.key === 'Tab') {
           const selection = window.getSelection();
           if (!selection || selection.rangeCount === 0) return;
 
           let node = selection.anchorNode as Node | null;
-          // Traverse up to find TD/TH, stop at editor root
           while (node && node !== editorRef.current && node.nodeName !== 'TD' && node.nodeName !== 'TH') {
               node = node.parentElement;
           }
 
           if (node && (node.nodeName === 'TD' || node.nodeName === 'TH')) {
-              e.preventDefault(); // Stop indent/focus loss or default tab behavior
+              e.preventDefault(); 
               
               const cell = node as HTMLTableCellElement;
               const row = cell.parentElement as HTMLTableRowElement;
@@ -320,11 +327,9 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               if (e.shiftKey) {
                   // SHIFT + TAB: Previous Cell
                   if (currentCellIndex > 0) {
-                      // Same row, prev cell
                       const target = cells[currentCellIndex - 1];
                       moveCursorToNode(target);
                   } else if (currentRowIndex > 0) {
-                      // Prev row, last cell
                       const prevRow = rows[currentRowIndex - 1];
                       const prevRowCells = prevRow.querySelectorAll('td, th');
                       const target = prevRowCells[prevRowCells.length - 1] as HTMLElement;
@@ -333,36 +338,28 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               } else {
                   // TAB: Next Cell
                   if (currentCellIndex < cells.length - 1) {
-                      // Same row, next cell
                       const target = cells[currentCellIndex + 1];
                       moveCursorToNode(target);
                   } else if (currentRowIndex < rows.length - 1) {
-                      // Next row, first cell
                       const nextRow = rows[currentRowIndex + 1];
                       const target = nextRow.querySelectorAll('td, th')[0] as HTMLElement;
                       moveCursorToNode(target);
                   } else {
-                      // Last cell of last row -> ADD NEW ROW
+                      // Auto Add Row
                       const newRow = row.cloneNode(true) as HTMLTableRowElement;
-                      // Clear content of cloned cells but keep styles
                       Array.from(newRow.querySelectorAll('td, th')).forEach(c => c.innerHTML = '<br>');
-                      
-                      // Append to tbody (or table if no tbody)
                       const parent = row.parentElement;
                       if(parent) parent.appendChild(newRow);
-                      
-                      // Move focus to first cell of new row
                       const target = newRow.querySelectorAll('td, th')[0] as HTMLElement;
                       moveCursorToNode(target);
-                      
-                      updateStats();
+                      forceUpdateStats();
                   }
               }
-              return; // Exit function so we don't trigger generic indent logic below
+              return;
           }
       }
 
-      // 2. GENERIC TEXT INDENTATION (If not in table)
+      // 2. GENERIC TEXT INDENTATION
       if (e.key === 'Tab') {
           e.preventDefault();
           if (e.shiftKey) {
@@ -370,51 +367,31 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           } else {
               document.execCommand('indent', false, undefined);
           }
-          updateStats();
+          forceUpdateStats();
           return;
       }
 
-      // 3. CUSTOM SHORTCUTS (Ctrl+B, etc)
+      // 3. CUSTOM SHORTCUTS
       if (e.ctrlKey || e.metaKey) {
           const key = e.key.toLowerCase();
           
           switch (key) {
-              case 'b': // Bold
+              case 'b': e.preventDefault(); execCmd('bold'); break;
+              case 'i': e.preventDefault(); execCmd('italic'); break;
+              case 'u': e.preventDefault(); execCmd('underline'); break;
+              case 'z': 
                   e.preventDefault();
-                  execCmd('bold');
+                  if (e.shiftKey) execCmd('redo'); else execCmd('undo');
                   break;
-              case 'i': // Italic
-                  e.preventDefault();
-                  execCmd('italic');
-                  break;
-              case 'u': // Underline
-                  e.preventDefault();
-                  execCmd('underline');
-                  break;
-              case 'z': // Undo / Redo
-                  e.preventDefault();
-                  if (e.shiftKey) {
-                      execCmd('redo');
-                  } else {
-                      execCmd('undo');
-                  }
-                  break;
-              case 'y': // Redo
-                  e.preventDefault();
-                  execCmd('redo');
-                  break;
-              case 'k': // Link
+              case 'y': e.preventDefault(); execCmd('redo'); break;
+              case 'k': 
                   e.preventDefault();
                   const url = prompt('Enter URL:');
                   if (url) execCmd('createLink', url);
                   break;
-              case 'p': // Print
+              case 'p': e.preventDefault(); window.print(); break;
+              case 's': 
                   e.preventDefault();
-                  window.print();
-                  break;
-              case 's': // Save
-                  e.preventDefault();
-                  // Trigger Submit manually
                   if (formData.title && formData.folderId) {
                       const content = editorRef.current?.innerHTML || '';
                       if (content.trim()) {
@@ -430,17 +407,15 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       }
   };
 
-  // Helper to place cursor inside a cell
   const moveCursorToNode = (node: HTMLElement) => {
       const range = document.createRange();
       range.selectNodeContents(node);
-      range.collapse(true); // Collapse to start
+      range.collapse(true); 
       const selection = window.getSelection();
       if (selection) {
           selection.removeAllRanges();
           selection.addRange(range);
       }
-      // Ensure element is visible if scrolled out of view
       node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
@@ -449,7 +424,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   };
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      // Map visual px size to 1-7 for execCommand
       execCmd('fontSize', e.target.value);
   };
 
@@ -460,28 +434,23 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       editor.focus();
 
       if (rows > 0 && cols > 0) {
-          // Setting table layout fixed helps with resizing predictability
           let html = '<table style="border-collapse: collapse; width: 100%; margin: 10px 0; border: 1px solid #ccc; table-layout: fixed;"><tbody>';
-          const colWidth = Math.floor(100 / cols); // Distribute width evenly
+          const colWidth = Math.floor(100 / cols);
           for (let i = 0; i < rows; i++) {
               html += '<tr>';
               for (let j = 0; j < cols; j++) {
-                  // Added explicit width style to cells for resize logic
                   html += `<td style="border: 1px solid #ccc; padding: 5px; width: ${colWidth}%; min-width: 30px; vertical-align: top;">&nbsp;</td>`;
               }
               html += '</tr>';
           }
           html += '</tbody></table><p><br/></p>';
           document.execCommand('insertHTML', false, html);
-          updateStats();
+          forceUpdateStats();
       }
   };
 
-  // --- CHART GENERATION (QuickChart) ---
   const handleInsertChart = () => {
-      // Filter out empty labels
       const validIndices = chartConfig.labels.map((l, i) => l.trim() ? i : -1).filter(i => i !== -1);
-      
       const labels = validIndices.map(i => chartConfig.labels[i]);
       const data = validIndices.map(i => Number(chartConfig.data[i]) || 0);
 
@@ -492,24 +461,13 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               datasets: [{
                   label: chartConfig.title || 'Data',
                   data: data,
-                  backgroundColor: [
-                      'rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 
-                      'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 
-                      'rgba(153, 102, 255, 0.5)'
-                  ],
-                  borderColor: [
-                      'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 
-                      'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 
-                      'rgba(153, 102, 255, 1)'
-                  ],
+                  backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)'],
+                  borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'],
                   borderWidth: 1
               }]
           },
           options: {
-              title: {
-                  display: !!chartConfig.title,
-                  text: chartConfig.title
-              }
+              title: { display: !!chartConfig.title, text: chartConfig.title }
           }
       };
 
@@ -519,7 +477,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       if(editorRef.current) editorRef.current.focus();
       document.execCommand('insertHTML', false, imgHtml);
       setShowChartModal(false);
-      updateStats();
+      forceUpdateStats();
   };
 
   const handleComparisonInsert = () => {
@@ -550,7 +508,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       if(editorRef.current) editorRef.current.focus();
       document.execCommand('insertHTML', false, html);
       setActiveMenu(null);
-      updateStats();
+      forceUpdateStats();
   };
 
   const handleInsertHorizontalLine = () => {
@@ -566,7 +524,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       setActiveMenu(null);
   };
 
-  // --- UPDATED IMAGE UPLOAD (FIREBASE STORAGE) ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -574,7 +531,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     setIsUploading(true);
 
     try {
-        // Upload to Firebase Storage
         const storageRef = ref(storage, `content_images/${Date.now()}_${file.name}`);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -587,14 +543,11 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
             },
             async () => {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                
-                // Insert into Editor
                 if (editorRef.current) {
                     editorRef.current.focus();
-                    // Insert Image with some default styling
                     const imgHtml = `<img src="${downloadURL}" style="max-width: 100%; height: auto; margin: 10px 0;" alt="Uploaded Image" /><br/>`;
                     document.execCommand('insertHTML', false, imgHtml);
-                    updateStats();
+                    forceUpdateStats();
                 }
                 setIsUploading(false);
             }
@@ -603,8 +556,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
         console.error("Error:", error);
         setIsUploading(false);
     }
-
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -643,7 +594,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               </div>
               <div className="flex flex-col flex-1 min-w-0">
                   <div className="flex items-center gap-2 w-full">
-                      {/* Title Input (Question) */}
                       <input 
                         type="text" 
                         className="text-lg font-medium text-slate-800 bg-transparent border border-transparent focus:border-blue-500 focus:bg-white rounded px-1.5 py-0.5 focus:ring-0 placeholder:text-slate-400 w-full md:w-96 transition-all hover:border-slate-300"
@@ -652,7 +602,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                         onChange={e => setFormData({...formData, title: e.target.value})}
                       />
                       
-                      {/* Direct Image Upload Button next to Title */}
                       <button 
                         type="button"
                         onClick={triggerUpload}
@@ -662,7 +611,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                           {isUploading ? <Loader2 className="animate-spin" size={20} /> : <ImageIcon size={20} />}
                       </button>
 
-                      {/* Premium Toggle */}
                       <label className="flex items-center cursor-pointer bg-amber-50 px-2 py-1 rounded-md hover:bg-amber-100 transition-colors select-none border border-amber-200 ml-2 whitespace-nowrap">
                           <input 
                             type="checkbox" 
@@ -678,7 +626,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                   {/* MENUS (FILE, EDIT, INSERT...) */}
                   <div className="flex items-center gap-1 text-[13px] text-slate-600 mt-0.5 select-none relative" ref={menuRef}>
                       
-                      {/* File Menu */}
                       <div className="relative">
                           <span 
                               className={`hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors ${activeMenu === 'File' ? 'bg-slate-200 text-slate-800' : ''}`}
@@ -715,7 +662,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Edit</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">View</span>
                       
-                      {/* Insert Menu */}
                       <div className="relative">
                           <span 
                               className={`hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors ${activeMenu === 'Insert' ? 'bg-slate-200 text-slate-800' : ''}`}
@@ -728,7 +674,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                                   <MenuItem icon={ImageIcon} label="Image" arrow onClick={() => { triggerUpload(); setActiveMenu(null); }} />
                                   <MenuItem icon={TableIcon} label="Table" arrow onClick={() => { setShowTableGrid(true); setActiveMenu(null); }} />
                                   
-                                  {/* NEW: Chart & Comparison */}
                                   <MenuSeparator />
                                   <MenuItem icon={BarChart} label="Chart" onClick={() => { setShowChartModal(true); setActiveMenu(null); }} />
                                   <MenuItem icon={GitCompare} label="Comparison" onClick={handleComparisonInsert} />
@@ -751,7 +696,6 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Format</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Tools</span>
                       
-                      {/* Folder Select */}
                       <div className="ml-2 flex items-center gap-1 text-slate-400 text-xs">
                           <span>in</span>
                           {fixedFolderId ? (
@@ -791,7 +735,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               <select 
                 className="text-xs font-medium text-slate-700 bg-transparent border-none outline-none w-20 cursor-pointer" 
                 onChange={handleFontNameChange}
-                onMouseDown={(e) => e.stopPropagation()} // Allow click
+                onMouseDown={(e) => e.stopPropagation()} 
               >
                   <option value="Arial">Arial</option>
                   <option value="Times New Roman">Times New Roman</option>
@@ -807,7 +751,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               <select 
                 className="text-xs font-medium text-slate-700 bg-transparent border-none outline-none cursor-pointer" 
                 onChange={handleFontSizeChange}
-                defaultValue="3" // Approx 12pt
+                defaultValue="3"
                 onMouseDown={(e) => e.stopPropagation()}
               >
                   <option value="1">8</option>
@@ -853,11 +797,9 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               />
           </div>
 
-          {/* Quick Actions for Chart/Compare */}
           <ToolbarButton icon={BarChart} onClick={() => setShowChartModal(true)} title="Insert Chart" />
           <ToolbarButton icon={GitCompare} onClick={handleComparisonInsert} title="Insert Comparison Table" />
 
-          {/* Table Picker */}
           <div className="relative table-picker-container">
               <ToolbarButton icon={TableIcon} onClick={() => setShowTableGrid(!showTableGrid)} title="Insert Table" active={showTableGrid} />
               
@@ -922,17 +864,17 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
           <div
             ref={editorRef}
             contentEditable
-            onInput={updateStats}
+            onInput={handleInput} // OPTIMIZED DEBOUNCED HANDLER
             onKeyUp={checkFormats}
             onMouseUp={checkFormats}
-            onKeyDown={handleEditorKeyDown} // NEW: KEYDOWN HANDLER
+            onKeyDown={handleEditorKeyDown} 
             className="bg-white shadow-lg outline-none text-slate-900 leading-relaxed print:shadow-none print:w-full print:h-auto print:m-0"
             style={{
-                width: '8.27in', // A4 Width
-                minHeight: '11.69in', // A4 Height
+                width: '8.27in', 
+                minHeight: '11.69in', 
                 padding: '1in',
                 fontFamily: 'Arial, sans-serif',
-                fontSize: '11pt', // Default Doc Size
+                fontSize: '11pt', 
                 transform: `scale(${zoom / 100})`,
                 transformOrigin: 'top center',
                 transition: 'transform 0.2s',
