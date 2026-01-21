@@ -27,7 +27,11 @@ import {
   Mail,
   Download,
   Edit3,
-  Trash2
+  Trash2,
+  BarChart,
+  PieChart,
+  GitCompare,
+  X
 } from 'lucide-react';
 import { storage } from '../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -120,6 +124,20 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   // Table Picker
   const [showTableGrid, setShowTableGrid] = useState(false);
   const [tableGridSize, setTableGridSize] = useState({ rows: 0, cols: 0 });
+
+  // Chart Builder State
+  const [showChartModal, setShowChartModal] = useState(false);
+  const [chartConfig, setChartConfig] = useState<{
+      type: 'bar' | 'pie' | 'line' | 'doughnut';
+      title: string;
+      labels: string[];
+      data: string[]; // Keep as strings for input handling
+  }>({
+      type: 'bar',
+      title: '',
+      labels: ['', '', ''],
+      data: ['', '', '']
+  });
 
   // Menu State
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -224,6 +242,95 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       }
   };
 
+  // --- CHART GENERATION (QuickChart) ---
+  const handleInsertChart = () => {
+      // Filter out empty labels
+      const validIndices = chartConfig.labels.map((l, i) => l.trim() ? i : -1).filter(i => i !== -1);
+      
+      const labels = validIndices.map(i => chartConfig.labels[i]);
+      const data = validIndices.map(i => Number(chartConfig.data[i]) || 0);
+
+      const qcConfig = {
+          type: chartConfig.type,
+          data: {
+              labels: labels,
+              datasets: [{
+                  label: chartConfig.title || 'Data',
+                  data: data,
+                  backgroundColor: [
+                      'rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 
+                      'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 
+                      'rgba(153, 102, 255, 0.5)'
+                  ],
+                  borderColor: [
+                      'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 
+                      'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 
+                      'rgba(153, 102, 255, 1)'
+                  ],
+                  borderWidth: 1
+              }]
+          },
+          options: {
+              title: {
+                  display: !!chartConfig.title,
+                  text: chartConfig.title
+              }
+          }
+      };
+
+      const url = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(qcConfig))}&w=500&h=300`;
+      const imgHtml = `<img src="${url}" alt="Chart: ${chartConfig.title}" style="max-width: 100%; height: auto; margin: 10px 0; border: 1px solid #eee;" /><br/>`;
+      
+      if(editorRef.current) editorRef.current.focus();
+      document.execCommand('insertHTML', false, imgHtml);
+      setShowChartModal(false);
+      updateStats();
+  };
+
+  const handleComparisonInsert = () => {
+      const html = `
+        <table style="border-collapse: collapse; width: 100%; margin: 15px 0; font-family: sans-serif;">
+            <thead>
+                <tr style="background-color: #f3f4f6;">
+                    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; width: 33%;">Feature / Basis</th>
+                    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; width: 33%;">Entity A</th>
+                    <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; width: 33%;">Entity B</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 10px;">Definition</td>
+                    <td style="border: 1px solid #d1d5db; padding: 10px;">...</td>
+                    <td style="border: 1px solid #d1d5db; padding: 10px;">...</td>
+                </tr>
+                <tr style="background-color: #f9fafb;">
+                    <td style="border: 1px solid #d1d5db; padding: 10px;">Example</td>
+                    <td style="border: 1px solid #d1d5db; padding: 10px;">...</td>
+                    <td style="border: 1px solid #d1d5db; padding: 10px;">...</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><br/></p>
+      `;
+      if(editorRef.current) editorRef.current.focus();
+      document.execCommand('insertHTML', false, html);
+      setActiveMenu(null);
+      updateStats();
+  };
+
+  const handleInsertHorizontalLine = () => {
+      if(editorRef.current) editorRef.current.focus();
+      document.execCommand('insertHorizontalRule', false);
+      setActiveMenu(null);
+  };
+
+  const handlePageBreak = () => {
+      const html = `<div style="page-break-after: always; height: 1px; background: #ccc; margin: 20px 0;"></div><p><br/></p>`;
+      if(editorRef.current) editorRef.current.focus();
+      document.execCommand('insertHTML', false, html);
+      setActiveMenu(null);
+  };
+
   // --- UPDATED IMAGE UPLOAD (FIREBASE STORAGE) ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -291,7 +398,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-[85vh] bg-[#f9fbfd] overflow-hidden rounded-xl border border-slate-300 shadow-2xl">
+    <form onSubmit={handleSubmit} className="flex flex-col h-[85vh] bg-[#f9fbfd] overflow-hidden rounded-xl border border-slate-300 shadow-2xl relative">
       
       {/* 1. GOOGLE DOCS HEADER */}
       <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-between items-start shrink-0 z-50">
@@ -333,8 +440,10 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                       </label>
                   </div>
                   
-                  {/* MENUS (FILE, EDIT, VIEW...) */}
+                  {/* MENUS (FILE, EDIT, INSERT...) */}
                   <div className="flex items-center gap-1 text-[13px] text-slate-600 mt-0.5 select-none relative" ref={menuRef}>
+                      
+                      {/* File Menu */}
                       <div className="relative">
                           <span 
                               className={`hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors ${activeMenu === 'File' ? 'bg-slate-200 text-slate-800' : ''}`}
@@ -370,7 +479,40 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Edit</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">View</span>
-                      <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors" onClick={triggerUpload}>Insert</span>
+                      
+                      {/* Insert Menu */}
+                      <div className="relative">
+                          <span 
+                              className={`hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors ${activeMenu === 'Insert' ? 'bg-slate-200 text-slate-800' : ''}`}
+                              onClick={() => setActiveMenu(activeMenu === 'Insert' ? null : 'Insert')}
+                          >
+                              Insert
+                          </span>
+                          {activeMenu === 'Insert' && (
+                              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-slate-200 shadow-xl rounded-lg py-2 z-[100] text-slate-700 font-normal">
+                                  <MenuItem icon={ImageIcon} label="Image" arrow onClick={() => { triggerUpload(); setActiveMenu(null); }} />
+                                  <MenuItem icon={TableIcon} label="Table" arrow onClick={() => { setShowTableGrid(true); setActiveMenu(null); }} />
+                                  
+                                  {/* NEW: Chart & Comparison */}
+                                  <MenuSeparator />
+                                  <MenuItem icon={BarChart} label="Chart" onClick={() => { setShowChartModal(true); setActiveMenu(null); }} />
+                                  <MenuItem icon={GitCompare} label="Comparison" onClick={handleComparisonInsert} />
+                                  <MenuSeparator />
+
+                                  <MenuItem icon={LinkIcon} label="Link" shortcut="Ctrl+K" onClick={() => { 
+                                      const url = prompt('Enter URL:'); if(url) execCmd('createLink', url); setActiveMenu(null); 
+                                  }} />
+                                  <MenuSeparator />
+                                  
+                                  <MenuItem label="Horizontal line" onClick={handleInsertHorizontalLine} />
+                                  <MenuItem label="Page break" onClick={handlePageBreak} />
+                                  <MenuItem label="Special characters" />
+                                  <MenuSeparator />
+                                  <MenuItem label="Comment" shortcut="Ctrl+Alt+M" />
+                              </div>
+                          )}
+                      </div>
+
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Format</span>
                       <span className="hover:bg-slate-100 px-2 py-0.5 rounded cursor-pointer transition-colors">Tools</span>
                       
@@ -476,6 +618,10 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               />
           </div>
 
+          {/* Quick Actions for Chart/Compare */}
+          <ToolbarButton icon={BarChart} onClick={() => setShowChartModal(true)} title="Insert Chart" />
+          <ToolbarButton icon={GitCompare} onClick={handleComparisonInsert} title="Insert Comparison Table" />
+
           {/* Table Picker */}
           <div className="relative table-picker-container">
               <ToolbarButton icon={TableIcon} onClick={() => setShowTableGrid(!showTableGrid)} title="Insert Table" active={showTableGrid} />
@@ -573,6 +719,103 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
               <button type="button" onClick={() => setZoom(z => Math.min(200, z + 10))} className="hover:bg-slate-100 p-1 rounded transition-colors"><Plus size={12} /></button>
           </div>
       </div>
+
+      {/* 6. CHART MODAL */}
+      {showChartModal && (
+          <div className="absolute inset-0 bg-black/50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 animate-scale-up">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-800">Insert Data Chart</h3>
+                      <button onClick={() => setShowChartModal(false)}><X size={20} className="text-slate-400 hover:text-red-500" /></button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 mb-1">Chart Type</label>
+                              <select 
+                                  className="w-full p-2 border rounded bg-slate-50 text-sm"
+                                  value={chartConfig.type}
+                                  onChange={e => setChartConfig({...chartConfig, type: e.target.value as any})}
+                              >
+                                  <option value="bar">Bar Chart</option>
+                                  <option value="pie">Pie Chart</option>
+                                  <option value="line">Line Chart</option>
+                                  <option value="doughnut">Doughnut</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 mb-1">Chart Title</label>
+                              <input 
+                                  className="w-full p-2 border rounded text-sm" 
+                                  placeholder="e.g. Sales"
+                                  value={chartConfig.title}
+                                  onChange={e => setChartConfig({...chartConfig, title: e.target.value})}
+                              />
+                          </div>
+                      </div>
+
+                      <div>
+                          <div className="flex justify-between text-xs font-bold text-slate-500 mb-2">
+                              <span>Label (Name)</span>
+                              <span>Value (Number)</span>
+                          </div>
+                          {chartConfig.labels.map((label, idx) => (
+                              <div key={idx} className="flex gap-2 mb-2">
+                                  <input 
+                                      className="flex-1 p-2 border rounded text-sm"
+                                      placeholder={`Item ${idx+1}`}
+                                      value={label}
+                                      onChange={e => {
+                                          const newLabels = [...chartConfig.labels];
+                                          newLabels[idx] = e.target.value;
+                                          setChartConfig({...chartConfig, labels: newLabels});
+                                      }}
+                                  />
+                                  <input 
+                                      type="number"
+                                      className="w-24 p-2 border rounded text-sm"
+                                      placeholder="0"
+                                      value={chartConfig.data[idx]}
+                                      onChange={e => {
+                                          const newData = [...chartConfig.data];
+                                          newData[idx] = e.target.value;
+                                          setChartConfig({...chartConfig, data: newData});
+                                      }}
+                                  />
+                              </div>
+                          ))}
+                          <div className="flex justify-between mt-2">
+                              <button 
+                                  className="text-xs text-blue-600 hover:underline"
+                                  onClick={() => setChartConfig({
+                                      ...chartConfig, 
+                                      labels: [...chartConfig.labels, ''],
+                                      data: [...chartConfig.data, '']
+                                  })}
+                              >
+                                  + Add Row
+                              </button>
+                              {chartConfig.labels.length > 1 && (
+                                  <button 
+                                      className="text-xs text-red-500 hover:underline"
+                                      onClick={() => setChartConfig({
+                                          ...chartConfig, 
+                                          labels: chartConfig.labels.slice(0, -1),
+                                          data: chartConfig.data.slice(0, -1)
+                                      })}
+                                  >
+                                      - Remove
+                                  </button>
+                              )}
+                          </div>
+                      </div>
+
+                      <Button className="w-full mt-4" onClick={handleInsertChart}>Insert Chart</Button>
+                  </div>
+              </div>
+          </div>
+      )}
 
     </form>
   );
