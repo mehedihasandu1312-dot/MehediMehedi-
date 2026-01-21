@@ -117,7 +117,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
   });
 
   const [wordCount, setWordCount] = useState(0);
-  const [pageCount, setPageCount] = useState(1); // NEW: Page Counter
+  const [pageCount, setPageCount] = useState(1);
   const [zoom, setZoom] = useState(100);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -132,7 +132,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       type: 'bar' | 'pie' | 'line' | 'doughnut';
       title: string;
       labels: string[];
-      data: string[]; // Keep as strings for input handling
+      data: string[]; 
   }>({
       type: 'bar',
       title: '',
@@ -886,9 +886,18 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
                 transition: 'transform 0.2s',
                 marginBottom: '2rem',
                 // NEW: Visual Pagination CSS
-                backgroundImage: 'linear-gradient(to bottom, white 0px, white calc(11.69in - 2px), #e2e8f0 calc(11.69in - 2px), #e2e8f0 11.69in)',
+                backgroundColor: '#ffffff',
+                // Updated Gradient to create visual gaps between pages
+                backgroundImage: `linear-gradient(to bottom, 
+                    #ffffff 0px, 
+                    #ffffff calc(11.69in - 12px), 
+                    #f1f5f9 calc(11.69in - 12px), 
+                    #f1f5f9 calc(11.69in - 1px),
+                    #cbd5e1 11.69in
+                )`,
                 backgroundSize: '100% 11.69in',
-                backgroundRepeat: 'repeat-y'
+                backgroundRepeat: 'repeat-y',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
             }}
           >
               {/* Content goes here */}
