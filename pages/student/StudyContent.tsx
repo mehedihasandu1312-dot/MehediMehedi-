@@ -42,6 +42,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const [appealTarget, setAppealTarget] = useState<{ id: string, title: string } | null>(null);
   const [appealText, setAppealText] = useState('');
   const [appealImage, setAppealImage] = useState<string>(''); 
+  const [appealContext, setAppealContext] = useState(''); // Stores hidden MCQ details
 
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
@@ -58,12 +59,6 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       correctOptionIndex: 1
     }));
   };
-
-  const generateFAQs = (title: string, folderName: string) => [
-      { question: `What is covered in ${title}?`, answer: `This material covers key concepts of ${title} for ${folderName}.` },
-      { question: `Is this helpful for exams?`, answer: `Yes, "${title}" is designed for exam preparation.` },
-      { question: `Can I download as PDF?`, answer: `Premium users may have download options.` }
-  ];
 
   const getEmbedUrl = (url?: string) => {
       if (!url) return '';
@@ -83,8 +78,20 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
       return url; // Return original if no match (might be direct embed link)
   };
 
-  const openAppealModal = (id: string, title: string) => {
-    setAppealTarget({ id, title });
+  // Updated to accept full Question Object
+  const openAppealModal = (question: MCQQuestion) => {
+    if (!selectedContent) return;
+
+    // Set the Title as the Question Text for visibility
+    setAppealTarget({ 
+        id: selectedContent.id, 
+        title: `Q: ${question.questionText}` 
+    });
+
+    // Create a detailed context string for the Admin
+    const contextData = `\n\n--- [SYSTEM DATA FOR ADMIN] ---\nQuestion ID: ${question.id}\nOptions:\n${question.options.map((o, i) => `[${String.fromCharCode(65+i)}] ${o}`).join('\n')}\n\nCorrect Answer Index: ${question.correctOptionIndex} (${String.fromCharCode(65+question.correctOptionIndex)})`;
+
+    setAppealContext(contextData);
     setAppealText('');
     setAppealImage('');
     setIsAppealModalOpen(true);
@@ -107,11 +114,12 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         onAppealSubmit({
             contentId: appealTarget.id,
             contentTitle: appealTarget.title,
-            text: appealText,
+            text: appealText + appealContext, // Append the hidden context
             image: appealImage || undefined
         });
         setIsAppealModalOpen(false);
         setAppealTarget(null);
+        setAppealContext('');
     }
   };
 
@@ -573,7 +581,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
                           
                           <div className="bg-slate-50 p-3 border-t border-slate-100 flex justify-end">
                               <button 
-                                onClick={() => openAppealModal(q.id, `Question #${index+1}: ${q.questionText.substring(0, 30)}...`)}
+                                onClick={() => openAppealModal(q)} 
                                 className="flex items-center text-xs font-bold text-slate-400 hover:text-amber-600 px-4 py-2 rounded-lg hover:bg-amber-50 transition-colors"
                               >
                                   <AlertTriangle size={14} className="mr-2" /> Report Error

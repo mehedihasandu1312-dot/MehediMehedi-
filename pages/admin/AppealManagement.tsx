@@ -209,10 +209,10 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-bold text-slate-800 text-sm">
+                                                <h3 className="font-bold text-slate-800 text-sm whitespace-pre-wrap leading-tight">
                                                     {appeal.contentTitle || (viewType === 'QA' ? 'General Query' : 'Unknown Content')}
                                                 </h3>
-                                                {appeal.status === 'PENDING' && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
+                                                {appeal.status === 'PENDING' && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>}
                                             </div>
                                             <p className="text-xs text-slate-500 mt-0.5">
                                                 By <span className="font-medium text-indigo-600">{appeal.studentName}</span> • {appeal.timestamp}
@@ -223,8 +223,8 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                         </Badge>
                                     </div>
                                     
-                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm text-slate-700 mb-2">
-                                        "{appeal.text}"
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm text-slate-700 mb-2 whitespace-pre-wrap font-mono">
+                                        {appeal.text}
                                     </div>
 
                                     {/* Thumbnail Preview */}
@@ -280,8 +280,10 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals }) => {
                                     <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded">STUDENT {viewType === 'QA' ? 'ASKED' : 'REPORTED'}</span>
                                     <span className="text-xs text-slate-400">{selectedAppeal.timestamp}</span>
                                 </div>
-                                {selectedAppeal.contentTitle && <h3 className="font-bold text-slate-800 mb-1">{selectedAppeal.contentTitle}</h3>}
-                                <p className="text-sm text-slate-700 mb-3">{selectedAppeal.text}</p>
+                                {selectedAppeal.contentTitle && <h3 className="font-bold text-slate-800 mb-2 whitespace-pre-wrap">{selectedAppeal.contentTitle}</h3>}
+                                <div className="text-sm text-slate-700 mb-3 bg-white p-3 rounded border border-slate-200 font-mono whitespace-pre-wrap">
+                                    {selectedAppeal.text}
+                                </div>
                                 
                                 {selectedAppeal.image && (
                                     <div className="relative group">
