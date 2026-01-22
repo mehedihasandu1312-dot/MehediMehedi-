@@ -522,8 +522,8 @@ const App: React.FC = () => {
               <Route path="/admin/settings" element={<SystemSettingsPage settings={settings} setSettings={setSettings} />} />
               <Route path="/admin/payments" element={<PaymentManagement requests={paymentRequests} setRequests={setPaymentRequests} />} />
               <Route path="/admin/store" element={<StoreManagement products={storeProducts} setProducts={setStoreProducts} orders={storeOrders} setOrders={setStoreOrders} educationLevels={currentEducationLevels} />} /> 
-              {/* Added route for Admin Profile with Logs Passed Down */}
-              <Route path="/admin/profile" element={<ProfileSettings educationLevels={currentEducationLevels} adminLogs={adminLogs} />} />
+              {/* Added route for Admin Profile */}
+              <Route path="/admin/profile" element={<ProfileSettings educationLevels={currentEducationLevels} />} />
             </>
           )}
         </Route>

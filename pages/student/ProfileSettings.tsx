@@ -1,26 +1,25 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Modal, Badge } from '../../components/UI';
+import { Card, Button, Modal } from '../../components/UI';
 import { User, UserRole } from '../../types';
 import { authService } from '../../services/authService';
-import { storage } from '../../services/firebase'; 
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; 
-import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
+import { storage } from '../../services/firebase'; // Import Storage
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Switched to uploadBytes
+import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
 import { ALL_DISTRICTS } from '../../constants';
 
 interface Props {
     educationLevels?: { REGULAR: string[], ADMISSION: string[] };
-    adminLogs?: any[]; 
 }
 
 const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false); 
+  const [uploading, setUploading] = useState(false); // Upload state
   const [studentType, setStudentType] = useState<'REGULAR' | 'ADMISSION'>('REGULAR');
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   const [formData, setFormData] = useState({
     name: '',
@@ -80,14 +79,17 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     }
   };
 
+  // --- IMAGE UPLOAD LOGIC (ROBUST) ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !user) return;
 
+      // Reset file input so user can retry same file if needed
       if (fileInputRef.current) {
           fileInputRef.current.value = '';
       }
 
+      // Validate Size (Max 2MB)
       if (file.size > 2 * 1024 * 1024) {
           alert("File size must be less than 2MB");
           return;
@@ -96,6 +98,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
       setUploading(true);
 
       try {
+          // 1. Attempt Firebase Storage Upload
           const storageRef = ref(storage, `profile_avatars/${user.id}_${Date.now()}`);
           await uploadBytes(storageRef, file);
           const downloadURL = await getDownloadURL(storageRef);
@@ -104,19 +107,22 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
       } catch (error: any) {
           console.error("Storage upload failed:", error);
           
-          // Fallback to Base64 for demo/dev if storage fails
+          // 2. Fallback: Use Base64 if file is small (< 500KB)
+          // This handles cases where Firebase Storage Rules block the upload or CORS fails.
           if (file.size < 500 * 1024) {
               const reader = new FileReader();
               reader.onload = (event) => {
                   if (event.target?.result) {
                       setFormData(prev => ({ ...prev, avatar: event.target!.result as string }));
+                      // We don't need to alert, just let them save. It's a fallback.
                   }
               };
               reader.readAsDataURL(file);
           } else {
-              alert(`Upload failed: ${error.message}`);
+              alert(`Upload failed: ${error.message}. Please check your connection or try a smaller image.`);
           }
       } finally {
+          // 3. Always stop loading spinner
           setUploading(false);
       }
   };
@@ -128,16 +134,16 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
   if (!user) return <div className="text-center text-slate-500 py-10">User not found</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
-       
-       <div className="flex items-center gap-3 border-b border-slate-200 pb-3 mt-4">
-            <UserIcon className="text-slate-400" size={24} />
-            <h2 className="text-xl font-bold text-slate-700">Profile Settings</h2>
-       </div>
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-10">
+       {/* Header */}
+       <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+         <UserIcon className="mr-3 text-indigo-600" size={28} />
+         Profile Settings
+       </h1>
 
        <form onSubmit={handleSubmit}>
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left Column: Avatar */}
+            {/* Left Column: Avatar (For Both Admin & Student) */}
             <div className="md:col-span-1">
                 <Card className="text-center h-full flex flex-col items-center justify-center">
                     <div className="relative inline-block mb-4 group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
@@ -154,6 +160,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                             )}
                         </div>
                         
+                        {/* Hidden File Input */}
                         <input 
                             type="file" 
                             ref={fileInputRef} 
@@ -170,11 +177,19 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                         </div>
                     </div>
                     <h3 className="font-bold text-slate-800 text-lg">{user.name}</h3>
-                    <Badge color="bg-slate-100 text-slate-600 mt-1">{user.role}</Badge>
+                    <p className="text-slate-500 text-sm mb-2">{user.role}</p>
+                    
+                    {!isAdmin && (
+                        <div className="flex justify-center gap-2 mb-4">
+                            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">
+                                {studentType === 'REGULAR' ? 'Regular/Job Prep' : 'Admission Candidate'}
+                            </span>
+                        </div>
+                    )}
                     
                     <div className="mt-4">
                         <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                            {uploading ? 'Uploading...' : 'Change Photo'}
+                            {uploading ? 'Uploading...' : 'Upload New Photo'}
                         </Button>
                     </div>
                 </Card>
@@ -184,9 +199,12 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             <div className="md:col-span-2">
                 <Card className="space-y-6">
                     
+                    {/* ACADEMIC INFO - HIDDEN FOR ADMINS */}
                     {!isAdmin && (
                         <>
-                            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Academic Info</h3>
+                            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Academic Information</h3>
+                            
+                            {/* Student Type Toggle */}
                             <div className="flex bg-slate-100 p-1 rounded-lg">
                                 <button
                                     type="button"
@@ -207,7 +225,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        {studentType === 'REGULAR' ? 'Class / Sector' : 'Category'}
+                                        {studentType === 'REGULAR' ? 'Current Class / Sector' : 'Admission Category'}
                                     </label>
                                     <div className="relative">
                                         <BookOpen size={18} className="absolute left-3 top-3 text-slate-400" />
@@ -241,7 +259,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                         </>
                     )}
 
-                    <h3 className={`font-bold text-slate-800 border-b border-slate-100 pb-2 ${!isAdmin ? 'pt-2' : ''}`}>Personal Info</h3>
+                    <h3 className={`font-bold text-slate-800 border-b border-slate-100 pb-2 ${!isAdmin ? 'pt-2' : ''}`}>Personal Information</h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -258,7 +276,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                             <div className="relative">
                                 <Mail size={18} className="absolute left-3 top-3 text-slate-400" />
                                 <input 
@@ -271,7 +289,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
                             <div className="relative">
                                 <Phone size={18} className="absolute left-3 top-3 text-slate-400" />
                                 <input 
@@ -314,6 +332,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
          </div>
        </form>
 
+       {/* Success/Error Message Modal */}
        <Modal isOpen={messageModal.isOpen} onClose={() => setMessageModal({ ...messageModal, isOpen: false })} title={messageModal.title}>
            <div className="space-y-4">
                <div className={`p-4 rounded-lg border flex items-start ${messageModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
