@@ -138,7 +138,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       const totalActions = logs.length;
 
       // 2. Active Time Estimation
-      // Algorithm: Sort logs by time ASC. Iterate. If gap between curr and next log < 20 mins, add gap. Else add 5 mins per action.
       const sortedAsc = [...logs].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
       let totalMinutes = 0;
       
@@ -371,6 +370,15 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const handleRejectRequest = (request: DeletionRequest) => {
       if (!setDeletionRequests) return;
       setDeletionRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'REJECTED' } : r));
+  };
+
+  const getLogColor = (type: string) => {
+      switch(type) {
+          case 'DANGER': return 'bg-red-100 text-red-700';
+          case 'WARNING': return 'bg-amber-100 text-amber-700';
+          case 'SUCCESS': return 'bg-emerald-100 text-emerald-700';
+          default: return 'bg-blue-100 text-blue-700';
+      }
   };
 
   return (
@@ -716,35 +724,48 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                     <p className="text-center text-xs text-slate-400 mt-2">Days of Current Month</p>
                 </Card>
 
-                {/* 4. Full History Timeline */}
+                {/* 4. Full History Timeline (Table Format) */}
                 <div>
                     <h4 className="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 flex justify-between items-center">
                         <span>Full Activity History</span>
                         <span className="text-xs font-normal bg-slate-100 px-2 py-1 rounded-full text-slate-500">{adminAnalytics.totalActions} records</span>
                     </h4>
-                    <div className="max-h-60 overflow-y-auto space-y-0 pr-2 border rounded-lg bg-slate-50 custom-scrollbar">
+                    <div className="max-h-60 overflow-y-auto border rounded-lg bg-white custom-scrollbar shadow-inner">
                         {adminAnalytics.logs.length === 0 ? (
                             <p className="text-xs text-slate-400 text-center py-8">No activity recorded yet.</p>
                         ) : (
-                            adminAnalytics.logs.map((log, idx) => (
-                                <div key={log.id} className={`flex gap-3 text-sm p-3 border-b border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                                    <div className="text-xs text-slate-400 font-mono w-28 shrink-0 flex flex-col justify-center border-r border-slate-100 pr-2">
-                                        <span className="font-bold">{new Date(log.timestamp).toLocaleDateString()}</span>
-                                        <span>{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className={`w-2 h-2 rounded-full ${
-                                                log.type === 'DANGER' ? 'bg-red-500' : 
-                                                log.type === 'WARNING' ? 'bg-amber-500' : 
-                                                log.type === 'SUCCESS' ? 'bg-emerald-500' : 'bg-blue-500'
-                                            }`}></span>
-                                            <p className="font-bold text-slate-700 text-xs uppercase">{log.action}</p>
-                                        </div>
-                                        <p className="text-xs text-slate-500">{log.details}</p>
-                                    </div>
-                                </div>
-                            ))
+                            <table className="w-full text-left text-sm border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                                    <tr>
+                                        <th className="p-3 font-semibold text-slate-600 text-xs uppercase tracking-wider">Date & Time</th>
+                                        <th className="p-3 font-semibold text-slate-600 text-xs uppercase tracking-wider">Action Name</th>
+                                        <th className="p-3 font-semibold text-slate-600 text-xs uppercase tracking-wider">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {adminAnalytics.logs.map(log => (
+                                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="p-3 text-slate-500 whitespace-nowrap border-r border-slate-50">
+                                                <div className="font-mono text-xs font-bold text-slate-700">
+                                                    {new Date(log.timestamp).toLocaleDateString()}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 flex items-center mt-0.5">
+                                                    <Clock size={10} className="mr-1"/>
+                                                    {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 border-r border-slate-50">
+                                                <span className={`font-bold text-[10px] px-2 py-1 rounded border ${getLogColor(log.type)}`}>
+                                                    {log.action}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-slate-600 text-xs break-words">
+                                                {log.details}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         )}
                     </div>
                 </div>
