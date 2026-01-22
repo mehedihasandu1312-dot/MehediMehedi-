@@ -3,6 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Appeal, StudyContent, MCQQuestion } from '../../types';
 import { CheckCircle, MessageSquare, Inbox, AlertCircle, TrendingUp, Filter, ImageIcon, Send, X, Upload, AlertTriangle, HelpCircle, FileQuestion, Edit3, Save, Search, Link as LinkIcon, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 interface Props {
     appeals: Appeal[];
@@ -44,6 +45,8 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
 
     // Info Modal State
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
+
+    const currentUser = authService.getCurrentUser();
 
     // Calculate Dashboard Metrics
     const stats = useMemo(() => {
@@ -97,6 +100,18 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
             ? { ...a, status: 'REPLIED', reply: replyText, replyImage: replyImage } 
             : a
         ));
+
+        // LOG ACTION
+        if (currentUser) {
+            const actionType = viewType === 'QA' ? "Answered Q&A" : "Resolved Report";
+            authService.logAdminAction(
+                currentUser.id, 
+                currentUser.name, 
+                actionType, 
+                `Student: ${selectedAppeal.studentName} | Topic: ${selectedAppeal.contentTitle || 'General'}`, 
+                "SUCCESS"
+            );
+        }
 
         setInfoModal({
             isOpen: true,
@@ -178,6 +193,17 @@ const AppealManagement: React.FC<Props> = ({ appeals, setAppeals, contents = [],
             
             if (relatedAppeal && relatedAppeal.status === 'PENDING') {
                  setAppeals(prev => prev.map(a => a.id === relatedAppeal.id ? { ...a, status: 'REPLIED', reply: 'Thank you. We have corrected the question in the study material.' } : a));
+            }
+
+            // LOG ACTION
+            if (currentUser) {
+                authService.logAdminAction(
+                    currentUser.id, 
+                    currentUser.name, 
+                    "Fixed Question Error", 
+                    `Question: ${editingQuestion.questionText.substring(0, 30)}...`, 
+                    "INFO"
+                );
             }
 
             setTimeout(() => {

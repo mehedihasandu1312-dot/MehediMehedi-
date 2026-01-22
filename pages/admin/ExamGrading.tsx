@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { ExamSubmission, Exam, User } from '../../types';
 import { CheckSquare, Save, FolderOpen, ChevronDown, ChevronRight, FileCheck, Clock, CheckCircle2, UserCheck, Target, MessageCircle, AlertCircle, CheckCircle } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 interface Props {
     exams?: Exam[]; 
@@ -94,6 +96,18 @@ const ExamGrading: React.FC<Props> = ({ exams = [], currentUser, submissions, se
               } 
             : s
         ));
+
+        // LOG ACTION
+        if (currentUser) {
+            const examTitle = exams.find(e => e.id === selectedSubmission.examId)?.title || 'Exam';
+            authService.logAdminAction(
+                currentUser.id, 
+                currentUser.name, 
+                "Graded Exam", 
+                `Student: ${selectedSubmission.studentName} | Exam: ${examTitle} | Score: ${totalObtained}`, 
+                "SUCCESS"
+            );
+        }
 
         setInfoModal({
             isOpen: true,

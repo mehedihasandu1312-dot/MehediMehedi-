@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { SocialPost, SocialReport, User } from '../../types';
 import { Trash2, MessageCircle, Heart, Share2, Image as ImageIcon, Flag, ShieldAlert, CheckCircle, Ban, Users, Activity, Eye, AlertTriangle } from 'lucide-react';
+import { authService } from '../../services/authService';
 
 interface Props {
     posts: SocialPost[];
@@ -25,6 +27,8 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
 
+  const currentUser = authService.getCurrentUser();
+
   // --- ANALYTICS ---
   const stats = useMemo(() => {
       const totalPosts = posts.length;
@@ -43,7 +47,14 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
 
   const confirmDeletePost = () => {
       if (postToDelete) {
+          const postContent = posts.find(p => p.id === postToDelete)?.content.substring(0, 20);
           setPosts(posts.filter(p => p.id !== postToDelete));
+          
+          // LOG ACTION
+          if (currentUser) {
+              authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Social Post", `Content: ${postContent}...`, "WARNING");
+          }
+
           setIsDeleteModalOpen(false);
           setPostToDelete(null);
       }
@@ -77,6 +88,12 @@ const SocialManagement: React.FC<Props> = ({ posts, setPosts, reports, setReport
               banReason: banReason // Save reason here
           };
           setUsers(users.map(u => u.id === targetUser.id ? updatedUser : u));
+          
+          // LOG ACTION
+          if (currentUser) {
+              authService.logAdminAction(currentUser.id, currentUser.name, "Banned User", `User: ${targetUser.name} | Reason: ${banReason}`, "DANGER");
+          }
+
           alert(`User ${targetUser.name} has been BLOCKED.\nReason: ${banReason}`);
       } else {
           alert("User not found in database (might be deleted or name mismatch). Continuing to remove content.");
