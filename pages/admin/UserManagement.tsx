@@ -106,19 +106,40 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   const isSuperAdmin = currentUser?.isSuperAdmin === true || currentUser?.email === MASTER_ADMIN_EMAIL;
 
+  // --- DEDUPLICATION LOGIC ---
+  // Fixes issue where Mock Data and Real Data with same email might appear twice
+  const uniqueUsers = useMemo(() => {
+      const seen = new Set();
+      // Sort to prefer Real IDs (usually longer UIDs) over Mock IDs (like 'admin1')
+      // Also prefer users with profileCompleted = true
+      const sortedUsers = [...users].sort((a, b) => {
+          if (a.profileCompleted === b.profileCompleted) {
+              return b.id.length - a.id.length; 
+          }
+          return a.profileCompleted ? -1 : 1;
+      });
+
+      return sortedUsers.filter(u => {
+          const email = u.email ? u.email.toLowerCase() : `no-email-${u.id}`;
+          if (seen.has(email)) return false;
+          seen.add(email);
+          return true;
+      });
+  }, [users]);
+
   // --- Statistics Calculation ---
   const stats = useMemo(() => {
-    const students = users.filter(u => u.role === UserRole.STUDENT);
-    const admins = users.filter(u => u.role === UserRole.ADMIN);
+    const students = uniqueUsers.filter(u => u.role === UserRole.STUDENT);
+    const admins = uniqueUsers.filter(u => u.role === UserRole.ADMIN);
     
     return {
         totalStudents: students.length,
         totalAdmins: admins.length,
         activeStudents: students.filter(u => u.status === 'ACTIVE').length,
-        blocked: users.filter(u => u.status === 'BLOCKED').length,
+        blocked: uniqueUsers.filter(u => u.status === 'BLOCKED').length,
         pendingRequests: deletionRequests.filter(r => r.status === 'PENDING').length
     };
-  }, [users, deletionRequests]);
+  }, [uniqueUsers, deletionRequests]);
 
   // --- ADMIN ANALYTICS ENGINE ---
   const getAdminAnalytics = (adminId: string) => {
@@ -191,7 +212,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const adminAnalytics = selectedAdminProfile ? getAdminAnalytics(selectedAdminProfile.id) : null;
 
   // --- Filtering Logic ---
-  const displayUsers = users.filter(u => {
+  const displayUsers = uniqueUsers.filter(u => {
     if (activeTab === 'STUDENTS' && u.role !== UserRole.STUDENT) return false;
     
     if (activeTab === 'ADMINS') {
