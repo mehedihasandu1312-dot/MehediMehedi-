@@ -153,6 +153,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
 
   // Debounce Timer Ref for INP Optimization
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Initialize Data
   useEffect(() => {
@@ -185,7 +186,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTableGrid]);
 
-  // --- TABLE RESIZING LOGIC ---
+  // --- TABLE RESIZING LOGIC (OPTIMIZED FOR INP) ---
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -210,34 +211,41 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
     };
 
     const onMouseMove = (e: MouseEvent) => {
-        if (currentResizer) {
-            if (currentResizer.type === 'col') {
-                const diff = e.clientX - currentResizer.startPos;
-                const newVal = Math.max(20, currentResizer.startVal + diff);
-                currentResizer.el.style.width = `${newVal}px`;
-                currentResizer.el.style.minWidth = `${newVal}px`;
-            } else {
-                const diff = e.clientY - currentResizer.startPos;
-                const newVal = Math.max(20, currentResizer.startVal + diff);
-                currentResizer.el.style.height = `${newVal}px`;
-                const tr = currentResizer.el.parentElement;
-                if(tr) tr.style.height = `${newVal}px`;
-            }
-            return;
-        }
+        // Prevent layout thrashing by checking frame availability
+        if (animationFrameRef.current) return;
 
-        const target = e.target as HTMLElement;
-        if ((target.tagName === 'TD' || target.tagName === 'TH') && editor.contains(target)) {
-            const rect = target.getBoundingClientRect();
-            const isRightEdge = e.clientX > rect.right - 8;
-            const isBottomEdge = e.clientY > rect.bottom - 8;
-            
-            if (isRightEdge) editor.style.cursor = 'col-resize';
-            else if (isBottomEdge) editor.style.cursor = 'row-resize';
-            else editor.style.cursor = 'text';
-        } else {
-            if(editor.style.cursor !== 'text') editor.style.cursor = 'text';
-        }
+        animationFrameRef.current = requestAnimationFrame(() => {
+            animationFrameRef.current = null;
+
+            if (currentResizer) {
+                if (currentResizer.type === 'col') {
+                    const diff = e.clientX - currentResizer.startPos;
+                    const newVal = Math.max(20, currentResizer.startVal + diff);
+                    currentResizer.el.style.width = `${newVal}px`;
+                    currentResizer.el.style.minWidth = `${newVal}px`;
+                } else {
+                    const diff = e.clientY - currentResizer.startPos;
+                    const newVal = Math.max(20, currentResizer.startVal + diff);
+                    currentResizer.el.style.height = `${newVal}px`;
+                    const tr = currentResizer.el.parentElement;
+                    if(tr) tr.style.height = `${newVal}px`;
+                }
+                return;
+            }
+
+            const target = e.target as HTMLElement;
+            if ((target.tagName === 'TD' || target.tagName === 'TH') && editor.contains(target)) {
+                const rect = target.getBoundingClientRect();
+                const isRightEdge = e.clientX > rect.right - 8;
+                const isBottomEdge = e.clientY > rect.bottom - 8;
+                
+                if (isRightEdge) editor.style.cursor = 'col-resize';
+                else if (isBottomEdge) editor.style.cursor = 'row-resize';
+                else editor.style.cursor = 'text';
+            } else {
+                if(editor.style.cursor !== 'text') editor.style.cursor = 'text';
+            }
+        });
     };
 
     const onMouseUp = () => {
@@ -253,6 +261,7 @@ const WrittenContentForm: React.FC<WrittenContentFormProps> = ({ folders, fixedF
         editor.removeEventListener('mousedown', onMouseDown);
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, []);
 

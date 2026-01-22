@@ -84,6 +84,17 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       setInfoModal({ isOpen: true, title, message });
   };
 
+  // --- OPTIMIZATION: Pre-calculate Ranks Map ---
+  // This prevents sorting the entire user array inside every 'calculateStats' call
+  const userRankMap = useMemo(() => {
+      const sorted = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0));
+      const rankMap: Record<string, number> = {};
+      sorted.forEach((u, index) => {
+          rankMap[u.id] = index + 1;
+      });
+      return rankMap;
+  }, [allUsers]);
+
   // --- HELPER: CALCULATE STATS ---
   const calculateStats = (targetUser: User): ComparisonStats => {
       const userResults = results.filter(r => r.studentId === targetUser.id);
@@ -103,8 +114,8 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       const estimatedCorrectScore = userResults.reduce((sum, r) => sum + (r.score + r.negativeDeduction), 0);
       const accuracy = totalMaxMarks > 0 ? (estimatedCorrectScore / totalMaxMarks) * 100 : 0;
 
-      const sortedUsers = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0));
-      const rank = sortedUsers.findIndex(u => u.id === targetUser.id) + 1;
+      // Use pre-calculated rank map (O(1) lookup instead of O(N log N) sort)
+      const rank = userRankMap[targetUser.id] || 0;
 
       return {
           av: Math.round(avgScore),
@@ -117,7 +128,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       };
   };
 
-  const myStats = useMemo(() => calculateStats(liveUser), [results, liveUser, allUsers]);
+  const myStats = useMemo(() => calculateStats(liveUser), [results, liveUser, userRankMap]);
 
   const weeklyRank = myStats.totalExams > 0 ? Math.max(1, Math.floor(myStats.rank / 5)) : 0;
   const isTopTen = weeklyRank > 0 && weeklyRank <= 10;
@@ -222,17 +233,12 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
         You_Real: myStats[m.key],
         Friend_Real: fStats ? fStats[m.key] : 0,
     }));
-  }, [comparisonTarget, myFriends, myStats, allUsers, results]);
+  }, [comparisonTarget, myFriends, myStats, allUsers, results, userRankMap]);
 
   const comparisonFriendName = myFriends.find(f => f.id === comparisonTarget)?.name || 'Friend';
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto pb-10">
-      {/* 
-          DASHBOARD IS PRIVATE. 
-          We set `noIndex={true}` to prevent Google from indexing personal user data.
-          This focuses rank power on your landing page.
-      */}
       <SEO 
         title="My Dashboard" 
         description="Track your progress, view stats, and compete with friends." 
