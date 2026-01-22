@@ -5,7 +5,7 @@ import { User, UserRole, AdminActivityLog, DeletionRequest } from '../../types';
 import { db, firebaseConfig } from '../../services/firebase';
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { MASTER_ADMIN_EMAIL } from '../../constants';
 import { 
     Search, 
@@ -40,7 +40,8 @@ import {
     Briefcase as BriefcaseIcon,
     Zap,
     History,
-    TrendingUp
+    TrendingUp,
+    Trash2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -88,6 +89,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   // Status Change Confirmation State
   const [statusConfirm, setStatusConfirm] = useState<{ isOpen: boolean; id: string; status: 'ACTIVE' | 'BLOCKED'; role: UserRole } | null>(null);
 
+  // DELETE CONFIRMATION STATE
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string; name: string } | null>(null);
+
   // Admin Creation State
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -107,11 +111,8 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const isSuperAdmin = currentUser?.isSuperAdmin === true || currentUser?.email === MASTER_ADMIN_EMAIL;
 
   // --- DEDUPLICATION LOGIC ---
-  // Fixes issue where Mock Data and Real Data with same email might appear twice
   const uniqueUsers = useMemo(() => {
       const seen = new Set();
-      // Sort to prefer Real IDs (usually longer UIDs) over Mock IDs (like 'admin1')
-      // Also prefer users with profileCompleted = true
       const sortedUsers = [...users].sort((a, b) => {
           if (a.profileCompleted === b.profileCompleted) {
               return b.id.length - a.id.length; 
@@ -284,6 +285,28 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         setSelectedUser(prev => prev ? { ...prev, status: newStatus } : null);
     }
     setStatusConfirm(null);
+  };
+
+  const handleDeleteUser = async () => {
+      if (!deleteConfirm) return;
+      
+      try {
+          // 1. Delete from Firestore
+          await deleteDoc(doc(db, "users", deleteConfirm.id));
+          
+          // 2. Update Local State
+          setUsers(prev => prev.filter(u => u.id !== deleteConfirm.id));
+          
+          if (selectedUser?.id === deleteConfirm.id) setSelectedUser(null);
+          if (selectedAdminProfile?.id === deleteConfirm.id) setSelectedAdminProfile(null);
+
+          showInfo("Deleted", `${deleteConfirm.name} has been permanently removed.`);
+      } catch (error: any) {
+          console.error("Delete failed:", error);
+          showInfo("Error", "Failed to delete user from database.", "ERROR");
+      } finally {
+          setDeleteConfirm(null);
+      }
   };
 
   const openWarningModal = (adminId: string) => {
@@ -660,6 +683,21 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                                 title={user.status === 'ACTIVE' ? 'Block' : 'Unblock'}
                                             >
                                                 {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
+                                            </Button>
+                                        )}
+
+                                        {/* PERMANENT DELETE (Super Admin Only) */}
+                                        {isSuperAdmin && !(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
+                                            <Button
+                                                variant="outline"
+                                                className="p-1.5 h-auto border-slate-200 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeleteConfirm({ isOpen: true, id: user.id, name: user.name });
+                                                }}
+                                                title="Delete Permanently"
+                                            >
+                                                <Trash2 size={16} />
                                             </Button>
                                         )}
                                     </div>
@@ -1048,6 +1086,32 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                     onClick={confirmStatusToggle}
                   >
                       {statusConfirm?.status === 'ACTIVE' ? 'Confirm Block' : 'Confirm Unblock'}
+                  </Button>
+              </div>
+          </div>
+      </Modal>
+
+      {/* --- PERMANENT DELETE CONFIRMATION MODAL (NEW) --- */}
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete User Permanently?">
+          <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-lg border border-red-100 flex items-start text-red-800">
+                  <Trash2 size={24} className="mr-3 shrink-0 mt-1" />
+                  <div>
+                      <p className="font-bold">Are you sure you want to delete <span className="underline">{deleteConfirm?.name}</span>?</p>
+                      <p className="text-xs mt-2 font-medium">
+                          This action is <strong className="text-red-900">IRREVERSIBLE</strong>.
+                          <ul className="list-disc pl-4 mt-1 space-y-1 opacity-90">
+                              <li>Account will be removed from database.</li>
+                              <li>All progress, logs, and activity will be lost.</li>
+                              <li>User cannot recover this account.</li>
+                          </ul>
+                      </p>
+                  </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                  <Button variant="danger" onClick={handleDeleteUser} className="flex items-center">
+                      <Trash2 size={16} className="mr-2" /> Yes, Delete Permanently
                   </Button>
               </div>
           </div>
