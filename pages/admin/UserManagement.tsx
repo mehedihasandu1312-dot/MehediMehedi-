@@ -37,9 +37,12 @@ import {
     Send,
     BarChart2,
     Check,
-    Briefcase as BriefcaseIcon
+    Briefcase as BriefcaseIcon,
+    Zap,
+    History,
+    TrendingUp
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface Props {
     users: User[];
@@ -77,9 +80,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       points: 0
   });
 
-  // Admin Logs State (Legacy, keeping for super admin quick view)
-  const [viewLogsAdminId, setViewLogsAdminId] = useState<string | null>(null);
-
   // Admin Warning State
   const [warningModalOpen, setWarningModalOpen] = useState(false);
   const [targetAdminId, setTargetAdminId] = useState<string | null>(null);
@@ -95,7 +95,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [newAdminName, setNewAdminName] = useState('');
   const [adminCreationLoading, setAdminCreationLoading] = useState(false);
 
-  // NEW: Info/Alert Modal State
+  // Info/Alert Modal State
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ 
       isOpen: false, title: '', message: '', type: 'SUCCESS' 
   });
@@ -120,20 +120,52 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     };
   }, [users, deletionRequests]);
 
-  // --- Activity Chart Data Generation ---
-  const generateActivityData = (adminId: string) => {
-      const logs = adminLogs.filter(l => l.adminId === adminId);
-      const today = new Date();
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
+  // --- ADMIN ANALYTICS ENGINE ---
+  const getAdminAnalytics = (adminId: string) => {
+      const logs = adminLogs.filter(l => l.adminId === adminId).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // 1. Counts
+      const actions24h = logs.filter(l => new Date(l.timestamp) > oneDayAgo).length;
+      const actionsMonth = logs.filter(l => {
+          const d = new Date(l.timestamp);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      }).length;
+      const totalActions = logs.length;
+
+      // 2. Active Time Estimation
+      // Algorithm: Sort logs by time ASC. Iterate. If gap between curr and next log < 20 mins, add gap. Else add 5 mins per action.
+      const sortedAsc = [...logs].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      let totalMinutes = 0;
+      
+      for(let i = 0; i < sortedAsc.length; i++) {
+          if (i < sortedAsc.length - 1) {
+              const curr = new Date(sortedAsc[i].timestamp).getTime();
+              const next = new Date(sortedAsc[i+1].timestamp).getTime();
+              const diffMins = (next - curr) / 60000;
+              
+              if (diffMins < 20) {
+                  totalMinutes += diffMins;
+              } else {
+                  totalMinutes += 5; // Base time per task
+              }
+          } else {
+              totalMinutes += 5; // Last task
+          }
+      }
+      
+      const activeHours = Math.floor(totalMinutes / 60);
+      const activeMinsRemainder = Math.floor(totalMinutes % 60);
+
+      // 3. Daily Activity Graph Data
       const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
       const activityMap: Record<number, number> = {};
-
-      // Init map
       for(let i=1; i<=daysInMonth; i++) activityMap[i] = 0;
 
-      // Populate counts
       logs.forEach(log => {
           const logDate = new Date(log.timestamp);
           if (logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear) {
@@ -142,17 +174,22 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           }
       });
 
-      return Object.entries(activityMap).map(([day, count]) => ({
+      const chartData = Object.entries(activityMap).map(([day, count]) => ({
           name: day,
           actions: count
       }));
+
+      return {
+          actions24h,
+          actionsMonth,
+          totalActions,
+          activeTime: `${activeHours}h ${activeMinsRemainder}m`,
+          chartData,
+          logs // Full history
+      };
   };
 
-  const adminProfileLogs = selectedAdminProfile 
-      ? adminLogs.filter(l => l.adminId === selectedAdminProfile.id).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      : [];
-
-  const activityData = selectedAdminProfile ? generateActivityData(selectedAdminProfile.id) : [];
+  const adminAnalytics = selectedAdminProfile ? getAdminAnalytics(selectedAdminProfile.id) : null;
 
   // --- Filtering Logic ---
   const displayUsers = users.filter(u => {
@@ -201,7 +238,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                 id: `req_${Date.now()}`,
                 requesterId: currentUser?.id || 'unknown',
                 requesterName: currentUser?.name || 'Admin',
-                actionType: currentStatus === 'ACTIVE' ? 'BLOCK_USER' : 'DELETE_USER', // Treating Unblock as Delete from block list context simplistically
+                actionType: currentStatus === 'ACTIVE' ? 'BLOCK_USER' : 'DELETE_USER',
                 targetId: id,
                 targetName: targetUser?.name || 'User',
                 status: 'PENDING',
@@ -220,7 +257,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const confirmStatusToggle = () => {
     if (!statusConfirm) return;
     const { id, status } = statusConfirm;
-    
     const newStatus = status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
     
     setUsers(prev => prev.map(u => u.id === id ? { ...u, status: newStatus } : u));
@@ -238,7 +274,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   const handleSendWarning = () => {
       if (!targetAdminId || !warningText.trim()) return;
-
       const timestamp = new Date().toLocaleString();
       const formattedWarning = `[${timestamp}] ${warningText}`;
 
@@ -271,7 +306,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   const handleSaveStudentChanges = () => {
       if (!selectedUser) return;
-      
       const updatedUser: User = {
           ...selectedUser,
           name: editForm.name,
@@ -282,7 +316,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
           studentType: editForm.studentType,
           points: Number(editForm.points)
       };
-
       setUsers(prev => prev.map(u => u.id === selectedUser.id ? updatedUser : u));
       setSelectedUser(updatedUser);
       setIsEditing(false);
@@ -292,14 +325,12 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const handleCreateAdmin = async (e: React.FormEvent) => {
       e.preventDefault();
       setAdminCreationLoading(true);
-
       const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
       const secondaryAuth = getAuth(secondaryApp);
 
       try {
           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newAdminEmail, newAdminPassword);
           const newUser = userCredential.user;
-
           const newAdminData: User = {
               id: newUser.uid,
               name: newAdminName,
@@ -312,16 +343,13 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
               avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newAdminName)}&background=0D9488&color=fff`,
               warnings: []
           };
-
           await setDoc(doc(db, "users", newUser.uid), newAdminData);
           setUsers(prev => [...prev, newAdminData]);
-
           showInfo("Admin Created", `New Admin "${newAdminName}" created successfully!`);
           setIsAdminModalOpen(false);
           setNewAdminEmail('');
           setNewAdminPassword('');
           setNewAdminName('');
-
       } catch (error: any) {
           console.error("Admin Creation Error:", error);
           showInfo("Creation Failed", error.message, "ERROR");
@@ -331,20 +359,13 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       }
   };
 
-  // --- REQUEST APPROVAL HANDLERS ---
   const handleApproveRequest = (request: DeletionRequest) => {
       if (!setDeletionRequests) return;
-
-      // Execute Action based on type
       if (request.actionType === 'BLOCK_USER' || request.actionType === 'DELETE_USER') {
-          // Toggle status
           setUsers(prev => prev.map(u => u.id === request.targetId ? { ...u, status: 'BLOCKED' } : u));
       } 
-      // Handle other types like DELETE_CONTENT here if expanded
-
-      // Update Request Status
       setDeletionRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'APPROVED' } : r));
-      showInfo("Approved", `Request to ${request.actionType} for ${request.targetName} approved.`);
+      showInfo("Approved", `Request to ${request.actionType} approved.`);
   };
 
   const handleRejectRequest = (request: DeletionRequest) => {
@@ -622,19 +643,19 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         )}
       </Card>
 
-      {/* --- ADMIN PROFILE MODAL (DETAILED WORK VIEW) --- */}
+      {/* --- ADMIN PROFILE MODAL (SUPER DETAILED) --- */}
       <Modal 
         isOpen={!!selectedAdminProfile} 
         onClose={() => setSelectedAdminProfile(null)} 
-        title="Administrator Profile"
+        title="Admin Performance Profile"
         size="lg"
       >
-        {selectedAdminProfile && (
+        {selectedAdminProfile && adminAnalytics && (
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-start justify-between">
+                {/* 1. Header Profile */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <div className="flex items-center gap-4">
-                        <img src={selectedAdminProfile.avatar} className="w-20 h-20 rounded-full border-4 border-indigo-50" />
+                        <img src={selectedAdminProfile.avatar} className="w-20 h-20 rounded-full border-4 border-indigo-200 shadow-sm" />
                         <div>
                             <h3 className="text-xl font-bold text-slate-800 flex items-center">
                                 {selectedAdminProfile.name}
@@ -642,47 +663,84 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             </h3>
                             <p className="text-sm text-slate-500">{selectedAdminProfile.email}</p>
                             <p className="text-xs text-slate-400 mt-1 flex items-center">
-                                <Clock size={12} className="mr-1" /> Joined: {new Date(selectedAdminProfile.joinedDate).toLocaleDateString()}
+                                <Clock size={12} className="mr-1" /> Member since: {new Date(selectedAdminProfile.joinedDate).toLocaleDateString()}
                             </p>
                         </div>
                     </div>
-                    <Badge color={selectedAdminProfile.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
-                        {selectedAdminProfile.status}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-2">
+                        <Badge color={selectedAdminProfile.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
+                            {selectedAdminProfile.status}
+                        </Badge>
+                        <span className="text-xs text-slate-400 font-mono">ID: {selectedAdminProfile.id.substring(0,8)}</span>
+                    </div>
                 </div>
 
-                {/* Work Activity Chart */}
-                <Card className="p-4 border border-slate-200">
+                {/* 2. Key Metrics (24H, Month, Lifetime) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="p-3 border-l-4 border-l-blue-500">
+                        <p className="text-xs font-bold text-slate-500 uppercase flex items-center"><Zap size={12} className="mr-1"/> Last 24 Hours</p>
+                        <h3 className="text-2xl font-bold text-slate-800 mt-1">{adminAnalytics.actions24h} <span className="text-xs font-normal text-slate-400">actions</span></h3>
+                    </Card>
+                    <Card className="p-3 border-l-4 border-l-purple-500">
+                        <p className="text-xs font-bold text-slate-500 uppercase flex items-center"><Calendar size={12} className="mr-1"/> This Month</p>
+                        <h3 className="text-2xl font-bold text-slate-800 mt-1">{adminAnalytics.actionsMonth} <span className="text-xs font-normal text-slate-400">actions</span></h3>
+                    </Card>
+                    <Card className="p-3 border-l-4 border-l-indigo-500">
+                        <p className="text-xs font-bold text-slate-500 uppercase flex items-center"><History size={12} className="mr-1"/> Lifetime Total</p>
+                        <h3 className="text-2xl font-bold text-slate-800 mt-1">{adminAnalytics.totalActions}</h3>
+                    </Card>
+                    <Card className="p-3 border-l-4 border-l-emerald-500 bg-emerald-50/20">
+                        <p className="text-xs font-bold text-emerald-700 uppercase flex items-center"><Activity size={12} className="mr-1"/> Est. Active Time</p>
+                        <h3 className="text-2xl font-bold text-emerald-600 mt-1">{adminAnalytics.activeTime}</h3>
+                    </Card>
+                </div>
+
+                {/* 3. Monthly Activity Graph */}
+                <Card className="p-4 border border-slate-200 shadow-sm">
                     <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
-                        <Activity size={16} className="mr-2 text-indigo-600" /> Activity Intensity (This Month)
+                        <TrendingUp size={16} className="mr-2 text-indigo-600" /> Monthly Work Intensity (Daily)
                     </h4>
                     <div className="h-48 w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={activityData}>
+                            <BarChart data={adminAnalytics.chartData}>
                                 <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} interval={2} />
-                                <Tooltip cursor={{fill: 'transparent'}} />
-                                <Bar dataKey="actions" fill="#6366f1" radius={[2, 2, 0, 0]} name="Actions" />
+                                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                                <Bar dataKey="actions" radius={[2, 2, 0, 0]}>
+                                    {adminAnalytics.chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.actions > 5 ? '#4f46e5' : '#a5b4fc'} />
+                                    ))}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <p className="text-center text-xs text-slate-400 mt-2">Days of Month</p>
+                    <p className="text-center text-xs text-slate-400 mt-2">Days of Current Month</p>
                 </Card>
 
-                {/* Recent Logs List */}
+                {/* 4. Full History Timeline */}
                 <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-1">Detailed Logs</h4>
-                    <div className="max-h-60 overflow-y-auto space-y-3 pr-2">
-                        {adminProfileLogs.length === 0 ? (
-                            <p className="text-xs text-slate-400 text-center py-4">No recent activity logged.</p>
+                    <h4 className="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2 flex justify-between items-center">
+                        <span>Full Activity History</span>
+                        <span className="text-xs font-normal bg-slate-100 px-2 py-1 rounded-full text-slate-500">{adminAnalytics.totalActions} records</span>
+                    </h4>
+                    <div className="max-h-60 overflow-y-auto space-y-0 pr-2 border rounded-lg bg-slate-50 custom-scrollbar">
+                        {adminAnalytics.logs.length === 0 ? (
+                            <p className="text-xs text-slate-400 text-center py-8">No activity recorded yet.</p>
                         ) : (
-                            adminProfileLogs.map(log => (
-                                <div key={log.id} className="flex gap-3 text-sm p-2 hover:bg-slate-50 rounded border-l-2 border-slate-200">
-                                    <div className="text-xs text-slate-400 font-mono w-24 shrink-0">
-                                        {new Date(log.timestamp).toLocaleDateString()} <br/>
-                                        {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            adminAnalytics.logs.map((log, idx) => (
+                                <div key={log.id} className={`flex gap-3 text-sm p-3 border-b border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                                    <div className="text-xs text-slate-400 font-mono w-28 shrink-0 flex flex-col justify-center border-r border-slate-100 pr-2">
+                                        <span className="font-bold">{new Date(log.timestamp).toLocaleDateString()}</span>
+                                        <span>{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-slate-700">{log.action}</p>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className={`w-2 h-2 rounded-full ${
+                                                log.type === 'DANGER' ? 'bg-red-500' : 
+                                                log.type === 'WARNING' ? 'bg-amber-500' : 
+                                                log.type === 'SUCCESS' ? 'bg-emerald-500' : 'bg-blue-500'
+                                            }`}></span>
+                                            <p className="font-bold text-slate-700 text-xs uppercase">{log.action}</p>
+                                        </div>
                                         <p className="text-xs text-slate-500">{log.details}</p>
                                     </div>
                                 </div>
