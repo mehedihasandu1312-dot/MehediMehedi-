@@ -196,7 +196,7 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                         </div>
                     </div>
 
-                    {/* Products Grid - UPDATED FOR HIGH DENSITY (Mobile: 2, Desktop: 5/6) */}
+                    {/* COMPACT PRODUCT GRID */}
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                         {displayProducts.length === 0 && (
                             <div className="col-span-full text-center py-20 text-slate-400">
@@ -208,18 +208,17 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                             const isOwned = hasPurchased(product.id);
                             return (
                                 <Card key={product.id} className="overflow-hidden flex flex-col p-0 border border-slate-200 hover:shadow-lg transition-all group h-full">
-                                    <div className="h-32 md:h-40 w-full bg-slate-100 relative overflow-hidden shrink-0">
+                                    <div className="h-28 w-full bg-slate-100 relative overflow-hidden shrink-0">
                                         <img 
                                             src={product.image} 
                                             alt={product.title} 
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                                             onError={handleImageError}
                                         />
-                                        <div className="absolute top-1 right-1 bg-white/90 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm flex items-center">
-                                            {product.type === 'DIGITAL' ? <FileText size={10} className="mr-1 text-blue-600"/> : <Package size={10} className="mr-1 text-amber-600"/>}
+                                        <div className="absolute top-1 right-1 bg-white/90 px-1.5 py-0.5 rounded text-[9px] font-bold shadow-sm flex items-center uppercase">
                                             {product.type === 'DIGITAL' ? 'PDF' : 'Book'}
                                         </div>
-                                        {product.isFree && <div className="absolute top-1 left-1 bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm">FREE</div>}
+                                        {product.isFree && <div className="absolute top-1 left-1 bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold shadow-sm">FREE</div>}
                                         
                                         {/* Preview Button on Cover */}
                                         {product.previewUrl && (
@@ -229,29 +228,29 @@ const Store: React.FC<Props> = ({ user, products, orders, setOrders }) => {
                                         )}
                                     </div>
                                     
-                                    <div className="p-3 flex-1 flex flex-col">
-                                        <h3 className="font-bold text-slate-800 text-sm mb-1 line-clamp-2 leading-tight min-h-[2.5em]" title={product.title}>{product.title}</h3>
+                                    <div className="p-2.5 flex-1 flex flex-col">
+                                        <h3 className="font-bold text-slate-800 text-xs md:text-sm mb-1 line-clamp-2 leading-tight h-8" title={product.title}>{product.title}</h3>
                                         
                                         <div className="mt-auto pt-2 border-t border-slate-100 space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <span className="text-base font-black text-indigo-600">{product.isFree ? 'Free' : `৳${product.price}`}</span>
+                                                    <span className="text-sm font-bold text-indigo-600">{product.isFree ? 'Free' : `৳${product.price}`}</span>
                                                     {product.prevPrice && product.prevPrice > product.price && (
-                                                        <span className="text-[10px] text-slate-400 line-through ml-1">৳{product.prevPrice}</span>
+                                                        <span className="text-[9px] text-slate-400 line-through ml-1">৳{product.prevPrice}</span>
                                                     )}
                                                 </div>
                                             </div>
                                             
                                             {product.isFree ? (
-                                                <Button size="sm" onClick={() => handleDownload(product.fileUrl, product.title)} className="w-full bg-emerald-600 hover:bg-emerald-700 h-8 text-xs px-0">
+                                                <Button size="sm" onClick={() => handleDownload(product.fileUrl, product.title)} className="w-full bg-emerald-600 hover:bg-emerald-700 h-7 text-[10px] px-0">
                                                     Download
                                                 </Button>
                                             ) : isOwned ? (
-                                                <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500 border-slate-200 h-8 text-xs px-0">
+                                                <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500 border-slate-200 h-7 text-[10px] px-0">
                                                     Owned
                                                 </Button>
                                             ) : (
-                                                <Button size="sm" onClick={() => openBuyModal(product)} className="w-full h-8 text-xs px-0">
+                                                <Button size="sm" onClick={() => openBuyModal(product)} className="w-full h-7 text-[10px] px-0">
                                                     Buy Now
                                                 </Button>
                                             )}

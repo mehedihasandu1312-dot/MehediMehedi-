@@ -256,44 +256,40 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* COMPACT PRODUCT GRID */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {filteredProducts.map(product => (
-                            <Card key={product.id} className="overflow-hidden flex flex-col relative group">
-                                <div className="h-40 w-full bg-slate-100 relative">
+                            <Card key={product.id} className="overflow-hidden flex flex-col relative group p-0 border border-slate-200">
+                                <div className="h-28 w-full bg-slate-100 relative">
                                     <img 
                                         src={product.image} 
                                         alt={product.title} 
                                         className="w-full h-full object-cover" 
                                         onError={handleImageError}
                                     />
-                                    <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold shadow-sm">
-                                        {product.type === 'DIGITAL' ? 'PDF / E-Book' : 'Printed Book'}
+                                    <div className="absolute top-1 right-1 bg-white/90 px-1.5 py-0.5 rounded text-[9px] font-bold shadow-sm uppercase">
+                                        {product.type === 'DIGITAL' ? 'PDF' : 'Book'}
                                     </div>
                                     {product.isFree && (
-                                        <div className="absolute top-2 left-2 bg-emerald-500 text-white px-2 py-1 rounded text-xs font-bold shadow-sm">FREE</div>
+                                        <div className="absolute top-1 left-1 bg-emerald-500 text-white px-1.5 py-0.5 rounded text-[9px] font-bold shadow-sm">FREE</div>
                                     )}
                                 </div>
-                                <div className="p-4 flex-1 flex flex-col">
-                                    <h3 className="font-bold text-slate-800 text-lg mb-1">{product.title}</h3>
-                                    <p className="text-sm text-slate-500 line-clamp-2 mb-3">{product.description}</p>
+                                <div className="p-2.5 flex-1 flex flex-col">
+                                    <h3 className="font-bold text-slate-800 text-xs md:text-sm mb-1 line-clamp-2 leading-tight h-8" title={product.title}>{product.title}</h3>
                                     
-                                    {/* Class Badge */}
                                     <div className="mb-2">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded ${product.targetClass ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
-                                            {product.targetClass ? product.targetClass : 'General / All Classes'}
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${product.targetClass ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-500'}`}>
+                                            {product.targetClass ? product.targetClass : 'General'}
                                         </span>
                                     </div>
 
-                                    <div className="mt-auto flex justify-between items-center pt-3 border-t border-slate-100">
+                                    <div className="mt-auto flex justify-between items-center pt-2 border-t border-slate-100">
                                         <div>
-                                            <span className="text-lg font-bold text-indigo-600">৳{product.price}</span>
-                                            {product.prevPrice && product.prevPrice > product.price && (
-                                                <span className="text-xs text-slate-400 line-through ml-2">৳{product.prevPrice}</span>
-                                            )}
+                                            <span className="text-sm font-bold text-indigo-600">৳{product.price}</span>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => openEditProduct(product)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full"><Edit size={18} /></button>
-                                            <button onClick={() => handleDeleteProduct(product.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-full"><Trash2 size={18} /></button>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => openEditProduct(product)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit size={14} /></button>
+                                            <button onClick={() => handleDeleteProduct(product.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
                                 </div>
