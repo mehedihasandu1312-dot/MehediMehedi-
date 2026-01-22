@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { User, UserRole, AdminActivityLog, DeletionRequest } from '../../types';
@@ -48,9 +49,10 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         setInfoModal({ isOpen: true, title, message, type });
     };
 
-    // --- FILTERING ---
+    // --- FILTERING (DEFENSIVE) ---
     const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!user) return false;
+        const matchesSearch = (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesRole = filterRole === 'ALL' || user.role === filterRole;
         const matchesStatus = filterStatus === 'ALL' || user.status === filterStatus;
         return matchesSearch && matchesRole && matchesStatus;
@@ -279,7 +281,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                     <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
-                                                <img src={user.avatar} alt="avatar" className="w-8 h-8 rounded-full bg-slate-200 object-cover" />
+                                                <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} alt="avatar" className="w-8 h-8 rounded-full bg-slate-200 object-cover" />
                                                 <div>
                                                     <div className="font-bold text-slate-800">{user.name}</div>
                                                     <div className="text-xs text-slate-400">{user.email}</div>

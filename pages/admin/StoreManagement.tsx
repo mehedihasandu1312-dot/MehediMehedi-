@@ -140,10 +140,10 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
     };
 
     // Filter Logic
-    const filteredProducts = products.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredProducts = products.filter(p => (p.title || '').toLowerCase().includes(searchTerm.toLowerCase()));
     const filteredOrders = orders.filter(o => 
-        o.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        o.userName.toLowerCase().includes(searchTerm.toLowerCase())
+        (o.id || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (o.userName || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (

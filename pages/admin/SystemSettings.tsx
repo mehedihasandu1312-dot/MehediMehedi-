@@ -42,7 +42,6 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     // UI State
     const [newRegular, setNewRegular] = useState('');
     const [newAdmission, setNewAdmission] = useState('');
-    const [editingItem, setEditingItem] = useState<{ index: number; type: 'REGULAR' | 'ADMISSION'; value: string } | null>(null);
     
     // Config Modal
     const [editingConfig, setEditingConfig] = useState<{ className: string; type: 'FREE' | 'PAID'; monthly: number; yearly: number; features: PremiumFeature[] } | null>(null);
@@ -52,8 +51,9 @@ const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
 
     useEffect(() => {
-        setRegularList(currentSettings.educationLevels.REGULAR || []);
-        setAdmissionList(currentSettings.educationLevels.ADMISSION || []);
+        // Defensive checks to prevent crash if educationLevels is undefined
+        setRegularList(currentSettings.educationLevels?.REGULAR || []);
+        setAdmissionList(currentSettings.educationLevels?.ADMISSION || []);
         setPricingMap(currentSettings.pricing || {});
         setLockedFeaturesMap(currentSettings.lockedFeatures || {});
         setPaymentNumbers(currentSettings.paymentNumbers || { bKash: '', Nagad: '' });

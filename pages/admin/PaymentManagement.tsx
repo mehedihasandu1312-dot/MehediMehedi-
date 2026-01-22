@@ -32,9 +32,9 @@ const PaymentManagement: React.FC<Props> = ({ requests, setRequests }) => {
 
     const filteredRequests = requests.filter(r => {
         const matchesStatus = filter === 'PENDING' ? r.status === 'PENDING' : r.status !== 'PENDING';
-        const matchesSearch = r.userName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                              r.senderNumber.includes(searchTerm) || 
-                              r.trxId.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = (r.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              (r.senderNumber || '').includes(searchTerm) || 
+                              (r.trxId || '').toLowerCase().includes(searchTerm.toLowerCase());
         return matchesStatus && matchesSearch;
     });
 
