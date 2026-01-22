@@ -1,20 +1,19 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
-import { User, UserRole, AdminActivityLog } from '../../types';
+import { User, UserRole } from '../../types';
 import { authService } from '../../services/authService';
 import { storage } from '../../services/firebase'; 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; 
-import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle, Upload, Activity, Clock, Calendar, Zap, BarChart2 } from 'lucide-react';
+import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
 import { ALL_DISTRICTS } from '../../constants';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface Props {
     educationLevels?: { REGULAR: string[], ADMISSION: string[] };
-    adminLogs?: AdminActivityLog[]; // Optional prop for admins
+    adminLogs?: any[]; 
 }
 
-const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) => {
+const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,41 +49,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
     }
     setLoading(false);
   }, []);
-
-  // --- ADMIN PERFORMANCE CALCULATIONS ---
-  const adminStats = useMemo(() => {
-      if (!user || user.role !== UserRole.ADMIN) return null;
-
-      const myLogs = adminLogs.filter(log => log.adminId === user.id);
-      
-      // Time calculations
-      const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const last24h = myLogs.filter(log => new Date(log.timestamp) > oneDayAgo).length;
-      const thisMonth = myLogs.filter(log => new Date(log.timestamp) > startOfMonth).length;
-      const total = myLogs.length;
-
-      // Estimated Time (Rough approximation: 5 mins per action)
-      const activeMinutes = total * 5; 
-      const activeHours = Math.floor(activeMinutes / 60);
-      const activeMinsRemainder = activeMinutes % 60;
-
-      // Chart Data (Daily for current month)
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const chartData = Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1;
-          const count = myLogs.filter(log => {
-              const d = new Date(log.timestamp);
-              return d.getMonth() === now.getMonth() && d.getDate() === day;
-          }).length;
-          return { day, count };
-      });
-
-      return { last24h, thisMonth, total, activeTime: `${activeHours}h ${activeMinsRemainder}m`, chartData, recentLogs: myLogs.slice(0, 5) };
-  }, [user, adminLogs]);
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,6 +104,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
       } catch (error: any) {
           console.error("Storage upload failed:", error);
           
+          // Fallback to Base64 for demo/dev if storage fails
           if (file.size < 500 * 1024) {
               const reader = new FileReader();
               reader.onload = (event) => {
@@ -149,7 +114,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
               };
               reader.readAsDataURL(file);
           } else {
-              alert(`Upload failed: ${error.message}. Please check your connection or try a smaller image.`);
+              alert(`Upload failed: ${error.message}`);
           }
       } finally {
           setUploading(false);
@@ -163,81 +128,11 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
   if (!user) return <div className="text-center text-slate-500 py-10">User not found</div>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-10">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
        
-       {/* ADMIN PERFORMANCE DASHBOARD (Only for Admins) */}
-       {isAdmin && adminStats && (
-           <div className="bg-gradient-to-r from-brand-600 to-rose-600 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
-               {/* Background Pattern */}
-               <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-               
-               <div className="relative z-10">
-                   <div className="flex justify-between items-start mb-6">
-                       <div>
-                           <h2 className="text-2xl font-bold">Admin Performance Profile</h2>
-                           <div className="flex items-center mt-2 space-x-4 text-sm opacity-90">
-                               <div className="flex items-center"><Mail size={14} className="mr-2"/> {user.email}</div>
-                               <div className="flex items-center"><Clock size={14} className="mr-2"/> Member since: {new Date(user.joinedDate).toLocaleDateString()}</div>
-                           </div>
-                       </div>
-                       <Badge color="bg-white text-brand-700 font-bold px-3 py-1">ACTIVE</Badge>
-                   </div>
-
-                   {/* Stats Grid */}
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
-                               <Zap size={12} className="mr-1" /> Last 24 Hours
-                           </div>
-                           <div className="text-2xl font-bold">{adminStats.last24h} <span className="text-sm font-normal opacity-70">actions</span></div>
-                       </div>
-                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
-                               <Calendar size={12} className="mr-1" /> This Month
-                           </div>
-                           <div className="text-2xl font-bold">{adminStats.thisMonth} <span className="text-sm font-normal opacity-70">actions</span></div>
-                       </div>
-                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
-                               <Activity size={12} className="mr-1" /> Lifetime Total
-                           </div>
-                           <div className="text-2xl font-bold">{adminStats.total}</div>
-                       </div>
-                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
-                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
-                               <Clock size={12} className="mr-1" /> Est. Active Time
-                           </div>
-                           <div className="text-2xl font-bold">{adminStats.activeTime}</div>
-                       </div>
-                   </div>
-
-                   {/* Activity Chart */}
-                   <div className="bg-white rounded-2xl p-4 text-slate-800">
-                       <h3 className="text-sm font-bold text-slate-600 mb-4 flex items-center">
-                           <BarChart2 size={16} className="mr-2 text-indigo-500" /> Monthly Work Intensity (Daily)
-                       </h3>
-                       <div className="h-40 w-full">
-                           <ResponsiveContainer width="100%" height="100%">
-                               <BarChart data={adminStats.chartData}>
-                                   <XAxis dataKey="day" hide />
-                                   <Tooltip 
-                                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-                                       cursor={{fill: '#f1f5f9'}}
-                                   />
-                                   <Bar dataKey="count" fill="#E2136E" radius={[2, 2, 0, 0]} />
-                               </BarChart>
-                           </ResponsiveContainer>
-                       </div>
-                       <div className="text-center text-xs text-slate-400 mt-2 font-medium">Days of Current Month</div>
-                   </div>
-               </div>
-           </div>
-       )}
-
-       {/* SETTINGS FORM */}
-       <div className="flex items-center gap-3 border-b border-slate-200 pb-3 mt-8">
+       <div className="flex items-center gap-3 border-b border-slate-200 pb-3 mt-4">
             <UserIcon className="text-slate-400" size={24} />
-            <h2 className="text-xl font-bold text-slate-700">Account Settings</h2>
+            <h2 className="text-xl font-bold text-slate-700">Profile Settings</h2>
        </div>
 
        <form onSubmit={handleSubmit}>
@@ -275,19 +170,11 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
                         </div>
                     </div>
                     <h3 className="font-bold text-slate-800 text-lg">{user.name}</h3>
-                    <p className="text-slate-500 text-sm mb-2">{user.role}</p>
-                    
-                    {!isAdmin && (
-                        <div className="flex justify-center gap-2 mb-4">
-                            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">
-                                {studentType === 'REGULAR' ? 'Regular/Job Prep' : 'Admission Candidate'}
-                            </span>
-                        </div>
-                    )}
+                    <Badge color="bg-slate-100 text-slate-600 mt-1">{user.role}</Badge>
                     
                     <div className="mt-4">
                         <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                            {uploading ? 'Uploading...' : 'Upload New Photo'}
+                            {uploading ? 'Uploading...' : 'Change Photo'}
                         </Button>
                     </div>
                 </Card>
@@ -299,7 +186,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
                     
                     {!isAdmin && (
                         <>
-                            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Academic Information</h3>
+                            <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Academic Info</h3>
                             <div className="flex bg-slate-100 p-1 rounded-lg">
                                 <button
                                     type="button"
@@ -320,7 +207,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        {studentType === 'REGULAR' ? 'Current Class / Sector' : 'Admission Category'}
+                                        {studentType === 'REGULAR' ? 'Class / Sector' : 'Category'}
                                     </label>
                                     <div className="relative">
                                         <BookOpen size={18} className="absolute left-3 top-3 text-slate-400" />
@@ -354,7 +241,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
                         </>
                     )}
 
-                    <h3 className={`font-bold text-slate-800 border-b border-slate-100 pb-2 ${!isAdmin ? 'pt-2' : ''}`}>Personal Information</h3>
+                    <h3 className={`font-bold text-slate-800 border-b border-slate-100 pb-2 ${!isAdmin ? 'pt-2' : ''}`}>Personal Info</h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -371,7 +258,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
                             <div className="relative">
                                 <Mail size={18} className="absolute left-3 top-3 text-slate-400" />
                                 <input 
@@ -384,7 +271,7 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
                             <div className="relative">
                                 <Phone size={18} className="absolute left-3 top-3 text-slate-400" />
                                 <input 
@@ -427,44 +314,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) =
          </div>
        </form>
 
-       {/* Full Activity History List (Visible only to Admin) */}
-       {isAdmin && adminStats && (
-           <div className="mt-8">
-               <h3 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
-                   <span>Full Activity History</span>
-                   <Badge color="bg-slate-100 text-slate-500">{adminStats.total} records</Badge>
-               </h3>
-               <Card className="min-h-[200px]">
-                   {adminStats.recentLogs.length === 0 ? (
-                       <div className="text-center py-12 text-slate-400">No activity recorded yet.</div>
-                   ) : (
-                       <div className="divide-y divide-slate-100">
-                           {adminLogs.filter(log => log.adminId === user.id).map(log => (
-                               <div key={log.id} className="py-3 flex items-center justify-between">
-                                   <div>
-                                       <p className="font-bold text-sm text-slate-800">{log.action}</p>
-                                       <p className="text-xs text-slate-500">{log.details}</p>
-                                   </div>
-                                   <div className="text-right">
-                                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                           log.type === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' :
-                                           log.type === 'DANGER' ? 'bg-red-50 text-red-600' :
-                                           log.type === 'WARNING' ? 'bg-amber-50 text-amber-600' :
-                                           'bg-blue-50 text-blue-600'
-                                       }`}>
-                                           {log.type}
-                                       </span>
-                                       <p className="text-[10px] text-slate-400 mt-1">{new Date(log.timestamp).toLocaleString()}</p>
-                                   </div>
-                               </div>
-                           ))}
-                       </div>
-                   )}
-               </Card>
-           </div>
-       )}
-
-       {/* Success/Error Message Modal */}
        <Modal isOpen={messageModal.isOpen} onClose={() => setMessageModal({ ...messageModal, isOpen: false })} title={messageModal.title}>
            <div className="space-y-4">
                <div className={`p-4 rounded-lg border flex items-start ${messageModal.type === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
