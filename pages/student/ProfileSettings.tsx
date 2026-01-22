@@ -1,25 +1,27 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Modal } from '../../components/UI';
-import { User, UserRole } from '../../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Card, Button, Modal, Badge } from '../../components/UI';
+import { User, UserRole, AdminActivityLog } from '../../types';
 import { authService } from '../../services/authService';
-import { storage } from '../../services/firebase'; // Import Storage
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Switched to uploadBytes
-import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
+import { storage } from '../../services/firebase'; 
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; 
+import { User as UserIcon, Mail, School, BookOpen, Camera, Save, Loader2, Phone, MapPin, CheckCircle, AlertTriangle, Upload, Activity, Clock, Calendar, Zap, BarChart2 } from 'lucide-react';
 import { ALL_DISTRICTS } from '../../constants';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface Props {
     educationLevels?: { REGULAR: string[], ADMISSION: string[] };
+    adminLogs?: AdminActivityLog[]; // Optional prop for admins
 }
 
-const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
+const ProfileSettings: React.FC<Props> = ({ educationLevels, adminLogs = [] }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false); // Upload state
+  const [uploading, setUploading] = useState(false); 
   const [studentType, setStudentType] = useState<'REGULAR' | 'ADMISSION'>('REGULAR');
   
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -48,6 +50,41 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     }
     setLoading(false);
   }, []);
+
+  // --- ADMIN PERFORMANCE CALCULATIONS ---
+  const adminStats = useMemo(() => {
+      if (!user || user.role !== UserRole.ADMIN) return null;
+
+      const myLogs = adminLogs.filter(log => log.adminId === user.id);
+      
+      // Time calculations
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const last24h = myLogs.filter(log => new Date(log.timestamp) > oneDayAgo).length;
+      const thisMonth = myLogs.filter(log => new Date(log.timestamp) > startOfMonth).length;
+      const total = myLogs.length;
+
+      // Estimated Time (Rough approximation: 5 mins per action)
+      const activeMinutes = total * 5; 
+      const activeHours = Math.floor(activeMinutes / 60);
+      const activeMinsRemainder = activeMinutes % 60;
+
+      // Chart Data (Daily for current month)
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const chartData = Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1;
+          const count = myLogs.filter(log => {
+              const d = new Date(log.timestamp);
+              return d.getMonth() === now.getMonth() && d.getDate() === day;
+          }).length;
+          return { day, count };
+      });
+
+      return { last24h, thisMonth, total, activeTime: `${activeHours}h ${activeMinsRemainder}m`, chartData, recentLogs: myLogs.slice(0, 5) };
+  }, [user, adminLogs]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,17 +116,14 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
     }
   };
 
-  // --- IMAGE UPLOAD LOGIC (ROBUST) ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !user) return;
 
-      // Reset file input so user can retry same file if needed
       if (fileInputRef.current) {
           fileInputRef.current.value = '';
       }
 
-      // Validate Size (Max 2MB)
       if (file.size > 2 * 1024 * 1024) {
           alert("File size must be less than 2MB");
           return;
@@ -98,7 +132,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
       setUploading(true);
 
       try {
-          // 1. Attempt Firebase Storage Upload
           const storageRef = ref(storage, `profile_avatars/${user.id}_${Date.now()}`);
           await uploadBytes(storageRef, file);
           const downloadURL = await getDownloadURL(storageRef);
@@ -107,14 +140,11 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
       } catch (error: any) {
           console.error("Storage upload failed:", error);
           
-          // 2. Fallback: Use Base64 if file is small (< 500KB)
-          // This handles cases where Firebase Storage Rules block the upload or CORS fails.
           if (file.size < 500 * 1024) {
               const reader = new FileReader();
               reader.onload = (event) => {
                   if (event.target?.result) {
                       setFormData(prev => ({ ...prev, avatar: event.target!.result as string }));
-                      // We don't need to alert, just let them save. It's a fallback.
                   }
               };
               reader.readAsDataURL(file);
@@ -122,7 +152,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
               alert(`Upload failed: ${error.message}. Please check your connection or try a smaller image.`);
           }
       } finally {
-          // 3. Always stop loading spinner
           setUploading(false);
       }
   };
@@ -134,16 +163,86 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
   if (!user) return <div className="text-center text-slate-500 py-10">User not found</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-10">
-       {/* Header */}
-       <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-         <UserIcon className="mr-3 text-indigo-600" size={28} />
-         Profile Settings
-       </h1>
+    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-10">
+       
+       {/* ADMIN PERFORMANCE DASHBOARD (Only for Admins) */}
+       {isAdmin && adminStats && (
+           <div className="bg-gradient-to-r from-brand-600 to-rose-600 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+               {/* Background Pattern */}
+               <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+               
+               <div className="relative z-10">
+                   <div className="flex justify-between items-start mb-6">
+                       <div>
+                           <h2 className="text-2xl font-bold">Admin Performance Profile</h2>
+                           <div className="flex items-center mt-2 space-x-4 text-sm opacity-90">
+                               <div className="flex items-center"><Mail size={14} className="mr-2"/> {user.email}</div>
+                               <div className="flex items-center"><Clock size={14} className="mr-2"/> Member since: {new Date(user.joinedDate).toLocaleDateString()}</div>
+                           </div>
+                       </div>
+                       <Badge color="bg-white text-brand-700 font-bold px-3 py-1">ACTIVE</Badge>
+                   </div>
+
+                   {/* Stats Grid */}
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
+                               <Zap size={12} className="mr-1" /> Last 24 Hours
+                           </div>
+                           <div className="text-2xl font-bold">{adminStats.last24h} <span className="text-sm font-normal opacity-70">actions</span></div>
+                       </div>
+                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
+                               <Calendar size={12} className="mr-1" /> This Month
+                           </div>
+                           <div className="text-2xl font-bold">{adminStats.thisMonth} <span className="text-sm font-normal opacity-70">actions</span></div>
+                       </div>
+                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
+                               <Activity size={12} className="mr-1" /> Lifetime Total
+                           </div>
+                           <div className="text-2xl font-bold">{adminStats.total}</div>
+                       </div>
+                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                           <div className="flex items-center text-xs font-bold uppercase tracking-wider opacity-70 mb-1">
+                               <Clock size={12} className="mr-1" /> Est. Active Time
+                           </div>
+                           <div className="text-2xl font-bold">{adminStats.activeTime}</div>
+                       </div>
+                   </div>
+
+                   {/* Activity Chart */}
+                   <div className="bg-white rounded-2xl p-4 text-slate-800">
+                       <h3 className="text-sm font-bold text-slate-600 mb-4 flex items-center">
+                           <BarChart2 size={16} className="mr-2 text-indigo-500" /> Monthly Work Intensity (Daily)
+                       </h3>
+                       <div className="h-40 w-full">
+                           <ResponsiveContainer width="100%" height="100%">
+                               <BarChart data={adminStats.chartData}>
+                                   <XAxis dataKey="day" hide />
+                                   <Tooltip 
+                                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+                                       cursor={{fill: '#f1f5f9'}}
+                                   />
+                                   <Bar dataKey="count" fill="#E2136E" radius={[2, 2, 0, 0]} />
+                               </BarChart>
+                           </ResponsiveContainer>
+                       </div>
+                       <div className="text-center text-xs text-slate-400 mt-2 font-medium">Days of Current Month</div>
+                   </div>
+               </div>
+           </div>
+       )}
+
+       {/* SETTINGS FORM */}
+       <div className="flex items-center gap-3 border-b border-slate-200 pb-3 mt-8">
+            <UserIcon className="text-slate-400" size={24} />
+            <h2 className="text-xl font-bold text-slate-700">Account Settings</h2>
+       </div>
 
        <form onSubmit={handleSubmit}>
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left Column: Avatar (For Both Admin & Student) */}
+            {/* Left Column: Avatar */}
             <div className="md:col-span-1">
                 <Card className="text-center h-full flex flex-col items-center justify-center">
                     <div className="relative inline-block mb-4 group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
@@ -160,7 +259,6 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
                             )}
                         </div>
                         
-                        {/* Hidden File Input */}
                         <input 
                             type="file" 
                             ref={fileInputRef} 
@@ -199,12 +297,9 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             <div className="md:col-span-2">
                 <Card className="space-y-6">
                     
-                    {/* ACADEMIC INFO - HIDDEN FOR ADMINS */}
                     {!isAdmin && (
                         <>
                             <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2">Academic Information</h3>
-                            
-                            {/* Student Type Toggle */}
                             <div className="flex bg-slate-100 p-1 rounded-lg">
                                 <button
                                     type="button"
@@ -331,6 +426,43 @@ const ProfileSettings: React.FC<Props> = ({ educationLevels }) => {
             </div>
          </div>
        </form>
+
+       {/* Full Activity History List (Visible only to Admin) */}
+       {isAdmin && adminStats && (
+           <div className="mt-8">
+               <h3 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
+                   <span>Full Activity History</span>
+                   <Badge color="bg-slate-100 text-slate-500">{adminStats.total} records</Badge>
+               </h3>
+               <Card className="min-h-[200px]">
+                   {adminStats.recentLogs.length === 0 ? (
+                       <div className="text-center py-12 text-slate-400">No activity recorded yet.</div>
+                   ) : (
+                       <div className="divide-y divide-slate-100">
+                           {adminLogs.filter(log => log.adminId === user.id).map(log => (
+                               <div key={log.id} className="py-3 flex items-center justify-between">
+                                   <div>
+                                       <p className="font-bold text-sm text-slate-800">{log.action}</p>
+                                       <p className="text-xs text-slate-500">{log.details}</p>
+                                   </div>
+                                   <div className="text-right">
+                                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                           log.type === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' :
+                                           log.type === 'DANGER' ? 'bg-red-50 text-red-600' :
+                                           log.type === 'WARNING' ? 'bg-amber-50 text-amber-600' :
+                                           'bg-blue-50 text-blue-600'
+                                       }`}>
+                                           {log.type}
+                                       </span>
+                                       <p className="text-[10px] text-slate-400 mt-1">{new Date(log.timestamp).toLocaleString()}</p>
+                                   </div>
+                               </div>
+                           ))}
+                       </div>
+                   )}
+               </Card>
+           </div>
+       )}
 
        {/* Success/Error Message Modal */}
        <Modal isOpen={messageModal.isOpen} onClose={() => setMessageModal({ ...messageModal, isOpen: false })} title={messageModal.title}>
