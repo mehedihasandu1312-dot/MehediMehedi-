@@ -10,6 +10,7 @@ import {
     List, FileText, Grid
 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
+import { authService } from '../../services/authService';
 
 interface ExamCreationProps {
     exams: Exam[];
@@ -42,6 +43,7 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentUser = authService.getCurrentUser();
 
   const showInfo = (title: string, message: string, type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
       setInfoModal({ isOpen: true, title, message, type });
@@ -73,6 +75,12 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
 
     setExams([newExam, ...exams]);
     setIsCreating(false);
+    
+    // LOG ACTION
+    if (currentUser) {
+        authService.logAdminAction(currentUser.id, currentUser.name, "Created Exam", `Title: ${newExam.title}`, "SUCCESS");
+    }
+
     showInfo("Success", "Exam created successfully! You can publish it when ready.");
   };
 
@@ -104,6 +112,8 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               targetClass: newFolderTargetClass || undefined,
               icon: newFolderIcon || undefined
           } : f));
+          
+          if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Updated Folder", `Folder: ${newFolderName}`, "INFO");
           showInfo("Success", "Folder updated!");
       } else {
           // Create
@@ -115,8 +125,9 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
               targetClass: newFolderTargetClass || undefined,
               icon: newFolderIcon || undefined
           };
-          // UPDATED: Prepend new folder
           setFolders([newFolder, ...folders]);
+          
+          if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Created Exam Folder", `Folder: ${newFolderName}`, "INFO");
           showInfo("Success", "Folder created!");
       }
       
@@ -152,6 +163,10 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
 
   const handleTogglePublish = (id: string, currentStatus: boolean) => {
       setExams(exams.map(e => e.id === id ? { ...e, isPublished: !currentStatus } : e));
+      if (currentUser) {
+          const exam = exams.find(e => e.id === id);
+          authService.logAdminAction(currentUser.id, currentUser.name, !currentStatus ? "Published Exam" : "Unpublished Exam", `Exam: ${exam?.title}`, "WARNING");
+      }
   };
 
   const initiateDeleteExam = (id: string) => {
@@ -161,9 +176,13 @@ const ExamCreation: React.FC<ExamCreationProps> = ({ exams, setExams, folders, s
   const confirmDelete = () => {
       if (deleteModal.id) {
           if (deleteModal.type === 'FOLDER') {
+              const folderName = folders.find(f => f.id === deleteModal.id)?.name;
               setFolders(folders.filter(f => f.id !== deleteModal.id));
+              if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Folder", `Folder: ${folderName}`, "DANGER");
           } else {
+              const examName = exams.find(e => e.id === deleteModal.id)?.title;
               setExams(exams.filter(e => e.id !== deleteModal.id));
+              if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Exam", `Exam: ${examName}`, "DANGER");
           }
           setDeleteModal({ isOpen: false, id: null, type: 'EXAM' });
       }

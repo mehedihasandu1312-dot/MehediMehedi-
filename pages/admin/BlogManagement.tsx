@@ -5,6 +5,7 @@ import { BlogPost, Folder } from '../../types';
 import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle, Crown, Upload, Loader2, X } from 'lucide-react';
 import { storage } from '../../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { authService } from '../../services/authService';
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -35,6 +36,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
   
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentUser = authService.getCurrentUser();
 
   // Delete State
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'FOLDER' | 'BLOG' }>({ isOpen: false, id: null, type: 'BLOG' });
@@ -80,6 +82,9 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       
       // UPDATED: Prepend new folder so it appears first
       setFolders([newFolder, ...folders]);
+      
+      if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Created Blog Folder", `Folder: ${newFolderName}`, "SUCCESS");
+      
       setNewFolderName('');
       setNewFolderDesc('');
       setIsFolderModalOpen(false);
@@ -155,6 +160,9 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       isPremium: formData.isPremium // NEW
     };
     setBlogs([newBlog, ...blogs]);
+    
+    if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Published Blog", `Article: ${formData.title}`, "SUCCESS");
+
     setFormData({ title: '', author: '', excerpt: '', content: '', thumbnail: '', tags: '', isPremium: false });
     setIsCreatingBlog(false);
     showInfo("Success", "Blog post published successfully!");
@@ -168,8 +176,11 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       if (deleteModal.id) {
           if (deleteModal.type === 'FOLDER') {
               setFolders(folders.filter(f => f.id !== deleteModal.id));
+              if(currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Folder", `ID: ${deleteModal.id}`, "WARNING");
           } else {
+              const blogTitle = blogs.find(b => b.id === deleteModal.id)?.title;
               setBlogs(blogs.filter(b => b.id !== deleteModal.id));
+              if(currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Blog", `Article: ${blogTitle}`, "DANGER");
           }
           setDeleteModal({ isOpen: false, id: null, type: 'BLOG' });
       }

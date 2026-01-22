@@ -1,8 +1,8 @@
 
-import { User, UserRole, PaymentRequest, StoreOrder } from '../types';
+import { User, UserRole, PaymentRequest, StoreOrder, AdminActivityLog } from '../types';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 
 export const authService = {
   // --- REAL ADMIN LOGIN (EMAIL/PASSWORD) ---
@@ -31,6 +31,10 @@ export const authService = {
             }
 
             sessionStorage.setItem('currentUser', JSON.stringify(userData));
+            
+            // Log Login Action
+            authService.logAdminAction(userData.id, userData.name, "Login", "Admin Portal Access", "INFO");
+            
             return userData;
         } else {
             // Edge case: Auth exists (Password correct) but no DB record found.
@@ -180,6 +184,26 @@ export const authService = {
       } catch (e) {
           console.error("Failed to submit store order", e);
           throw e;
+      }
+  },
+
+  // --- ADMIN ACTIVITY LOGGER ---
+  logAdminAction: async (adminId: string, adminName: string, action: string, details: string, type: 'INFO' | 'WARNING' | 'DANGER' | 'SUCCESS') => {
+      try {
+          const logId = `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const logData: AdminActivityLog = {
+              id: logId,
+              adminId,
+              adminName,
+              action,
+              details,
+              type,
+              timestamp: new Date().toISOString()
+          };
+          // Save to 'admin_logs' collection
+          await setDoc(doc(db, "admin_logs", logId), logData);
+      } catch (e) {
+          console.error("Failed to log admin action", e);
       }
   }
 };

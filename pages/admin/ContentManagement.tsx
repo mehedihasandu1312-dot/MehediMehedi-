@@ -3,8 +3,9 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import WrittenContentForm from '../../components/WrittenContentForm';
 import McqContentForm from '../../components/McqContentForm';
-import VideoContentForm from '../../components/VideoContentForm'; // NEW IMPORT
+import VideoContentForm from '../../components/VideoContentForm'; 
 import { StudyContent, ContentType, Folder } from '../../types';
+import { authService } from '../../services/authService';
 import { 
     Plus, 
     FileText, 
@@ -87,6 +88,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   const [newFolderIcon, setNewFolderIcon] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentUser = authService.getCurrentUser();
 
   // Helper
   const showInfo = (title: string, message: string, type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
@@ -185,6 +187,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             targetClass: newFolderTargetClass || undefined,
             icon: newFolderIcon || undefined
         } : f));
+        if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Updated Content Folder", `Folder: ${newFolderName}`, "INFO");
         showInfo("Success", "Folder updated successfully!");
     } else {
         // Create
@@ -198,6 +201,7 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             icon: newFolderIcon || undefined
         };
         setFolders([newFolder, ...folders]);
+        if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Created Content Folder", `Folder: ${newFolderName}`, "SUCCESS");
         showInfo("Success", "Folder created successfully!");
     }
 
@@ -241,10 +245,11 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
                 body: data.body,
                 questions: data.questions,
                 questionList: data.questionList,
-                videoUrl: data.videoUrl // Add this
+                videoUrl: data.videoUrl 
               } 
             : c
         ));
+        if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Updated Content", `File: ${data.title}`, "INFO");
         showInfo("Success", `Content updated successfully!`);
     } else {
         // Create New
@@ -256,10 +261,11 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
             body: data.body,
             questions: data.questions,
             questionList: data.questionList,
-            videoUrl: data.videoUrl, // Add this
+            videoUrl: data.videoUrl, 
             isDeleted: false
         };
         setContents([newContent, ...contents]);
+        if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Added Content", `File: ${data.title} (${type})`, "SUCCESS");
         
         if (currentFolderId !== data.folderId) {
              showInfo("Success", `Content added to selected folder!`);
@@ -301,9 +307,13 @@ const ContentManagement: React.FC<ContentManagementProps> = ({ folders, setFolde
   const confirmDelete = () => {
       if (deleteModal.id) {
           if (deleteModal.type === 'FOLDER') {
+              const fName = folders.find(f => f.id === deleteModal.id)?.name;
               setFolders(folders.filter(f => f.id !== deleteModal.id));
+              if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Folder", `Folder: ${fName}`, "DANGER");
           } else {
+              const cName = contents.find(c => c.id === deleteModal.id)?.title;
               setContents(contents.map(c => c.id === deleteModal.id ? { ...c, isDeleted: true } : c));
+              if (currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Content", `File: ${cName}`, "DANGER");
           }
           setDeleteModal({ isOpen: false, id: null, type: 'CONTENT' });
       }
