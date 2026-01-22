@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { SystemSettings, ClassPrice, PremiumFeature } from '../../types';
-import { Sliders, Plus, Trash2, Save, BookOpen, GraduationCap, AlertTriangle, Edit2, Check, X, CheckCircle, DollarSign, Settings, CreditCard, Lock, Unlock, Crown } from 'lucide-react';
+import { Sliders, Plus, Trash2, Save, CheckCircle, AlertTriangle, DollarSign, Lock, Unlock, Crown, BookOpen, GraduationCap, CreditCard } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore'; 
 import { db } from '../../services/firebase';
 import { authService } from '../../services/authService';
@@ -12,92 +12,15 @@ interface Props {
     setSettings: React.Dispatch<React.SetStateAction<SystemSettings[]>>;
 }
 
+const FEATURE_LIST: { key: PremiumFeature, label: string }[] = [
+    { key: 'NO_ADS', label: 'Ad-Free Experience' },
+    { key: 'EXAMS', label: 'Premium Exams' },
+    { key: 'CONTENT', label: 'Premium Notes' },
+    { key: 'LEADERBOARD', label: 'Global Leaderboard' },
+    { key: 'SOCIAL', label: 'Social Community' },
+];
+
 const SystemSettingsPage: React.FC<Props> = ({ settings, setSettings }) => {
-    // ... (State initialization same as before)
-    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
-    const currentUser = authService.getCurrentUser();
-
-    // ... (Hooks and helper functions)
-
-    const handleSave = async () => {
-        // ... (Construct updatedSettings object)
-        const updatedSettings: SystemSettings = {
-            id: 'global_settings',
-            educationLevels: { REGULAR: [], ADMISSION: [] }, // Use state vars
-            pricing: {}, 
-            lockedFeatures: {},
-            paymentNumbers: { bKash: '', Nagad: '' }
-        };
-        // (Assuming state variables like regularList, admissionList, pricingMap are used here)
-        // Re-construct for brevity in this patch block:
-        updatedSettings.educationLevels.REGULAR = []; // Replace with actual state `regularList`
-        updatedSettings.educationLevels.ADMISSION = []; // Replace with `admissionList`
-        // In real code, use the state variables defined in component scope
-        // BUT for XML patch to work, I need to put back the full function body or React will break.
-        // Let's assume standard implementation from previous turn but ADD LOGGING.
-        
-        // RE-IMPLEMENTING FULL HANDLE SAVE TO BE SAFE
-        const finalSettings: SystemSettings = {
-            id: 'global_settings',
-            educationLevels: {
-                REGULAR: [], // Use state `regularList`
-                ADMISSION: [] // Use state `admissionList`
-            },
-            pricing: {}, // Use `pricingMap`
-            lockedFeatures: {}, // Use `lockedFeaturesMap`
-            paymentNumbers: { bKash: '', Nagad: '' } // Use `paymentNumbers`
-        };
-        // Note: In the actual file `regularList` etc are available in scope. 
-        // I will just invoke `setDoc` and `logAdminAction`.
-    };
-    
-    // REDEFINING THE COMPONENT PROPERLY TO INJECT LOGGING
-    // This replaces the previous implementation
-    
-    const handleSaveReal = async () => {
-        // Construct object from state
-        // We need to access state variables `regularList`, `admissionList`, `pricingMap` etc.
-        // Since I cannot see them in this patch block without redefining the whole component, 
-        // I will assume the component structure from previous turn and just inject the log call.
-    };
-
-    return (
-        <div className="space-y-6 animate-fade-in pb-20">
-            {/* HEADER */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                        <Sliders className="mr-3 text-indigo-600" size={28} />
-                        Class & Subscription Manager
-                    </h1>
-                    <p className="text-slate-500 text-sm">Define classes and set which ones are Free vs Paid.</p>
-                </div>
-                <Button 
-                    onClick={async () => {
-                        // INLINE SAVE LOGIC TO ACCESS STATE
-                        const updated: SystemSettings = {
-                            id: 'global_settings',
-                            educationLevels: { REGULAR: [], ADMISSION: [] }, // Need actual state here
-                            pricing: {},
-                            lockedFeatures: {},
-                            paymentNumbers: { bKash: '', Nagad: '' }
-                        };
-                        // To allow this patch to work without breaking state references, 
-                        // I'm relying on the fact that I'm replacing the file content.
-                        // I will output the FULL component content below with logging added.
-                    }} 
-                    className="flex items-center shadow-lg shadow-indigo-200"
-                >
-                    <Save size={18} className="mr-2" /> Save Changes
-                </Button>
-            </div>
-            {/* ... Rest of UI ... */}
-        </div>
-    );
-};
-
-// FULL REPLACEMENT CONTENT FOR SystemSettings.tsx
-const SystemSettingsPageFull: React.FC<Props> = ({ settings, setSettings }) => {
     const defaultSettings: SystemSettings = {
         id: 'global_settings',
         educationLevels: { REGULAR: [], ADMISSION: [] },
@@ -109,29 +32,86 @@ const SystemSettingsPageFull: React.FC<Props> = ({ settings, setSettings }) => {
     const currentSettings = settings.find(s => s.id === 'global_settings') || defaultSettings;
     const currentUser = authService.getCurrentUser();
 
+    // Safe State Initialization
     const [regularList, setRegularList] = useState<string[]>([]);
     const [admissionList, setAdmissionList] = useState<string[]>([]);
     const [pricingMap, setPricingMap] = useState<Record<string, ClassPrice>>({});
     const [lockedFeaturesMap, setLockedFeaturesMap] = useState<Record<string, PremiumFeature[]>>({});
     const [paymentNumbers, setPaymentNumbers] = useState({ bKash: '', Nagad: '' });
     
+    // UI State
+    const [newRegular, setNewRegular] = useState('');
+    const [newAdmission, setNewAdmission] = useState('');
+    
+    // Config Modal
+    const [editingConfig, setEditingConfig] = useState<{ className: string; type: 'FREE' | 'PAID'; monthly: number; yearly: number; features: PremiumFeature[] } | null>(null);
+    
+    // Modals
+    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
+
     useEffect(() => {
-        setRegularList(currentSettings.educationLevels.REGULAR || []);
-        setAdmissionList(currentSettings.educationLevels.ADMISSION || []);
+        setRegularList(currentSettings.educationLevels?.REGULAR || []);
+        setAdmissionList(currentSettings.educationLevels?.ADMISSION || []);
         setPricingMap(currentSettings.pricing || {});
         setLockedFeaturesMap(currentSettings.lockedFeatures || {});
         setPaymentNumbers(currentSettings.paymentNumbers || { bKash: '', Nagad: '' });
     }, [currentSettings]);
 
-    // ... (Other states for modals/editing remain same)
-    const [newRegular, setNewRegular] = useState('');
-    const [newAdmission, setNewAdmission] = useState('');
-    const [editingItem, setEditingItem] = useState<{ index: number; type: 'REGULAR' | 'ADMISSION'; value: string } | null>(null);
-    const [editingConfig, setEditingConfig] = useState<any>(null);
-    const [deleteModal, setDeleteModal] = useState<any>({ isOpen: false });
-    const [infoModal, setInfoModal] = useState<any>({ isOpen: false });
+    const addItem = (list: string[], setList: (l: string[]) => void, input: string, setInput: (s: string) => void) => {
+        if (input.trim()) {
+            setList([...list, input.trim()]);
+            setInput('');
+        }
+    };
 
-    // SAVE HANDLER WITH LOGGING
+    const removeItem = (list: string[], setList: (l: string[]) => void, index: number) => {
+        const newList = [...list];
+        newList.splice(index, 1);
+        setList(newList);
+    };
+
+    const openConfigEdit = (className: string) => {
+        const price = pricingMap[className] || { monthly: 0, yearly: 0 };
+        const features = lockedFeaturesMap[className] || [];
+        const isPaid = price.monthly > 0 || price.yearly > 0;
+        
+        setEditingConfig({
+            className,
+            type: isPaid ? 'PAID' : 'FREE',
+            monthly: price.monthly,
+            yearly: price.yearly,
+            features
+        });
+    };
+
+    const saveConfigEdit = () => {
+        if (!editingConfig) return;
+        
+        setPricingMap(prev => ({
+            ...prev,
+            [editingConfig.className]: {
+                monthly: editingConfig.type === 'PAID' ? Number(editingConfig.monthly) : 0,
+                yearly: editingConfig.type === 'PAID' ? Number(editingConfig.yearly) : 0
+            }
+        }));
+
+        setLockedFeaturesMap(prev => ({
+            ...prev,
+            [editingConfig.className]: editingConfig.features
+        }));
+
+        setEditingConfig(null);
+    };
+
+    const toggleFeature = (feature: PremiumFeature) => {
+        if (!editingConfig) return;
+        const current = editingConfig.features;
+        const updated = current.includes(feature) 
+            ? current.filter(f => f !== feature) 
+            : [...current, feature];
+        setEditingConfig({ ...editingConfig, features: updated });
+    };
+
     const handleSave = async () => {
         const updatedSettings: SystemSettings = {
             id: 'global_settings',
@@ -144,24 +124,16 @@ const SystemSettingsPageFull: React.FC<Props> = ({ settings, setSettings }) => {
             paymentNumbers: paymentNumbers
         };
 
-        if (settings.length === 0) {
-            setSettings([updatedSettings]);
-        } else {
-            setSettings(settings.map(s => s.id === 'global_settings' ? updatedSettings : s));
-        }
-        
         try {
             await setDoc(doc(db, "settings", "global_settings"), updatedSettings);
             
-            // LOGGING ADDED
+            // Update local state immediately for responsiveness
+            const newSettingsArray = settings.map(s => s.id === 'global_settings' ? updatedSettings : s);
+            if (!settings.find(s => s.id === 'global_settings')) newSettingsArray.push(updatedSettings);
+            setSettings(newSettingsArray);
+
             if (currentUser) {
-                authService.logAdminAction(
-                    currentUser.id, 
-                    currentUser.name, 
-                    "Updated Settings", 
-                    "Modified System Configuration", 
-                    "WARNING"
-                );
+                authService.logAdminAction(currentUser.id, currentUser.name, "Updated Settings", "Modified System Configuration", "WARNING");
             }
 
             setInfoModal({ isOpen: true, title: "Success", message: "System settings saved successfully!" });
@@ -171,32 +143,219 @@ const SystemSettingsPageFull: React.FC<Props> = ({ settings, setSettings }) => {
         }
     };
 
-    // ... (Helper functions: addItem, initiateEdit, saveEdit, initiateRemove, confirmRemove, etc. - Keep as is)
-    // Placeholder for brevity in diff
-    const addItem = (l:any, sl:any, i:any, si:any) => { if(i.trim()) { sl([...l, i.trim()]); si(''); } };
-    const initiateEdit = (i:any, t:any, v:any) => setEditingItem({index:i, type:t, value:v});
-    const saveEdit = () => { /* ... */ setEditingItem(null); };
-    const initiateRemove = (i:any, t:any) => setDeleteModal({isOpen:true, index:i, type:t});
-    const confirmRemove = () => { /* ... remove logic ... */ setDeleteModal({isOpen:false}); };
-    const openConfigEdit = (c:any) => { /* ... */ setEditingConfig({ className: c, type: 'FREE', monthly: 0, yearly: 0, features: [] }); }; // Simplified
-    const saveConfigEdit = () => { /* ... */ setEditingConfig(null); };
-    const toggleFeature = (f:any) => {}; 
-
-    // RENDER
     return (
         <div className="space-y-6 animate-fade-in pb-20">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-slate-800">System Settings</h1>
-                <Button onClick={handleSave} className="flex items-center"><Save size={18} className="mr-2"/> Save Changes</Button>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+                        <Sliders className="mr-3 text-indigo-600" size={28} />
+                        Class & Subscription Manager
+                    </h1>
+                    <p className="text-slate-500 text-sm">Configure classes, pricing models, and payment methods.</p>
+                </div>
+                <Button onClick={handleSave} className="flex items-center shadow-lg shadow-indigo-200">
+                    <Save size={18} className="mr-2" /> Save Changes
+                </Button>
             </div>
-            {/* ... Rest of UI ... */}
+
+            {/* PAYMENT NUMBERS */}
             <Card>
-                <h3 className="font-bold mb-4">Class Management</h3>
-                {/* ... Lists ... */}
+                <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 flex items-center">
+                    <CreditCard size={20} className="mr-2 text-emerald-600" /> Payment Methods (Merchant Numbers)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">bKash Number</label>
+                        <input 
+                            type="text" 
+                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-mono"
+                            placeholder="017..."
+                            value={paymentNumbers.bKash}
+                            onChange={e => setPaymentNumbers({...paymentNumbers, bKash: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Nagad Number</label>
+                        <input 
+                            type="text" 
+                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                            placeholder="018..."
+                            value={paymentNumbers.Nagad}
+                            onChange={e => setPaymentNumbers({...paymentNumbers, Nagad: e.target.value})}
+                        />
+                    </div>
+                </div>
             </Card>
-            {/* ... Modals ... */}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* REGULAR CLASSES */}
+                <Card className="flex flex-col h-full">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center">
+                        <BookOpen size={20} className="mr-2 text-blue-600" /> Regular Classes / Job Prep
+                    </h3>
+                    <div className="flex gap-2 mb-4">
+                        <input 
+                            type="text" 
+                            className="flex-1 p-2 border rounded-lg text-sm"
+                            placeholder="Add Class (e.g. Class 9)"
+                            value={newRegular}
+                            onChange={e => setNewRegular(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addItem(regularList, setRegularList, newRegular, setNewRegular)}
+                        />
+                        <Button size="sm" onClick={() => addItem(regularList, setRegularList, newRegular, setNewRegular)}><Plus size={16}/></Button>
+                    </div>
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1 flex-1">
+                        {regularList.map((item, idx) => {
+                            const isPaid = (pricingMap[item]?.monthly || 0) > 0;
+                            return (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 group hover:border-blue-300 transition-colors">
+                                    <span className="text-sm font-medium">{item}</span>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => openConfigEdit(item)} className={`text-xs px-2 py-1 rounded font-bold border flex items-center ${isPaid ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}>
+                                            {isPaid ? <Lock size={10} className="mr-1"/> : <Unlock size={10} className="mr-1"/>}
+                                            {isPaid ? `PAID` : 'FREE'}
+                                        </button>
+                                        <button onClick={() => removeItem(regularList, setRegularList, idx)} className="text-slate-300 hover:text-red-600 p-1"><Trash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+
+                {/* ADMISSION CLASSES */}
+                <Card className="flex flex-col h-full">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center">
+                        <GraduationCap size={20} className="mr-2 text-purple-600" /> Admission Categories
+                    </h3>
+                    <div className="flex gap-2 mb-4">
+                        <input 
+                            type="text" 
+                            className="flex-1 p-2 border rounded-lg text-sm"
+                            placeholder="Add Category (e.g. Medical)"
+                            value={newAdmission}
+                            onChange={e => setNewAdmission(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}
+                        />
+                        <Button size="sm" onClick={() => addItem(admissionList, setAdmissionList, newAdmission, setNewAdmission)}><Plus size={16}/></Button>
+                    </div>
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1 flex-1">
+                        {admissionList.map((item, idx) => {
+                            const isPaid = (pricingMap[item]?.monthly || 0) > 0;
+                            return (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 group hover:border-purple-300 transition-colors">
+                                    <span className="text-sm font-medium">{item}</span>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => openConfigEdit(item)} className={`text-xs px-2 py-1 rounded font-bold border flex items-center ${isPaid ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}>
+                                            {isPaid ? <Lock size={10} className="mr-1"/> : <Unlock size={10} className="mr-1"/>}
+                                            {isPaid ? `PAID` : 'FREE'}
+                                        </button>
+                                        <button onClick={() => removeItem(admissionList, setAdmissionList, idx)} className="text-slate-300 hover:text-red-600 p-1"><Trash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            </div>
+
+            {/* CONFIG MODAL */}
+            <Modal isOpen={!!editingConfig} onClose={() => setEditingConfig(null)} title="Configure Settings">
+                {editingConfig && (
+                    <div className="space-y-6">
+                        <div className="text-center pb-4 border-b border-slate-100">
+                            <h3 className="text-xl font-bold text-slate-800">{editingConfig.className}</h3>
+                            <p className="text-slate-500 text-sm">Set pricing and feature access.</p>
+                        </div>
+
+                        {/* Type Toggle */}
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            <button 
+                                onClick={() => setEditingConfig({...editingConfig, type: 'FREE'})}
+                                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${editingConfig.type === 'FREE' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}
+                            >
+                                Free (Open Access)
+                            </button>
+                            <button 
+                                onClick={() => setEditingConfig({...editingConfig, type: 'PAID'})}
+                                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${editingConfig.type === 'PAID' ? 'bg-white shadow text-amber-700' : 'text-slate-500'}`}
+                            >
+                                Paid (Subscription)
+                            </button>
+                        </div>
+
+                        {/* Pricing Fields */}
+                        {editingConfig.type === 'PAID' && (
+                            <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Monthly Fee (BDT)</label>
+                                    <div className="relative">
+                                        <DollarSign size={14} className="absolute left-3 top-3 text-slate-400" />
+                                        <input 
+                                            type="number" 
+                                            className="w-full pl-8 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                            value={editingConfig.monthly}
+                                            onChange={e => setEditingConfig({...editingConfig, monthly: Number(e.target.value)})}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Yearly Fee (BDT)</label>
+                                    <div className="relative">
+                                        <DollarSign size={14} className="absolute left-3 top-3 text-slate-400" />
+                                        <input 
+                                            type="number" 
+                                            className="w-full pl-8 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                            value={editingConfig.yearly}
+                                            onChange={e => setEditingConfig({...editingConfig, yearly: Number(e.target.value)})}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Feature Locks */}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-3">Locked Features (Require Pro)</label>
+                            <div className="space-y-2">
+                                {FEATURE_LIST.map(feature => {
+                                    const isLocked = editingConfig.features.includes(feature.key);
+                                    return (
+                                        <div 
+                                            key={feature.key} 
+                                            onClick={() => toggleFeature(feature.key)}
+                                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${isLocked ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                            <div className="flex items-center">
+                                                {isLocked ? <Lock size={16} className="text-red-500 mr-3" /> : <Unlock size={16} className="text-emerald-500 mr-3" />}
+                                                <span className={`text-sm font-medium ${isLocked ? 'text-red-700' : 'text-slate-700'}`}>{feature.label}</span>
+                                            </div>
+                                            {isLocked && <Badge color="bg-red-100 text-red-700">LOCKED</Badge>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">Features checked here will only be available to paid subscribers.</p>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <Button onClick={saveConfigEdit}>Apply Configuration</Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Info Modal */}
+            <Modal isOpen={infoModal.isOpen} onClose={() => setInfoModal({...infoModal, isOpen: false})} title={infoModal.title}>
+                <div className="text-center p-4">
+                    <CheckCircle size={40} className="mx-auto text-emerald-500 mb-3" />
+                    <p>{infoModal.message}</p>
+                    <Button className="mt-4" onClick={() => setInfoModal({...infoModal, isOpen: false})}>OK</Button>
+                </div>
+            </Modal>
         </div>
     );
-}
+};
 
-export default SystemSettingsPageFull;
+export default SystemSettingsPage;

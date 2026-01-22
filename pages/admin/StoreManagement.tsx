@@ -2,10 +2,9 @@
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { StoreProduct, StoreOrder, ProductType } from '../../types';
-import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Upload, X, Image as ImageIcon, Eye, Loader2, Link as LinkIcon, Target, Zap, Filter } from 'lucide-react';
-import { db, storage } from '../../services/firebase';
+import { Package, Plus, Edit, Trash2, Search, Upload, X, Loader2 } from 'lucide-react';
+import { db } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { authService } from '../../services/authService';
 
 interface Props {
@@ -18,7 +17,9 @@ interface Props {
 
 const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOrders, educationLevels }) => {
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'ORDERS'>('PRODUCTS');
-    // ... (other state)
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // Product Modal State
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<StoreProduct | null>(null);
     const [productForm, setProductForm] = useState<{
@@ -28,40 +29,37 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         title: '', description: '', type: 'DIGITAL', price: 0, prevPrice: 0, 
         image: '', fileUrl: '', previewUrl: '', stock: 0, category: '', targetClass: ''
     });
+    const [isUploading, setIsUploading] = useState(false);
+    
+    // Order Action State
     const [confirmOrderModal, setConfirmOrderModal] = useState<{ isOpen: boolean; order: StoreOrder | null; action: 'APPROVE' | 'SHIP' | 'REJECT' }>({ isOpen: false, order: null, action: 'APPROVE' });
 
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const currentUser = authService.getCurrentUser();
 
-    // ... (Handlers)
-
+    // -- ACTIONS --
     const handleProductSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
         const productData: StoreProduct = {
             id: editingProduct ? editingProduct.id : `prod_${Date.now()}`,
             ...productForm,
-            targetClass: productForm.targetClass || undefined, 
             isFree: productForm.price === 0
         };
 
         if (editingProduct) {
             setProducts(prev => prev.map(p => p.id === editingProduct.id ? productData : p));
-            // LOGGING ADDED
             if(currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Updated Product", `Product: ${productData.title}`, "INFO");
         } else {
             setProducts(prev => [productData, ...prev]);
-            // LOGGING ADDED
             if(currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Created Product", `Product: ${productData.title}`, "SUCCESS");
         }
         setIsProductModalOpen(false);
-        // resetForm(); // Call internal reset
     };
 
     const handleDeleteProduct = (id: string) => {
         if(confirm("Are you sure?")) {
             const prodTitle = products.find(p => p.id === id)?.title || id;
             setProducts(prev => prev.filter(p => p.id !== id));
-            // LOGGING ADDED
             if(currentUser) authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Product", `Product: ${prodTitle}`, "DANGER");
         }
     };
@@ -79,46 +77,137 @@ const StoreManagement: React.FC<Props> = ({ products, setProducts, orders, setOr
         
         try {
             await setDoc(doc(db, "store_orders", order.id), { status: newStatus }, { merge: true });
-            
-            // LOGGING ADDED
             if (currentUser) {
-                authService.logAdminAction(
-                    currentUser.id, 
-                    currentUser.name, 
-                    `${action} Order`, 
-                    `Order #${order.id.substring(4,9)} | User: ${order.userName}`, 
-                    action === 'REJECT' ? "WARNING" : "SUCCESS"
-                );
+                authService.logAdminAction(currentUser.id, currentUser.name, `${action} Order`, `Order #${order.id}`, action === 'REJECT' ? "WARNING" : "SUCCESS");
             }
-
         } catch(e) { console.error(e); }
 
         setConfirmOrderModal({ isOpen: false, order: null, action: 'APPROVE' });
     };
 
-    // ... (Render Logic same as before)
+    const openEditProduct = (product: StoreProduct) => {
+        setEditingProduct(product);
+        setProductForm({
+            title: product.title, description: product.description, type: product.type,
+            price: product.price, prevPrice: product.prevPrice || 0, image: product.image,
+            fileUrl: product.fileUrl || '', previewUrl: product.previewUrl || '',
+            stock: product.stock || 0, category: product.category || '', targetClass: product.targetClass || ''
+        });
+        setIsProductModalOpen(true);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                setProductForm(prev => ({ ...prev, image: event.target!.result as string }));
+                setIsUploading(false);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const filteredProducts = products.filter(p => (p.title || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredOrders = orders.filter(o => (o.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) || (o.id || '').includes(searchTerm));
+
     return (
         <div className="space-y-6 animate-fade-in pb-10">
-            {/* UI Code */}
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-slate-800">Store Management</h1>
-                {/* ... Tabs ... */}
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <button onClick={() => setActiveTab('PRODUCTS')} className={`px-4 py-2 text-sm font-bold rounded ${activeTab === 'PRODUCTS' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}>Products</button>
+                    <button onClick={() => setActiveTab('ORDERS')} className={`px-4 py-2 text-sm font-bold rounded ${activeTab === 'ORDERS' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}>Orders ({orders.filter(o => o.status === 'PENDING').length})</button>
+                </div>
             </div>
-            
-            {/* ... Modal and Tables ... */}
-            <Modal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} title="Product Editor" size="lg">
-                 {/* ... Form ... */}
+
+            <div className="flex gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    <input type="text" placeholder="Search..." className="w-full pl-10 p-2.5 border rounded-lg" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                {activeTab === 'PRODUCTS' && <Button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }}><Plus size={18} className="mr-2"/> Add Product</Button>}
+            </div>
+
+            {activeTab === 'PRODUCTS' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {filteredProducts.map(product => (
+                        <Card key={product.id} className="p-4 flex flex-col relative group">
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1 rounded">
+                                <button onClick={() => openEditProduct(product)} className="p-1 text-indigo-600"><Edit size={16}/></button>
+                                <button onClick={() => handleDeleteProduct(product.id)} className="p-1 text-red-600"><Trash2 size={16}/></button>
+                            </div>
+                            <img src={product.image} className="w-full h-40 object-cover rounded bg-slate-100 mb-3" />
+                            <h3 className="font-bold text-slate-800 line-clamp-1">{product.title}</h3>
+                            <div className="flex justify-between items-center mt-auto pt-3">
+                                <Badge>{product.type}</Badge>
+                                <span className="font-bold text-indigo-700">৳{product.price}</span>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
+
+            {activeTab === 'ORDERS' && (
+                <div className="space-y-4">
+                    {filteredOrders.length === 0 && <div className="text-center py-10 text-slate-400">No orders.</div>}
+                    {filteredOrders.map(order => (
+                        <Card key={order.id} className={`flex flex-col md:flex-row justify-between items-center gap-4 border-l-4 ${order.status === 'PENDING' ? 'border-l-amber-500' : order.status === 'COMPLETED' ? 'border-l-emerald-500' : 'border-l-slate-300'}`}>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Badge>{order.status}</Badge>
+                                    <span className="text-xs text-slate-400 font-mono">#{order.id.substring(4,10)}</span>
+                                </div>
+                                <h3 className="font-bold text-slate-800">{order.productTitle}</h3>
+                                <p className="text-sm text-slate-500">User: {order.userName} • {order.userPhone}</p>
+                                <div className="text-xs text-slate-400 mt-1">TrxID: {order.trxId} • Amount: ৳{order.amount}</div>
+                            </div>
+                            {order.status === 'PENDING' && (
+                                <div className="flex gap-2">
+                                    <Button size="sm" className="bg-emerald-600" onClick={() => setConfirmOrderModal({ isOpen: true, order, action: order.productType === 'PHYSICAL' ? 'SHIP' : 'APPROVE' })}>Approve</Button>
+                                    <Button size="sm" variant="danger" onClick={() => setConfirmOrderModal({ isOpen: true, order, action: 'REJECT' })}>Reject</Button>
+                                </div>
+                            )}
+                        </Card>
+                    ))}
+                </div>
+            )}
+
+            <Modal isOpen={isProductModalOpen} onClose={() => setIsProductModalOpen(false)} title="Product Details" size="lg">
                  <form onSubmit={handleProductSubmit} className="space-y-4">
-                     {/* ... Fields ... */}
+                     <div className="grid grid-cols-2 gap-4">
+                         <input required className="w-full p-2 border rounded" placeholder="Title" value={productForm.title} onChange={e => setProductForm({...productForm, title: e.target.value})} />
+                         <select className="w-full p-2 border rounded" value={productForm.type} onChange={e => setProductForm({...productForm, type: e.target.value as ProductType})}>
+                             <option value="DIGITAL">Digital</option>
+                             <option value="PHYSICAL">Physical</option>
+                         </select>
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                         <input required type="number" className="w-full p-2 border rounded" placeholder="Price" value={productForm.price} onChange={e => setProductForm({...productForm, price: Number(e.target.value)})} />
+                         <input type="text" className="w-full p-2 border rounded" placeholder="Image URL" value={productForm.image} onChange={e => setProductForm({...productForm, image: e.target.value})} />
+                     </div>
+                     <div className="flex items-center gap-2">
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                        <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                            {isUploading ? <Loader2 className="animate-spin"/> : <Upload size={16}/>} Upload Image
+                        </Button>
+                     </div>
+                     {productForm.type === 'DIGITAL' && (
+                         <input type="text" className="w-full p-2 border rounded" placeholder="PDF/File URL" value={productForm.fileUrl} onChange={e => setProductForm({...productForm, fileUrl: e.target.value})} />
+                     )}
                      <div className="flex justify-end pt-4"><Button type="submit">Save Product</Button></div>
                  </form>
             </Modal>
 
-            <Modal isOpen={confirmOrderModal.isOpen} onClose={() => setConfirmOrderModal({ ...confirmOrderModal, isOpen: false })} title="Confirm Order Action">
-                 {/* ... Modal Content ... */}
-                 <div className="flex justify-end gap-2 pt-2">
-                     <Button variant="outline" onClick={() => setConfirmOrderModal({ ...confirmOrderModal, isOpen: false })}>Cancel</Button>
-                     <Button onClick={handleOrderAction}>Confirm</Button>
+            <Modal isOpen={confirmOrderModal.isOpen} onClose={() => setConfirmOrderModal({ ...confirmOrderModal, isOpen: false })} title="Confirm Action">
+                 <div className="space-y-4">
+                     <p>Are you sure you want to {confirmOrderModal.action} this order?</p>
+                     <div className="flex justify-end gap-2">
+                         <Button variant="outline" onClick={() => setConfirmOrderModal({ ...confirmOrderModal, isOpen: false })}>Cancel</Button>
+                         <Button onClick={handleOrderAction}>Confirm</Button>
+                     </div>
                  </div>
             </Modal>
         </div>
