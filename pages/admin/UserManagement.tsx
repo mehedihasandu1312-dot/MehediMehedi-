@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { User, UserRole, AdminActivityLog, DeletionRequest } from '../../types';
 import { db, firebaseConfig } from '../../services/firebase';
@@ -10,7 +10,7 @@ import { authService } from '../../services/authService';
 import { 
     Search, Filter, Shield, Trash2, UserPlus, 
     Lock, Unlock, Activity, ShieldAlert, CheckCircle, 
-    XCircle, User as UserIcon, AlertTriangle
+    XCircle, User as UserIcon, AlertTriangle, GraduationCap, Ban, ShieldCheck
 } from 'lucide-react';
 
 interface Props {
@@ -43,6 +43,16 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
     // Info Modal
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'SUCCESS' | 'ERROR' }>({ isOpen: false, title: '', message: '', type: 'SUCCESS' });
+
+    // --- STATS CALCULATION ---
+    const stats = useMemo(() => {
+        return {
+            total: users.length,
+            students: users.filter(u => u.role === UserRole.STUDENT).length,
+            admins: users.filter(u => u.role === UserRole.ADMIN).length,
+            blocked: users.filter(u => u.status === 'BLOCKED').length
+        };
+    }, [users]);
 
     // --- FILTERING ---
     const filteredUsers = users.filter(user => {
@@ -185,6 +195,26 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                 </div>
             </div>
 
+            {/* STATS CARDS */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+                <Card className="flex items-center p-4 border-l-4 border-l-blue-500">
+                    <div className="bg-blue-50 p-3 rounded-full text-blue-600 mr-4"><UserIcon size={24} /></div>
+                    <div><p className="text-xs font-bold text-slate-500 uppercase">Total Users</p><h3 className="text-2xl font-bold text-slate-800">{stats.total}</h3></div>
+                </Card>
+                <Card className="flex items-center p-4 border-l-4 border-l-indigo-500">
+                    <div className="bg-indigo-50 p-3 rounded-full text-indigo-600 mr-4"><GraduationCap size={24} /></div>
+                    <div><p className="text-xs font-bold text-slate-500 uppercase">Students</p><h3 className="text-2xl font-bold text-slate-800">{stats.students}</h3></div>
+                </Card>
+                <Card className="flex items-center p-4 border-l-4 border-l-purple-500">
+                    <div className="bg-purple-50 p-3 rounded-full text-purple-600 mr-4"><ShieldCheck size={24} /></div>
+                    <div><p className="text-xs font-bold text-slate-500 uppercase">Admins</p><h3 className="text-2xl font-bold text-slate-800">{stats.admins}</h3></div>
+                </Card>
+                <Card className="flex items-center p-4 border-l-4 border-l-red-500">
+                    <div className="bg-red-50 p-3 rounded-full text-red-600 mr-4"><Ban size={24} /></div>
+                    <div><p className="text-xs font-bold text-slate-500 uppercase">Blocked</p><h3 className="text-2xl font-bold text-slate-800">{stats.blocked}</h3></div>
+                </Card>
+            </div>
+
             {/* USERS TAB */}
             {activeTab === 'USERS' && (
                 <Card className="min-h-[500px]">
@@ -231,7 +261,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                     <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
-                                                <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} alt="avatar" className="w-8 h-8 rounded-full bg-slate-200 object-cover" />
+                                                <img src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} alt="avatar" className="w-10 h-10 rounded-full bg-slate-200 object-cover border border-slate-200" />
                                                 <div>
                                                     <div className="font-bold text-slate-800">{user.name}</div>
                                                     <div className="text-xs text-slate-400">{user.email}</div>
@@ -248,9 +278,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                                 {user.status}
                                             </Badge>
                                         </td>
-                                        <td className="px-4 py-3 text-xs">
-                                            <div>Class: {user.class || 'N/A'}</div>
-                                            <div>Joined: {new Date(user.joinedDate).toLocaleDateString()}</div>
+                                        <td className="px-4 py-3 text-xs text-slate-500">
+                                            {user.class && <div className="mb-1"><span className="font-bold">Class:</span> {user.class}</div>}
+                                            <div><span className="font-bold">Joined:</span> {new Date(user.joinedDate).toLocaleDateString()}</div>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -259,17 +289,17 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                                     <>
                                                         <button 
                                                             onClick={() => initiateStatusToggle(user.id, user.status)}
-                                                            className={`p-1.5 rounded hover:bg-slate-200 ${user.status === 'ACTIVE' ? 'text-amber-500' : 'text-emerald-500'}`}
+                                                            className={`p-2 rounded-lg hover:bg-slate-200 transition-colors ${user.status === 'ACTIVE' ? 'text-amber-500' : 'text-emerald-500'}`}
                                                             title={user.status === 'ACTIVE' ? 'Block User' : 'Unblock User'}
                                                         >
-                                                            {user.status === 'ACTIVE' ? <Lock size={16} /> : <Unlock size={16} />}
+                                                            {user.status === 'ACTIVE' ? <Lock size={18} /> : <Unlock size={18} />}
                                                         </button>
                                                         <button 
                                                             onClick={() => setDeleteConfirm({ id: user.id, name: user.name })}
-                                                            className="p-1.5 rounded hover:bg-red-100 text-red-500"
+                                                            className="p-2 rounded-lg hover:bg-red-100 text-red-500 transition-colors"
                                                             title="Delete User"
                                                         >
-                                                            <Trash2 size={16} />
+                                                            <Trash2 size={18} />
                                                         </button>
                                                     </>
                                                 )}
@@ -280,7 +310,10 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             </tbody>
                         </table>
                         {filteredUsers.length === 0 && (
-                            <div className="p-8 text-center text-slate-400">No users found.</div>
+                            <div className="p-12 text-center text-slate-400 border-2 border-dashed border-slate-100 rounded-xl mt-4">
+                                <UserIcon size={48} className="mx-auto mb-3 opacity-20" />
+                                <p>No users found matching your criteria.</p>
+                            </div>
                         )}
                     </div>
                 </Card>
@@ -304,7 +337,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {adminLogs.map(log => (
-                                    <tr key={log.id} className="hover:bg-slate-50">
+                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3 font-medium text-slate-800">{log.adminName}</td>
                                         <td className="px-4 py-3">
                                             <Badge color={
