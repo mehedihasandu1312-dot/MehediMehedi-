@@ -81,6 +81,19 @@ export interface PaymentRequest {
     timestamp: string;
 }
 
+// NEW: Deletion Request for Admin Approval Flow
+export interface DeletionRequest {
+    id: string;
+    requesterName: string;
+    requesterId: string;
+    actionType: 'DELETE_USER' | 'BLOCK_USER' | 'DELETE_CONTENT'; // Expandable
+    targetId: string;
+    targetName: string; // For display
+    reason?: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    timestamp: string;
+}
+
 // --- STORE INTERFACES (NEW) ---
 
 export type ProductType = 'DIGITAL' | 'PHYSICAL';

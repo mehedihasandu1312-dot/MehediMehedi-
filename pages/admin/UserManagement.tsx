@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
-import { User, UserRole, AdminActivityLog } from '../../types';
+import { User, UserRole, AdminActivityLog, DeletionRequest } from '../../types';
 import { db, firebaseConfig } from '../../services/firebase';
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -33,19 +34,25 @@ import {
     Briefcase,
     Calendar,
     AlertTriangle,
-    Send
+    Send,
+    BarChart2,
+    Check,
+    Briefcase as BriefcaseIcon
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Props {
     users: User[];
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     adminLogs?: AdminActivityLog[]; 
     currentUser?: User; 
-    educationLevels: { REGULAR: string[], ADMISSION: string[] }; 
+    educationLevels: { REGULAR: string[], ADMISSION: string[] };
+    deletionRequests?: DeletionRequest[];
+    setDeletionRequests?: React.Dispatch<React.SetStateAction<DeletionRequest[]>>;
 }
 
-const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser, educationLevels }) => {
-  const [activeTab, setActiveTab] = useState<'STUDENTS' | 'ADMINS'>('STUDENTS');
+const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], currentUser, educationLevels, deletionRequests = [], setDeletionRequests }) => {
+  const [activeTab, setActiveTab] = useState<'STUDENTS' | 'ADMINS' | 'REQUESTS'>('STUDENTS');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Filter States
@@ -56,6 +63,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
+  // NEW: Admin Profile Modal State
+  const [selectedAdminProfile, setSelectedAdminProfile] = useState<User | null>(null);
+
   // Edit Form State
   const [editForm, setEditForm] = useState({ 
       name: '', 
@@ -67,7 +77,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       points: 0
   });
 
-  // Admin Logs State
+  // Admin Logs State (Legacy, keeping for super admin quick view)
   const [viewLogsAdminId, setViewLogsAdminId] = useState<string | null>(null);
 
   // Admin Warning State
@@ -106,8 +116,43 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         totalAdmins: admins.length,
         activeStudents: students.filter(u => u.status === 'ACTIVE').length,
         blocked: users.filter(u => u.status === 'BLOCKED').length,
+        pendingRequests: deletionRequests.filter(r => r.status === 'PENDING').length
     };
-  }, [users]);
+  }, [users, deletionRequests]);
+
+  // --- Activity Chart Data Generation ---
+  const generateActivityData = (adminId: string) => {
+      const logs = adminLogs.filter(l => l.adminId === adminId);
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const activityMap: Record<number, number> = {};
+
+      // Init map
+      for(let i=1; i<=daysInMonth; i++) activityMap[i] = 0;
+
+      // Populate counts
+      logs.forEach(log => {
+          const logDate = new Date(log.timestamp);
+          if (logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear) {
+              const day = logDate.getDate();
+              activityMap[day] = (activityMap[day] || 0) + 1;
+          }
+      });
+
+      return Object.entries(activityMap).map(([day, count]) => ({
+          name: day,
+          actions: count
+      }));
+  };
+
+  const adminProfileLogs = selectedAdminProfile 
+      ? adminLogs.filter(l => l.adminId === selectedAdminProfile.id).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      : [];
+
+  const activityData = selectedAdminProfile ? generateActivityData(selectedAdminProfile.id) : [];
 
   // --- Filtering Logic ---
   const displayUsers = users.filter(u => {
@@ -115,8 +160,8 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     
     if (activeTab === 'ADMINS') {
         if (u.role !== UserRole.ADMIN) return false;
-        if (u.id === currentUser?.id) return false;
-        if (!isSuperAdmin) return false;
+        // Super Admin sees everyone. Non-super doesn't see Admins tab usually, but if they do, hide master admin
+        if (!isSuperAdmin && (u.isSuperAdmin || u.email === MASTER_ADMIN_EMAIL)) return false;
     }
 
     const name = u.name || '';
@@ -146,6 +191,26 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     const targetUser = users.find(u => u.id === id);
     if (targetUser?.isSuperAdmin || targetUser?.email === MASTER_ADMIN_EMAIL) {
         showInfo("Action Restricted", "Master/Super Admin cannot be blocked.", "ERROR");
+        return;
+    }
+
+    // NEW LOGIC: If not Super Admin, create a request instead of executing
+    if (!isSuperAdmin && setDeletionRequests) {
+        if (window.confirm("As a Sub-Admin, your action requires approval. Submit request?")) {
+            const request: DeletionRequest = {
+                id: `req_${Date.now()}`,
+                requesterId: currentUser?.id || 'unknown',
+                requesterName: currentUser?.name || 'Admin',
+                actionType: currentStatus === 'ACTIVE' ? 'BLOCK_USER' : 'DELETE_USER', // Treating Unblock as Delete from block list context simplistically
+                targetId: id,
+                targetName: targetUser?.name || 'User',
+                status: 'PENDING',
+                timestamp: new Date().toISOString(),
+                reason: `Requested to change status from ${currentStatus}`
+            };
+            setDeletionRequests(prev => [request, ...prev]);
+            showInfo("Request Submitted", "Main Admin will review your request.");
+        }
         return;
     }
 
@@ -266,11 +331,26 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       }
   };
 
-  const selectedAdminLogs = viewLogsAdminId 
-    ? adminLogs.filter(l => l.adminId === viewLogsAdminId).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    : [];
+  // --- REQUEST APPROVAL HANDLERS ---
+  const handleApproveRequest = (request: DeletionRequest) => {
+      if (!setDeletionRequests) return;
 
-  const selectedAdminName = users.find(u => u.id === viewLogsAdminId)?.name || 'Admin';
+      // Execute Action based on type
+      if (request.actionType === 'BLOCK_USER' || request.actionType === 'DELETE_USER') {
+          // Toggle status
+          setUsers(prev => prev.map(u => u.id === request.targetId ? { ...u, status: 'BLOCKED' } : u));
+      } 
+      // Handle other types like DELETE_CONTENT here if expanded
+
+      // Update Request Status
+      setDeletionRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'APPROVED' } : r));
+      showInfo("Approved", `Request to ${request.actionType} for ${request.targetName} approved.`);
+  };
+
+  const handleRejectRequest = (request: DeletionRequest) => {
+      if (!setDeletionRequests) return;
+      setDeletionRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'REJECTED' } : r));
+  };
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -291,14 +371,25 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
             </button>
             
             {isSuperAdmin && (
-                <button
-                    onClick={() => setActiveTab('ADMINS')}
-                    className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${
-                        activeTab === 'ADMINS' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                >
-                    <ShieldCheck size={16} className="mr-2" /> Admins
-                </button>
+                <>
+                    <button
+                        onClick={() => setActiveTab('ADMINS')}
+                        className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                            activeTab === 'ADMINS' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <ShieldCheck size={16} className="mr-2" /> Admins
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('REQUESTS')}
+                        className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                            activeTab === 'REQUESTS' ? 'bg-white shadow text-amber-700' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <AlertTriangle size={16} className="mr-2" /> Requests
+                        {stats.pendingRequests > 0 && <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">{stats.pendingRequests}</span>}
+                    </button>
+                </>
             )}
         </div>
       </div>
@@ -333,184 +424,279 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       </div>
 
       <Card className="min-h-[500px]">
-        {/* Toolbar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-center">
-            <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder={activeTab === 'STUDENTS' ? "Search by Name, Email or Phone..." : "Search admins..."}
-                    className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
-            </div>
+        {/* Toolbar (Search & Filter) */}
+        {activeTab !== 'REQUESTS' && (
+            <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-center">
+                <div className="relative w-full md:w-96">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder={activeTab === 'STUDENTS' ? "Search by Name, Email or Phone..." : "Search admins..."}
+                        className="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
 
-            <div className="flex gap-2 w-full md:w-auto">
-                {activeTab === 'STUDENTS' ? (
-                    <>
-                        <div className="relative">
-                            <Filter className="absolute left-3 top-3 text-slate-400" size={16} />
+                <div className="flex gap-2 w-full md:w-auto">
+                    {activeTab === 'STUDENTS' ? (
+                        <>
+                            <div className="relative">
+                                <Filter className="absolute left-3 top-3 text-slate-400" size={16} />
+                                <select 
+                                    className="pl-9 pr-8 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white appearance-none text-sm font-medium text-slate-600"
+                                    value={filterClass}
+                                    onChange={e => setFilterClass(e.target.value)}
+                                >
+                                    <option value="ALL">All Classes</option>
+                                    <optgroup label="Regular">
+                                        {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
+                                    <optgroup label="Admission">
+                                        {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </optgroup>
+                                </select>
+                            </div>
+                            
                             <select 
-                                className="pl-9 pr-8 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white appearance-none text-sm font-medium text-slate-600"
-                                value={filterClass}
-                                onChange={e => setFilterClass(e.target.value)}
+                                className="p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-sm font-medium text-slate-600"
+                                value={filterStatus}
+                                onChange={e => setFilterStatus(e.target.value)}
                             >
-                                <option value="ALL">All Classes</option>
-                                <optgroup label="Regular">
-                                    {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
-                                </optgroup>
-                                <optgroup label="Admission">
-                                    {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
-                                </optgroup>
+                                <option value="ALL">All Status</option>
+                                <option value="ACTIVE">Active Only</option>
+                                <option value="BLOCKED">Blocked Only</option>
                             </select>
-                        </div>
-                        
-                        <select 
-                            className="p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white text-sm font-medium text-slate-600"
-                            value={filterStatus}
-                            onChange={e => setFilterStatus(e.target.value)}
-                        >
-                            <option value="ALL">All Status</option>
-                            <option value="ACTIVE">Active Only</option>
-                            <option value="BLOCKED">Blocked Only</option>
-                        </select>
-                    </>
+                        </>
+                    ) : (
+                        isSuperAdmin && (
+                            <Button onClick={() => setIsAdminModalOpen(true)} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
+                                <Plus size={18} className="mr-2" /> Add New Admin
+                            </Button>
+                        )
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* --- REQUESTS TAB VIEW --- */}
+        {activeTab === 'REQUESTS' && (
+            <div className="space-y-4">
+                <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Pending Approvals</h3>
+                {deletionRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                    <div className="text-center py-10 text-slate-400">No pending requests from sub-admins.</div>
                 ) : (
-                    isSuperAdmin && (
-                        <Button onClick={() => setIsAdminModalOpen(true)} className="flex items-center bg-emerald-600 hover:bg-emerald-700">
-                            <Plus size={18} className="mr-2" /> Add New Admin
-                        </Button>
-                    )
+                    deletionRequests.filter(r => r.status === 'PENDING').map(req => (
+                        <div key={req.id} className="p-4 border border-amber-200 bg-amber-50 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <p className="font-bold text-slate-800 text-sm">{req.actionType.replace('_', ' ')} <span className="font-mono text-xs bg-white px-1 rounded ml-2">{req.targetName}</span></p>
+                                <p className="text-xs text-slate-600 mt-1">Requested by: <span className="font-bold">{req.requesterName}</span> on {new Date(req.timestamp).toLocaleString()}</p>
+                                <p className="text-xs text-slate-500 italic mt-1">Reason: "{req.reason}"</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => handleRejectRequest(req)}>Reject</Button>
+                                <Button size="sm" onClick={() => handleApproveRequest(req)} className="bg-emerald-600 hover:bg-emerald-700">Approve</Button>
+                            </div>
+                        </div>
+                    ))
                 )}
             </div>
-        </div>
+        )}
 
-        {/* User Table */}
-        <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-                <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/50">
-                        <th className="py-3 pl-4 font-semibold text-slate-600 text-sm">Profile</th>
-                        <th className="py-3 font-semibold text-slate-600 text-sm">Contact</th>
-                        <th className="py-3 font-semibold text-slate-600 text-sm">Role Details</th>
-                        <th className="py-3 font-semibold text-slate-600 text-sm">Status</th>
-                        <th className="py-3 text-right pr-4 font-semibold text-slate-600 text-sm">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {displayUsers.map(user => (
-                        <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
-                            <td className="py-4 pl-4">
-                                <div className="flex items-center">
-                                    <img 
-                                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} 
-                                        alt={user.name} 
-                                        className="w-10 h-10 rounded-full mr-3 border border-slate-200 object-cover"
-                                    />
-                                    <div>
-                                        <p className="font-bold text-slate-800 text-sm flex items-center">
-                                            {user.name}
-                                            {user.role === UserRole.ADMIN && <ShieldCheck size={14} className="ml-1 text-emerald-500" />}
-                                            {(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">MASTER</span>}
-                                        </p>
-                                        <p className="text-xs text-slate-500">Rank: {user.rank || 'N/A'}</p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="py-4">
-                                <div className="text-sm">
-                                    <p className="text-slate-700 flex items-center gap-1"><Mail size={12}/> {user.email}</p>
-                                    <p className="text-slate-500 flex items-center gap-1"><Phone size={12}/> {user.phone || 'N/A'}</p>
-                                </div>
-                            </td>
-                            <td className="py-4">
-                                <div className="text-sm">
-                                    {user.role === UserRole.ADMIN ? (
-                                        <div className="flex flex-col gap-1 items-start">
-                                            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded text-xs border border-emerald-100">
-                                                Administrator
-                                            </span>
-                                            {user.warnings && user.warnings.length > 0 && (
-                                                <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded text-[10px] border border-amber-100 flex items-center">
-                                                    <AlertTriangle size={10} className="mr-1" /> {user.warnings.length} Warnings
-                                                </span>
-                                            )}
+        {/* --- USERS TABLE VIEW (STUDENTS OR ADMINS) --- */}
+        {activeTab !== 'REQUESTS' && (
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50/50">
+                            <th className="py-3 pl-4 font-semibold text-slate-600 text-sm">Profile</th>
+                            <th className="py-3 font-semibold text-slate-600 text-sm">Contact</th>
+                            <th className="py-3 font-semibold text-slate-600 text-sm">Role Details</th>
+                            <th className="py-3 font-semibold text-slate-600 text-sm">Status</th>
+                            <th className="py-3 text-right pr-4 font-semibold text-slate-600 text-sm">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {displayUsers.map(user => (
+                            <tr 
+                                key={user.id} 
+                                className={`hover:bg-slate-50 transition-colors group ${activeTab === 'ADMINS' ? 'cursor-pointer' : ''}`}
+                                onClick={activeTab === 'ADMINS' ? () => setSelectedAdminProfile(user) : undefined}
+                            >
+                                <td className="py-4 pl-4">
+                                    <div className="flex items-center">
+                                        <img 
+                                            src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}`} 
+                                            alt={user.name} 
+                                            className="w-10 h-10 rounded-full mr-3 border border-slate-200 object-cover"
+                                        />
+                                        <div>
+                                            <p className="font-bold text-slate-800 text-sm flex items-center">
+                                                {user.name}
+                                                {user.role === UserRole.ADMIN && <ShieldCheck size={14} className="ml-1 text-emerald-500" />}
+                                                {(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">MASTER</span>}
+                                            </p>
+                                            <p className="text-xs text-slate-500">Rank: {user.rank || 'N/A'}</p>
                                         </div>
-                                    ) : (
-                                        <>
-                                            <p className="font-medium text-slate-700">{user.class || 'No Class'}</p>
-                                            <p className="text-xs text-slate-500">{user.institute || 'No Institute'}</p>
-                                        </>
-                                    )}
-                                </div>
-                            </td>
-                            <td className="py-4">
-                                <Badge color={user.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
-                                    {user.status || 'UNKNOWN'}
-                                </Badge>
-                            </td>
-                            <td className="py-4 text-right pr-4">
-                                <div className="flex items-center justify-end space-x-2">
-                                    {user.role === UserRole.STUDENT && (
-                                        <Button 
-                                            variant="outline" 
-                                            className="p-1.5 h-auto border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" 
-                                            onClick={() => openStudentModal(user)}
-                                            title="View Full Profile"
-                                        >
-                                            <Eye size={16} />
-                                        </Button>
-                                    )}
+                                    </div>
+                                </td>
+                                <td className="py-4">
+                                    <div className="text-sm">
+                                        <p className="text-slate-700 flex items-center gap-1"><Mail size={12}/> {user.email}</p>
+                                        <p className="text-slate-500 flex items-center gap-1"><Phone size={12}/> {user.phone || 'N/A'}</p>
+                                    </div>
+                                </td>
+                                <td className="py-4">
+                                    <div className="text-sm">
+                                        {user.role === UserRole.ADMIN ? (
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded text-xs border border-emerald-100">
+                                                    Administrator
+                                                </span>
+                                                {user.warnings && user.warnings.length > 0 && (
+                                                    <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded text-[10px] border border-amber-100 flex items-center">
+                                                        <AlertTriangle size={10} className="mr-1" /> {user.warnings.length} Warnings
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <p className="font-medium text-slate-700">{user.class || 'No Class'}</p>
+                                                <p className="text-xs text-slate-500">{user.institute || 'No Institute'}</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </td>
+                                <td className="py-4">
+                                    <Badge color={user.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
+                                        {user.status || 'UNKNOWN'}
+                                    </Badge>
+                                </td>
+                                <td className="py-4 text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-end space-x-2">
+                                        {user.role === UserRole.STUDENT && (
+                                            <Button 
+                                                variant="outline" 
+                                                className="p-1.5 h-auto border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50" 
+                                                onClick={() => openStudentModal(user)}
+                                                title="View Full Profile"
+                                            >
+                                                <Eye size={16} />
+                                            </Button>
+                                        )}
 
-                                    {/* ADMIN: VIEW LOGS & WARNINGS */}
-                                    {user.role === UserRole.ADMIN && isSuperAdmin && (
-                                        <>
+                                        {/* ADMIN: Only Super Admin actions */}
+                                        {user.role === UserRole.ADMIN && isSuperAdmin && !(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
                                             <Button 
                                                 variant="outline"
-                                                className="p-1.5 h-auto border-slate-200 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
-                                                onClick={() => setViewLogsAdminId(user.id)}
-                                                title="View Activity Logs"
+                                                className="p-1.5 h-auto border-slate-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                onClick={() => openWarningModal(user.id)}
+                                                title="Issue Warning"
                                             >
-                                                <ScrollText size={16} />
+                                                <AlertTriangle size={16} />
                                             </Button>
-                                            
-                                            {/* Warning Button */}
-                                            {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
-                                                <Button 
-                                                    variant="outline"
-                                                    className="p-1.5 h-auto border-slate-200 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                                                    onClick={() => openWarningModal(user.id)}
-                                                    title="Issue Warning"
-                                                >
-                                                    <AlertTriangle size={16} />
-                                                </Button>
-                                            )}
-                                        </>
-                                    )}
+                                        )}
 
-                                    {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
-                                        <Button 
-                                            variant="outline" 
-                                            className={`p-1.5 h-auto border-slate-200 ${
-                                                user.status === 'ACTIVE' 
-                                                ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' 
-                                                : 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200'
-                                            }`}
-                                            onClick={() => initiateStatusToggle(user.id, user.status, user.role)}
-                                            title={user.status === 'ACTIVE' ? 'Block' : 'Unblock'}
-                                        >
-                                            {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
-                                        </Button>
-                                    )}
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                                        {/* BLOCK BUTTON (For Sub Admins this creates Request) */}
+                                        {!(user.isSuperAdmin || user.email === MASTER_ADMIN_EMAIL) && (
+                                            <Button 
+                                                variant="outline" 
+                                                className={`p-1.5 h-auto border-slate-200 ${
+                                                    user.status === 'ACTIVE' 
+                                                    ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' 
+                                                    : 'text-red-500 bg-red-50 hover:bg-red-100 border-red-200'
+                                                }`}
+                                                onClick={() => initiateStatusToggle(user.id, user.status, user.role)}
+                                                title={user.status === 'ACTIVE' ? 'Block' : 'Unblock'}
+                                            >
+                                                {user.role === UserRole.ADMIN ? <ShieldAlert size={16} /> : <Ban size={16} />}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        )}
       </Card>
+
+      {/* --- ADMIN PROFILE MODAL (DETAILED WORK VIEW) --- */}
+      <Modal 
+        isOpen={!!selectedAdminProfile} 
+        onClose={() => setSelectedAdminProfile(null)} 
+        title="Administrator Profile"
+        size="lg"
+      >
+        {selectedAdminProfile && (
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                        <img src={selectedAdminProfile.avatar} className="w-20 h-20 rounded-full border-4 border-indigo-50" />
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-800 flex items-center">
+                                {selectedAdminProfile.name}
+                                <ShieldCheck size={18} className="ml-2 text-emerald-600" />
+                            </h3>
+                            <p className="text-sm text-slate-500">{selectedAdminProfile.email}</p>
+                            <p className="text-xs text-slate-400 mt-1 flex items-center">
+                                <Clock size={12} className="mr-1" /> Joined: {new Date(selectedAdminProfile.joinedDate).toLocaleDateString()}
+                            </p>
+                        </div>
+                    </div>
+                    <Badge color={selectedAdminProfile.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
+                        {selectedAdminProfile.status}
+                    </Badge>
+                </div>
+
+                {/* Work Activity Chart */}
+                <Card className="p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                        <Activity size={16} className="mr-2 text-indigo-600" /> Activity Intensity (This Month)
+                    </h4>
+                    <div className="h-48 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={activityData}>
+                                <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} interval={2} />
+                                <Tooltip cursor={{fill: 'transparent'}} />
+                                <Bar dataKey="actions" fill="#6366f1" radius={[2, 2, 0, 0]} name="Actions" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <p className="text-center text-xs text-slate-400 mt-2">Days of Month</p>
+                </Card>
+
+                {/* Recent Logs List */}
+                <div>
+                    <h4 className="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-1">Detailed Logs</h4>
+                    <div className="max-h-60 overflow-y-auto space-y-3 pr-2">
+                        {adminProfileLogs.length === 0 ? (
+                            <p className="text-xs text-slate-400 text-center py-4">No recent activity logged.</p>
+                        ) : (
+                            adminProfileLogs.map(log => (
+                                <div key={log.id} className="flex gap-3 text-sm p-2 hover:bg-slate-50 rounded border-l-2 border-slate-200">
+                                    <div className="text-xs text-slate-400 font-mono w-24 shrink-0">
+                                        {new Date(log.timestamp).toLocaleDateString()} <br/>
+                                        {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-slate-700">{log.action}</p>
+                                        <p className="text-xs text-slate-500">{log.details}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                    <Button onClick={() => setSelectedAdminProfile(null)}>Close Profile</Button>
+                </div>
+            </div>
+        )}
+      </Modal>
 
       {/* --- STUDENT FULL PROFILE MODAL --- */}
       <Modal 
@@ -644,7 +830,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                 <div>
                                     <span className="block text-xs text-indigo-400">Class / Sector</span>
                                     <span className="font-bold text-indigo-900 flex items-center">
-                                        <Briefcase size={12} className="mr-1 text-indigo-400"/> {selectedUser.class || 'N/A'}
+                                        <BriefcaseIcon size={12} className="mr-1 text-indigo-400"/> {selectedUser.class || 'N/A'}
                                     </span>
                                 </div>
                                 <div className="col-span-2">
@@ -673,49 +859,6 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                 )}
             </div>
         )}
-      </Modal>
-
-      {/* --- ADMIN LOGS MODAL --- */}
-      <Modal isOpen={!!viewLogsAdminId} onClose={() => setViewLogsAdminId(null)} title={`Activity Log: ${selectedAdminName}`}>
-          <div className="max-h-[60vh] overflow-y-auto pr-2">
-              {users.find(u => u.id === viewLogsAdminId)?.warnings?.length ? (
-                  <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <h4 className="text-sm font-bold text-amber-800 mb-2 flex items-center">
-                          <AlertTriangle size={14} className="mr-1"/> Warnings Issued
-                      </h4>
-                      <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
-                          {users.find(u => u.id === viewLogsAdminId)?.warnings?.map((w, idx) => (
-                              <li key={idx}>{w}</li>
-                          ))}
-                      </ul>
-                  </div>
-              ) : null}
-
-              {selectedAdminLogs.length === 0 ? (
-                  <div className="text-center py-10 text-slate-400">
-                      <ScrollText size={32} className="mx-auto mb-2 opacity-20" />
-                      <p>No activity recorded yet.</p>
-                  </div>
-              ) : (
-                  <div className="relative border-l border-slate-200 ml-3 space-y-6 pb-2">
-                      {selectedAdminLogs.map((log) => (
-                          <div key={log.id} className="relative pl-6">
-                              <div className={`absolute -left-1.5 top-1 w-3 h-3 rounded-full border-2 border-white ${
-                                  log.type === 'DANGER' ? 'bg-red-500' : log.type === 'WARNING' ? 'bg-amber-500' : 'bg-blue-500'
-                              }`}></div>
-                              <div className="flex flex-col">
-                                  <span className="text-xs text-slate-400 font-mono mb-0.5">{new Date(log.timestamp).toLocaleString()}</span>
-                                  <span className="font-bold text-slate-800 text-sm">{log.action}</span>
-                                  <span className="text-xs text-slate-500">{log.details}</span>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              )}
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
-              <Button onClick={() => setViewLogsAdminId(null)}>Close</Button>
-          </div>
       </Modal>
 
       {/* --- WARNING MODAL --- */}

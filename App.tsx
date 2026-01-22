@@ -28,7 +28,7 @@ import ExamGrading from './pages/admin/ExamGrading';
 import SystemSettingsPage from './pages/admin/SystemSettings';
 import PaymentManagement from './pages/admin/PaymentManagement'; 
 import StoreManagement from './pages/admin/StoreManagement'; // NEW
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder, MCQQuestion, PaymentRequest } from './types';
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder, MCQQuestion, PaymentRequest, DeletionRequest } from './types';
 import { authService } from './services/authService';
 import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS, MOCK_PRODUCTS, MOCK_STORE_ORDERS } from './constants';
 import { db } from './services/firebase';
@@ -178,6 +178,9 @@ const App: React.FC = () => {
   // NEW PAYMENT COLLECTION (Lifted from PaymentManagement)
   const [paymentRequests, setPaymentRequests, paymentsLoading] = useFirestoreCollection<PaymentRequest>('payment_requests', []);
 
+  // NEW DELETION REQUESTS COLLECTION
+  const [deletionRequests, setDeletionRequests, deletionLoading] = useFirestoreCollection<DeletionRequest>('deletion_requests', []);
+
   // --- LOCAL STATE FOR SEEN NOTICES ---
   const [readNoticeIds, setReadNoticeIds] = useState<string[]>([]);
 
@@ -204,7 +207,7 @@ const App: React.FC = () => {
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
                         blogFoldersLoading || blogsLoading || noticesLoading || appealsLoading || 
                         socialLoading || reportsLoading || logsLoading || settingsLoading || submissionsLoading ||
-                        productsLoading || ordersLoading || paymentsLoading;
+                        productsLoading || ordersLoading || paymentsLoading || deletionLoading;
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -445,7 +448,17 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              <Route path="/admin/users" element={<UserManagement users={users} setUsers={setUsers} adminLogs={adminLogs} currentUser={user} educationLevels={currentEducationLevels} />} />
+              <Route path="/admin/users" element={
+                  <UserManagement 
+                      users={users} 
+                      setUsers={setUsers} 
+                      adminLogs={adminLogs} 
+                      currentUser={user} 
+                      educationLevels={currentEducationLevels} 
+                      deletionRequests={deletionRequests} // Pass deletion requests
+                      setDeletionRequests={setDeletionRequests}
+                  />
+              } />
               <Route 
                 path="/admin/content" 
                 element={
