@@ -1,9 +1,7 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Notice } from '../../types';
 import { Plus, Trash2, Calendar, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone, CheckCircle } from 'lucide-react';
-import { authService } from '../../services/authService';
 
 interface Props {
   notices: Notice[];
@@ -24,7 +22,6 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentUser = authService.getCurrentUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,12 +36,6 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
     };
     // Prepend to top
     setNotices([newNotice, ...notices]);
-    
-    // LOG ACTION
-    if (currentUser) {
-        authService.logAdminAction(currentUser.id, currentUser.name, "Posted Notice", `Title: ${newNotice.title}`, "INFO");
-    }
-
     setFormData({ title: '', content: '', image: '', priority: 'LOW', targetClass: '' });
     
     setInfoModal({
@@ -73,13 +64,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
 
   const confirmDelete = () => {
       if (deleteModal.id) {
-          const noticeTitle = notices.find(n => n.id === deleteModal.id)?.title;
           setNotices(notices.filter(n => n.id !== deleteModal.id));
-          
-          if (currentUser) {
-              authService.logAdminAction(currentUser.id, currentUser.name, "Deleted Notice", `Title: ${noticeTitle}`, "WARNING");
-          }
-
           setDeleteModal({ isOpen: false, id: null });
       }
   };
