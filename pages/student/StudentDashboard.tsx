@@ -37,7 +37,10 @@ import {
   AlertTriangle,
   Info,
   Flame,
-  Zap
+  Zap,
+  Crown,
+  Medal,
+  Flag
 } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; // Import Ads
 import SEO from '../../components/SEO';
@@ -71,7 +74,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
   const [searchEmail, setSearchEmail] = useState('');
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [foundUser, setFoundUser] = useState<User | null>(null);
-  const [requestTab, setRequestTab] = useState<'INCOMING' | 'OUTGOING'>('INCOMING');
   
   // --- CERTIFICATE STATE ---
   const [showCertificate, setShowCertificate] = useState(false);
@@ -130,42 +132,44 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   const myStats = useMemo(() => calculateStats(liveUser), [results, liveUser, userRankMap]);
 
-  // --- NEW: STREAK CALCULATION (Mock Logic based on Results dates) ---
+  // --- NEW: STREAK CALCULATION ---
   const studyStreak = useMemo(() => {
       if (results.length === 0) return 0;
-      
-      // Get unique dates of exams
-      const dates: string[] = Array.from(new Set(results.filter(r => r.studentId === liveUser.id).map(r => r.date.split('T')[0]))).sort().reverse();
-      
+      // Fix type error: cast result of Array.from to string[] before sorting
+      const dates: string[] = (Array.from(new Set(results.filter(r => r.studentId === liveUser.id).map(r => r.date.split('T')[0]))) as string[]).sort().reverse();
       if (dates.length === 0) return 0;
 
       let streak = 0;
       const today = new Date().toISOString().split('T')[0];
       const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-      // Check if active today or yesterday to start streak
       if (dates[0] === today || dates[0] === yesterday) {
           streak = 1;
           for (let i = 0; i < dates.length - 1; i++) {
               const currStr = dates[i];
               const prevStr = dates[i+1];
-              
               if (!currStr || !prevStr) break;
-
               const curr = new Date(currStr);
               const prev = new Date(prevStr);
               const diffTime = Math.abs(curr.getTime() - prev.getTime());
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-              
-              if (diffDays === 1) {
-                  streak++;
-              } else {
-                  break;
-              }
+              if (diffDays === 1) streak++; else break;
           }
       }
       return streak;
   }, [results, liveUser.id]);
+
+  // --- NEW: ACHIEVEMENTS LOGIC ---
+  const achievements = useMemo(() => {
+      const badges = [];
+      if (myStats.totalExams >= 1) badges.push({ icon: Flag, color: 'text-blue-500 bg-blue-50', label: 'First Step' });
+      if (myStats.totalExams >= 10) badges.push({ icon: FileCheck, color: 'text-indigo-500 bg-indigo-50', label: 'Dedicated' });
+      if (studyStreak >= 3) badges.push({ icon: Flame, color: 'text-orange-500 bg-orange-50', label: 'On Fire' });
+      if (myStats.accuracy >= 80) badges.push({ icon: Target, color: 'text-red-500 bg-red-50', label: 'Sharpshooter' });
+      if (myStats.rank > 0 && myStats.rank <= 10) badges.push({ icon: Crown, color: 'text-yellow-600 bg-yellow-100', label: 'Top 10' });
+      if (myStats.xp >= 1000) badges.push({ icon: Medal, color: 'text-purple-600 bg-purple-100', label: 'Scholar' });
+      return badges;
+  }, [myStats, studyStreak]);
 
   // --- NEW: SUBJECT RADAR DATA ---
   const radarData = useMemo(() => {
@@ -176,13 +180,14 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       
       myResults.forEach(r => {
           let subject = "General";
-          if (r.examTitle.toLowerCase().includes("physic")) subject = "Physics";
-          else if (r.examTitle.toLowerCase().includes("math")) subject = "Math";
-          else if (r.examTitle.toLowerCase().includes("chem")) subject = "Chemistry";
-          else if (r.examTitle.toLowerCase().includes("bio")) subject = "Biology";
-          else if (r.examTitle.toLowerCase().includes("english")) subject = "English";
-          else if (r.examTitle.toLowerCase().includes("bangla")) subject = "Bangla";
-          else if (r.examTitle.toLowerCase().includes("ict")) subject = "ICT";
+          const titleLower = r.examTitle.toLowerCase();
+          if (titleLower.includes("physic")) subject = "Physics";
+          else if (titleLower.includes("math")) subject = "Math";
+          else if (titleLower.includes("chem")) subject = "Chemistry";
+          else if (titleLower.includes("bio")) subject = "Biology";
+          else if (titleLower.includes("english")) subject = "English";
+          else if (titleLower.includes("bangla")) subject = "Bangla";
+          else if (titleLower.includes("ict")) subject = "ICT";
 
           if (!subjects[subject]) subjects[subject] = { total: 0, obtained: 0 };
           subjects[subject].total += r.totalMarks;
@@ -216,8 +221,13 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
 
   // --- FRIEND LOGIC ---
   const myFriends = useMemo(() => allUsers.filter(u => liveUser.friends?.includes(u.id)), [allUsers, liveUser.friends]);
-  const incomingRequests = useMemo(() => allUsers.filter(u => liveUser.friendRequests?.includes(u.id)), [allUsers, liveUser.friendRequests]);
-  const outgoingRequests = useMemo(() => allUsers.filter(u => u.friendRequests?.includes(liveUser.id)), [allUsers, liveUser.id]);
+  
+  // Set default comparison target to first friend if not set
+  useMemo(() => {
+      if (!comparisonTarget && myFriends.length > 0) {
+          setComparisonTarget(myFriends[0].id);
+      }
+  }, [myFriends]);
 
   const handleSearchFriend = (e: React.FormEvent) => {
       e.preventDefault();
@@ -234,47 +244,22 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
           showInfo("Info", "You are already friends!");
           return;
       }
-      if (foundUser.friendRequests?.includes(liveUser.id)) {
-          showInfo("Info", "Request already sent to this user.");
-          return;
-      }
-
       const updatedFoundUser = { ...foundUser, friendRequests: [...(foundUser.friendRequests || []), liveUser.id] };
       setAllUsers(prev => prev.map(u => u.id === foundUser.id ? updatedFoundUser : u));
-      
       showInfo("Success", "Friend request sent successfully!");
       setFoundUser(null); 
       setSearchEmail(''); 
       setIsAddFriendModalOpen(false);
   };
 
-  const handleAcceptRequest = (requesterId: string) => {
-      const meUpdated = { ...liveUser, friends: [...(liveUser.friends || []), requesterId], friendRequests: (liveUser.friendRequests || []).filter(id => id !== requesterId) };
-      const requester = allUsers.find(u => u.id === requesterId);
-      if (!requester) return;
-      const requesterUpdated = { ...requester, friends: [...(requester.friends || []), liveUser.id] };
-      setAllUsers(prev => prev.map(u => { if (u.id === liveUser.id) return meUpdated; if (u.id === requesterId) return requesterUpdated; return u; }));
-  };
-
-  const handleDeclineRequest = (requesterId: string) => {
-      const meUpdated = { ...liveUser, friendRequests: (liveUser.friendRequests || []).filter(id => id !== requesterId) };
-      setAllUsers(prev => prev.map(u => u.id === liveUser.id ? meUpdated : u));
-  };
-
-  const initiateRemoveFriend = (friendId: string) => {
-      setFriendToRemove(friendId);
-  };
-
   const confirmRemoveFriend = () => {
       if (!friendToRemove) return;
       const friendId = friendToRemove;
-      
       const meUpdated = { ...liveUser, friends: (liveUser.friends || []).filter(id => id !== friendId) };
       const friend = allUsers.find(u => u.id === friendId);
       const friendUpdated = friend ? { ...friend, friends: (friend.friends || []).filter(id => id !== liveUser.id) } : friend;
       setAllUsers(prev => prev.map(u => { if (u.id === liveUser.id) return meUpdated; if (u.id === friendId) return friendUpdated!; return u; }));
       if (comparisonTarget === friendId) setComparisonTarget('');
-      
       setFriendToRemove(null);
   };
 
@@ -282,20 +267,22 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
   const comparisonData = useMemo(() => {
     const friend = myFriends.find(f => f.id === comparisonTarget);
     const fStats = friend ? calculateStats(friend) : null;
+    
+    // Normalize to 100 for graph but keep real values for tooltip if needed
     const normalize = (val: number, max: number) => Math.min(100, (val / max) * 100);
 
     const metrics = [
         { label: 'Avg %', key: 'av' as keyof ComparisonStats, max: 100 },
-        { label: 'Exams', key: 'totalExams' as keyof ComparisonStats, max: 50 },
+        { label: 'Exams', key: 'totalExams' as keyof ComparisonStats, max: 50 }, // Assumed max 50 exams for scale
         { label: 'Accuracy', key: 'accuracy' as keyof ComparisonStats, max: 100 },
-        { label: 'XP', key: 'xp' as keyof ComparisonStats, max: 2000 },
-        { label: 'Negative', key: 'negative' as keyof ComparisonStats, max: 5 }, 
+        { label: 'XP (k)', key: 'xp' as keyof ComparisonStats, max: 2000 }, // Scaled down
     ];
 
     return metrics.map(m => ({
         subject: m.label,
         You: normalize(myStats[m.key], m.max),
         Friend: fStats ? normalize(fStats[m.key], m.max) : 0,
+        // Store real values for custom tooltip if needed
         You_Real: myStats[m.key],
         Friend_Real: fStats ? fStats[m.key] : 0,
     }));
@@ -359,6 +346,16 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
             </p>
           </div>
 
+          {/* New Achievements Showcase inside Hero */}
+          <div className="hidden md:flex gap-2">
+              {achievements.slice(0, 3).map((badge, idx) => (
+                  <div key={idx} className={`w-20 h-24 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 flex flex-col items-center justify-center p-2 text-center transform hover:scale-105 transition-transform`}>
+                      <badge.icon size={24} className="text-yellow-400 mb-1" />
+                      <span className="text-[10px] font-bold leading-tight">{badge.label}</span>
+                  </div>
+              ))}
+          </div>
+
           <div className="flex gap-4">
             <div className="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/20 text-center min-w-[110px] transform hover:scale-105 transition-transform">
                 <div className="flex justify-center mb-2"><Trophy className="text-yellow-400 drop-shadow-sm" size={28} /></div>
@@ -416,7 +413,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* NEW: SUBJECT RADAR CHART */}
+          {/* SUBJECT RADAR CHART */}
           <Card className="flex flex-col min-h-[400px]">
               <div className="mb-4">
                   <h3 className="font-bold text-slate-800 flex items-center text-lg">
@@ -446,7 +443,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
               </div>
           </Card>
 
-          {/* NEW: TASK PLANNER (Mock Widget) */}
+          {/* TASK PLANNER (Mock Widget) */}
           <Card className="flex flex-col">
               <div className="mb-4 flex justify-between items-center">
                   <h3 className="font-bold text-slate-800 flex items-center text-lg">
@@ -472,6 +469,94 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
               </div>
               <div className="mt-4 pt-4 border-t border-slate-100">
                   <p className="text-xs text-center text-slate-400 italic">"Consistency is the key to success."</p>
+              </div>
+          </Card>
+      </div>
+
+      {/* --- RESTORED: STUDY GROUP & COMPARISON --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Friend List */}
+          <Card className="lg:col-span-1 flex flex-col h-[400px]">
+              <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-slate-800 flex items-center">
+                      <Users size={20} className="mr-2 text-indigo-600" /> Study Circle
+                  </h3>
+                  <Button size="sm" variant="outline" onClick={() => setIsAddFriendModalOpen(true)} className="px-2">
+                      <UserPlus size={16} />
+                  </Button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {myFriends.length === 0 ? (
+                      <div className="text-center text-slate-400 py-10">
+                          <p className="text-sm">No friends added.</p>
+                          <Button size="sm" variant="outline" className="mt-2" onClick={() => setIsAddFriendModalOpen(true)}>Add Friends</Button>
+                      </div>
+                  ) : (
+                      myFriends.map(friend => (
+                          <div 
+                              key={friend.id}
+                              onClick={() => setComparisonTarget(friend.id)}
+                              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                                  comparisonTarget === friend.id 
+                                  ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-100' 
+                                  : 'bg-white border-slate-100 hover:bg-slate-50'
+                              }`}
+                          >
+                              <div className="flex items-center">
+                                  <img src={friend.avatar} alt="av" className="w-8 h-8 rounded-full border border-slate-200" />
+                                  <div className="ml-3">
+                                      <p className="text-sm font-bold text-slate-700">{friend.name}</p>
+                                      <p className="text-xs text-slate-500">{friend.points || 0} XP</p>
+                                  </div>
+                              </div>
+                              <button 
+                                  onClick={(e) => { e.stopPropagation(); setFriendToRemove(friend.id); }} 
+                                  className="text-slate-300 hover:text-red-500 p-1"
+                              >
+                                  <X size={14} />
+                              </button>
+                          </div>
+                      ))
+                  )}
+              </div>
+          </Card>
+
+          {/* Comparison Chart */}
+          <Card className="lg:col-span-2 flex flex-col h-[400px]">
+              <div className="mb-4 flex justify-between items-center">
+                  <h3 className="font-bold text-slate-800 flex items-center">
+                      <GitCompare size={20} className="mr-2 text-purple-600" /> Head-to-Head
+                  </h3>
+                  {comparisonTarget && (
+                      <Badge color="bg-purple-100 text-purple-700">
+                          VS {comparisonFriendName}
+                      </Badge>
+                  )}
+              </div>
+              
+              <div className="flex-1 w-full min-h-0">
+                  {comparisonTarget ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={comparisonData} barSize={40}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748b'}} />
+                              <YAxis hide />
+                              <Tooltip 
+                                  cursor={{fill: 'transparent'}}
+                                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                              />
+                              <Legend verticalAlign="top" height={36} iconType="circle" />
+                              <Bar dataKey="You" fill="#E2136E" radius={[4, 4, 0, 0]} name="You" />
+                              <Bar dataKey="Friend" fill="#818cf8" radius={[4, 4, 0, 0]} name={comparisonFriendName} />
+                          </BarChart>
+                      </ResponsiveContainer>
+                  ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                          <GitCompare size={48} className="mb-2 opacity-20" />
+                          <p>Select a friend to compare stats.</p>
+                      </div>
+                  )}
               </div>
           </Card>
       </div>
