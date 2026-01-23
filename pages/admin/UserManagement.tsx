@@ -31,7 +31,6 @@ import {
     MapPin,
     Award,
     Hash,
-    Briefcase,
     Calendar,
     AlertTriangle,
     Send,
