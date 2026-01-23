@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  BarChart, Bar, Legend
+  BarChart, Bar, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 import { User, Exam, StudentResult } from '../../types';
 import { 
@@ -35,7 +35,9 @@ import {
   Send,
   ArrowRight,
   AlertTriangle,
-  Info
+  Info,
+  Flame,
+  Zap
 } from 'lucide-react';
 import AdBanner from '../../components/AdBanner'; // Import Ads
 import SEO from '../../components/SEO';
@@ -85,7 +87,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
   };
 
   // --- OPTIMIZATION: Pre-calculate Ranks Map ---
-  // This prevents sorting the entire user array inside every 'calculateStats' call
   const userRankMap = useMemo(() => {
       const sorted = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0));
       const rankMap: Record<string, number> = {};
@@ -114,7 +115,6 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       const estimatedCorrectScore = userResults.reduce((sum, r) => sum + (r.score + r.negativeDeduction), 0);
       const accuracy = totalMaxMarks > 0 ? (estimatedCorrectScore / totalMaxMarks) * 100 : 0;
 
-      // Use pre-calculated rank map (O(1) lookup instead of O(N log N) sort)
       const rank = userRankMap[targetUser.id] || 0;
 
       return {
@@ -129,6 +129,72 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
   };
 
   const myStats = useMemo(() => calculateStats(liveUser), [results, liveUser, userRankMap]);
+
+  // --- NEW: STREAK CALCULATION (Mock Logic based on Results dates) ---
+  const studyStreak = useMemo(() => {
+      if (results.length === 0) return 0;
+      
+      // Get unique dates of exams
+      const dates: string[] = Array.from(new Set(results.filter(r => r.studentId === liveUser.id).map(r => r.date.split('T')[0]))).sort().reverse();
+      
+      if (dates.length === 0) return 0;
+
+      let streak = 0;
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+      // Check if active today or yesterday to start streak
+      if (dates[0] === today || dates[0] === yesterday) {
+          streak = 1;
+          for (let i = 0; i < dates.length - 1; i++) {
+              const currStr = dates[i];
+              const prevStr = dates[i+1];
+              
+              if (!currStr || !prevStr) break;
+
+              const curr = new Date(currStr);
+              const prev = new Date(prevStr);
+              const diffTime = Math.abs(curr.getTime() - prev.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+              
+              if (diffDays === 1) {
+                  streak++;
+              } else {
+                  break;
+              }
+          }
+      }
+      return streak;
+  }, [results, liveUser.id]);
+
+  // --- NEW: SUBJECT RADAR DATA ---
+  const radarData = useMemo(() => {
+      const myResults = results.filter(r => r.studentId === liveUser.id);
+      if (myResults.length === 0) return [];
+
+      const subjects: Record<string, { total: number, obtained: number }> = {};
+      
+      myResults.forEach(r => {
+          let subject = "General";
+          if (r.examTitle.toLowerCase().includes("physic")) subject = "Physics";
+          else if (r.examTitle.toLowerCase().includes("math")) subject = "Math";
+          else if (r.examTitle.toLowerCase().includes("chem")) subject = "Chemistry";
+          else if (r.examTitle.toLowerCase().includes("bio")) subject = "Biology";
+          else if (r.examTitle.toLowerCase().includes("english")) subject = "English";
+          else if (r.examTitle.toLowerCase().includes("bangla")) subject = "Bangla";
+          else if (r.examTitle.toLowerCase().includes("ict")) subject = "ICT";
+
+          if (!subjects[subject]) subjects[subject] = { total: 0, obtained: 0 };
+          subjects[subject].total += r.totalMarks;
+          subjects[subject].obtained += r.score;
+      });
+
+      return Object.keys(subjects).map(sub => ({
+          subject: sub,
+          A: Math.round((subjects[sub].obtained / subjects[sub].total) * 100),
+          fullMark: 100
+      }));
+  }, [results, liveUser.id]);
 
   const weeklyRank = myStats.totalExams > 0 ? Math.max(1, Math.floor(myStats.rank / 5)) : 0;
   const isTopTen = weeklyRank > 0 && weeklyRank <= 10;
@@ -245,7 +311,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
         noIndex={true} // IMPORTANT: Private Page
       />
       
-      {/* HEADER */}
+      {/* HEADER WITH STREAK */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
@@ -255,9 +321,22 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
                {myStats.totalExams === 0 ? "Start your journey today!" : "Here's your performance summary."}
            </p>
         </div>
+        
+        {/* NEW: STREAK WIDGET */}
+        <div className="flex items-center gap-4">
+            <div className="bg-orange-50 border border-orange-100 px-4 py-2 rounded-2xl flex items-center shadow-sm">
+                <div className="bg-orange-500 text-white p-2 rounded-full mr-3 animate-pulse">
+                    <Flame size={20} fill="currentColor" />
+                </div>
+                <div>
+                    <p className="text-xs text-orange-600 font-bold uppercase tracking-wider">Study Streak</p>
+                    <p className="text-2xl font-black text-orange-700 leading-none">{studyStreak} <span className="text-sm font-medium">Days</span></p>
+                </div>
+            </div>
+        </div>
       </div>
 
-      {/* SECTION 1: PERFORMANCE HERO (UPDATED BRAND GRADIENT) */}
+      {/* SECTION 1: PERFORMANCE HERO */}
       <div className="bg-gradient-to-br from-brand-600 to-purple-700 rounded-3xl p-8 text-white shadow-soft relative overflow-hidden">
         {/* Abstract Shapes */}
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
@@ -301,10 +380,7 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
         </div>
       </div>
 
-      {/* ADVERTISEMENT SLOT 1 */}
-      <AdBanner slotId="DASHBOARD_HERO_AD" />
-
-      {/* SECTION 2: METRICS (UPDATED COLORS) */}
+      {/* SECTION 2: METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <Card className="flex flex-col justify-center border-l-4 border-l-brand-500">
            <div className="flex items-center space-x-3 mb-1">
@@ -340,110 +416,65 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* COMPARISON CHART */}
+          {/* NEW: SUBJECT RADAR CHART */}
           <Card className="flex flex-col min-h-[400px]">
-              <div className="flex justify-between items-center mb-6">
-                  <div>
-                      <h3 className="font-bold text-slate-800 flex items-center text-lg">
-                          <GitCompare size={20} className="mr-2 text-brand-600" /> Comparison
-                      </h3>
-                  </div>
-                  <select 
-                    className="text-xs font-bold border border-slate-200 rounded-lg p-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-600"
-                    value={comparisonTarget}
-                    onChange={(e) => setComparisonTarget(e.target.value)}
-                    disabled={myFriends.length === 0}
-                  >
-                      {myFriends.length === 0 && <option>No Friends</option>}
-                      {myFriends.map(f => <option key={f.id} value={f.id}>vs {f.name}</option>)}
-                  </select>
-              </div>
-
-              <div className="flex-1 w-full min-h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={comparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 700 }} />
-                          <YAxis hide domain={[0, 100]} />
-                          <Tooltip 
-                            cursor={{fill: 'transparent'}}
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                          />
-                          <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                          <Bar name="You" dataKey="You" fill="#E2136E" radius={[6, 6, 0, 0]} barSize={20} />
-                          {comparisonTarget && (
-                              <Bar name={comparisonFriendName} dataKey="Friend" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
-                          )}
-                      </BarChart>
-                  </ResponsiveContainer>
-              </div>
-          </Card>
-
-          {/* FRIENDS & REQUESTS */}
-          <Card className="flex flex-col">
-              <div className="flex justify-between items-center mb-6">
+              <div className="mb-4">
                   <h3 className="font-bold text-slate-800 flex items-center text-lg">
-                      <Users size={20} className="mr-2 text-brand-600" /> Study Circle
+                      <Target size={20} className="mr-2 text-brand-600" /> Subject Strength
                   </h3>
-                  <Button size="sm" variant="outline" className="text-xs" onClick={() => setIsAddFriendModalOpen(true)}>
-                      <UserPlus size={14} className="mr-1" /> Add
-                  </Button>
+                  <p className="text-xs text-slate-400">Analyze your weak and strong subjects.</p>
               </div>
-              
-              {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
-                  <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
-                      <button className={`flex-1 text-xs py-2 font-bold rounded-lg transition-all ${requestTab === 'INCOMING' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`} onClick={() => setRequestTab('INCOMING')}>
-                          Incoming ({incomingRequests.length})
-                      </button>
-                      <button className={`flex-1 text-xs py-2 font-bold rounded-lg transition-all ${requestTab === 'OUTGOING' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`} onClick={() => setRequestTab('OUTGOING')}>
-                          Sent ({outgoingRequests.length})
-                      </button>
-                  </div>
-              )}
-
-              {/* Lists Logic (Simplified for brevity as structure remains same, just styling updates) */}
-              <div className="flex-1 overflow-y-auto space-y-3 max-h-[300px] pr-1">
-                  {requestTab === 'INCOMING' && incomingRequests.map(req => (
-                      <div key={req.id} className="flex items-center justify-between bg-brand-50 p-3 rounded-xl border border-brand-100">
-                          <div className="flex items-center gap-3">
-                              <img src={req.avatar} className="w-8 h-8 rounded-full border border-white" />
-                              <span className="text-sm font-bold text-brand-900">{req.name}</span>
-                          </div>
-                          <div className="flex gap-2">
-                              <button onClick={() => handleAcceptRequest(req.id)} className="p-1.5 bg-emerald-500 text-white rounded-lg hover:scale-110 transition-transform"><Check size={14} /></button>
-                              <button onClick={() => handleDeclineRequest(req.id)} className="p-1.5 bg-white text-red-500 border border-red-200 rounded-lg hover:bg-red-50"><X size={14} /></button>
-                          </div>
-                      </div>
-                  ))}
-
-                  {myFriends.length === 0 && incomingRequests.length === 0 && outgoingRequests.length === 0 ? (
-                      <div className="text-center py-10 text-slate-400 flex flex-col items-center">
-                          <div className="bg-slate-50 p-4 rounded-full mb-3"><Users size={24} className="opacity-50" /></div>
-                          <p className="text-sm">Build your network to compete!</p>
-                      </div>
+              <div className="flex-1 w-full min-h-[300px]">
+                  {radarData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                              <PolarGrid stroke="#e2e8f0" />
+                              <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} />
+                              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                              <Radar name="My Performance" dataKey="A" stroke="#E2136E" fill="#E2136E" fillOpacity={0.4} />
+                              <Tooltip 
+                                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                              />
+                          </RadarChart>
+                      </ResponsiveContainer>
                   ) : (
-                      myFriends.map(friend => (
-                        <div key={friend.id} onClick={() => setComparisonTarget(friend.id)} className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${comparisonTarget === friend.id ? 'bg-brand-50 border-brand-200 ring-1 ring-brand-200' : 'bg-white border-slate-100 hover:border-brand-200 hover:shadow-sm'}`}>
-                            <div className="flex items-center space-x-3">
-                                <img src={friend.avatar} className="w-10 h-10 rounded-full border border-slate-100" />
-                                <div>
-                                    <p className="text-sm font-bold text-slate-800">{friend.name}</p>
-                                    <p className="text-xs text-slate-500">{calculateStats(friend).xp} XP</p>
-                                </div>
-                            </div>
-                            <div className="flex space-x-1">
-                                <button className="p-1.5 text-slate-400 hover:text-brand-600 rounded bg-slate-50" title="Compare"><GitCompare size={16} /></button>
-                                <button className="p-1.5 text-slate-300 hover:text-red-500 rounded hover:bg-red-50" onClick={(e) => { e.stopPropagation(); initiateRemoveFriend(friend.id); }}><X size={16} /></button>
-                            </div>
-                        </div>
-                      ))
+                      <div className="text-center text-slate-400 py-16">
+                          <Target size={48} className="mx-auto mb-2 opacity-20" />
+                          <p className="text-sm">Take exams in different subjects to see data.</p>
+                      </div>
                   )}
               </div>
           </Card>
-      </div>
 
-      {/* ADVERTISEMENT SLOT 2 */}
-      <AdBanner slotId="DASHBOARD_BOTTOM_AD" />
+          {/* NEW: TASK PLANNER (Mock Widget) */}
+          <Card className="flex flex-col">
+              <div className="mb-4 flex justify-between items-center">
+                  <h3 className="font-bold text-slate-800 flex items-center text-lg">
+                      <CheckCircle2 size={20} className="mr-2 text-emerald-600" /> Daily Goals
+                  </h3>
+                  <Badge color="bg-slate-100 text-slate-500">2 Pending</Badge>
+              </div>
+              <div className="flex-1 space-y-3">
+                  <div className="flex items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-emerald-200 transition-colors cursor-pointer group">
+                      <div className="w-5 h-5 rounded-full border-2 border-slate-300 mr-3 group-hover:border-emerald-500"></div>
+                      <span className="text-sm text-slate-600 group-hover:text-slate-800">Complete Physics Chapter 3 Quiz</span>
+                  </div>
+                  <div className="flex items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-emerald-200 transition-colors cursor-pointer group">
+                      <div className="w-5 h-5 rounded-full border-2 border-slate-300 mr-3 group-hover:border-emerald-500"></div>
+                      <span className="text-sm text-slate-600 group-hover:text-slate-800">Read "Organic Chemistry" Notes</span>
+                  </div>
+                  <div className="flex items-center p-3 bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm opacity-60">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500 mr-3 flex items-center justify-center">
+                          <Check size={12} className="text-white"/>
+                      </div>
+                      <span className="text-sm text-emerald-800 line-through">Login to EduMaster</span>
+                  </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-center text-slate-400 italic">"Consistency is the key to success."</p>
+              </div>
+          </Card>
+      </div>
 
       {/* PERFORMANCE TREND CHART */}
       <Card className="min-h-[350px] flex flex-col">
@@ -480,6 +511,9 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
               )}
           </div>
       </Card>
+
+      {/* ADVERTISEMENT SLOT */}
+      <AdBanner slotId="DASHBOARD_BOTTOM_AD" />
 
       {/* Add Friend Modal */}
       <Modal isOpen={isAddFriendModalOpen} onClose={() => { setIsAddFriendModalOpen(false); setFoundUser(null); setSearchEmail(''); }} title="Connect with Friends">
