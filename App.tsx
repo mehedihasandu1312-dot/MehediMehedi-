@@ -434,7 +434,17 @@ const App: React.FC = () => {
             <>
               <Route 
                 path="/admin/dashboard" 
-                element={<AdminDashboard exams={exams} users={users} appeals={appeals} onLogout={handleLogout} />} 
+                element={
+                    <AdminDashboard 
+                        exams={exams} 
+                        users={users} 
+                        appeals={appeals} 
+                        payments={paymentRequests} // Real Data
+                        orders={storeOrders}       // Real Data
+                        logs={adminLogs}           // Real Data
+                        onLogout={handleLogout} 
+                    />
+                } 
               />
               {/* Pass contents and update handler for Direct Edit */}
               <Route 

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Card, Button, Badge } from '../../components/UI';
 import { 
@@ -13,7 +14,10 @@ import {
     Loader2,
     RefreshCw,
     Globe,
-    ArrowRight
+    ArrowRight,
+    DollarSign,
+    ShoppingCart,
+    CheckCircle
 } from 'lucide-react';
 import { 
     AreaChart, 
@@ -25,116 +29,161 @@ import {
     BarChart, 
     Bar, 
     CartesianGrid, 
-    Legend
+    Legend,
+    PieChart, Pie, Cell
 } from 'recharts';
-import { UserRole, Exam, User, Appeal } from '../../types';
+import { UserRole, Exam, User, Appeal, PaymentRequest, StoreOrder, AdminActivityLog } from '../../types';
 
 interface Props {
   onLogout?: () => void;
   exams: Exam[];
   users: User[];
   appeals: Appeal[];
+  payments: PaymentRequest[];
+  orders: StoreOrder[];
+  logs: AdminActivityLog[];
 }
 
-const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals }) => {
+const COLORS = ['#E2136E', '#10B981', '#F59E0B', '#6366F1'];
+
+const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, payments, orders, logs }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);
     
-    // --- 1. INTELLIGENCE ENGINE (Data Processing) ---
+    // --- 1. INTELLIGENCE ENGINE (Real-Time Metrics) ---
     const intelligence = useMemo(() => {
         const students = users.filter(u => u.role === UserRole.STUDENT);
         const totalUsers = students.length;
-        
-        // Simulating "Active" vs "Churn Risk" logic based on data
         const activeUsers = students.filter(u => u.status === 'ACTIVE').length; 
-        const churnRiskCount = students.filter(u => u.status === 'BLOCKED').length;
+        const blockedUsers = students.filter(u => u.status === 'BLOCKED').length;
         
-        // Engagement Calculation
-        const healthScore = totalUsers > 0 ? Math.min(100, Math.round((activeUsers / totalUsers) * 100)) : 0;
+        // Revenue Calculation (Approved Payments + Completed Orders)
+        const subscriptionRevenue = payments
+            .filter(p => p.status === 'APPROVED')
+            .reduce((sum, p) => sum + p.amount, 0);
         
-        // Content Health
-        const pendingAppeals = appeals.filter(a => a.status === 'PENDING').length;
+        const storeRevenue = orders
+            .filter(o => o.status === 'COMPLETED' || o.status === 'SHIPPED')
+            .reduce((sum, o) => sum + o.amount, 0);
 
-        // Exam Health
-        const liveExams = exams.filter(e => e.type === 'LIVE').length;
-        
+        const totalRevenue = subscriptionRevenue + storeRevenue;
+
+        // Pending Actions
+        const pendingAppeals = appeals.filter(a => a.status === 'PENDING').length;
+        const pendingPayments = payments.filter(p => p.status === 'PENDING').length;
+        const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
+        const totalPending = pendingAppeals + pendingPayments + pendingOrders;
+
         return { 
             totalUsers, 
             activeUsers, 
-            churnRiskCount, 
-            healthScore,
+            blockedUsers, 
+            totalRevenue,
+            totalPending,
             pendingAppeals,
-            liveExams
+            pendingPayments,
+            pendingOrders
         };
-    }, [refreshKey, exams, users, appeals]);
+    }, [users, appeals, payments, orders]);
 
-    // --- TRAFFIC MOCK DATA ---
-    const traffic24hData = [
-      { time: '00:00', visitors: 45 },
-      { time: '04:00', visitors: 12 },
-      { time: '08:00', visitors: 185 },
-      { time: '12:00', visitors: 420 },
-      { time: '16:00', visitors: 350 },
-      { time: '20:00', visitors: 290 },
-      { time: '23:59', visitors: 110 },
-    ];
+    // --- 2. CHART DATA GENERATION (Real-Time) ---
 
-    const trafficMonthlyData = [
-        { week: 'Week 1', visitors: 2400 },
-        { week: 'Week 2', visitors: 3100 },
-        { week: 'Week 3', visitors: 2800 },
-        { week: 'Week 4', visitors: 3500 },
-    ];
+    // A. Registration Trend (Last 7 Days)
+    const userGrowthData = useMemo(() => {
+        const last7Days = Array.from({length: 7}, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            return d.toISOString().split('T')[0];
+        });
 
-    // --- TREND DATA ---
-    const growthData = [
-        { name: 'Mon', newUsers: 4, activeUsers: 120 },
-        { name: 'Tue', newUsers: 6, activeUsers: 132 },
-        { name: 'Wed', newUsers: 8, activeUsers: 128 },
-        { name: 'Thu', newUsers: 12, activeUsers: 145 },
-        { name: 'Fri', newUsers: 9, activeUsers: 150 },
-        { name: 'Sat', newUsers: 15, activeUsers: 168 },
-        { name: 'Sun', newUsers: 10, activeUsers: 175 + (refreshKey * 2) },
-    ];
+        return last7Days.map(dateStr => {
+            const count = users.filter(u => u.joinedDate.startsWith(dateStr)).length;
+            const dateObj = new Date(dateStr);
+            return {
+                name: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
+                date: dateStr,
+                newUsers: count
+            };
+        });
+    }, [users]);
 
-    const examPerformanceData = [
-        { name: 'Physics Wk1', avgScore: 65, participation: 85 },
-        { name: 'Math Ch3', avgScore: 45, participation: 40 },
-        { name: 'Chem Org', avgScore: 78, participation: 92 },
-        { name: 'Eng Gram', avgScore: 82, participation: 70 },
-    ];
+    // B. Popular Exams (Top 5 by Attempts)
+    const examPerformanceData = useMemo(() => {
+        return [...exams]
+            .sort((a, b) => (b.attempts || 0) - (a.attempts || 0))
+            .slice(0, 5)
+            .map(e => ({
+                name: e.title.length > 15 ? e.title.substring(0, 15) + '...' : e.title,
+                attempts: e.attempts || 0
+            }));
+    }, [exams]);
 
-    // --- ALERTS & ACTION QUEUE ---
-    const alerts = [
-        { 
-            id: 1, 
-            level: 'CRITICAL', 
-            msg: `${intelligence.pendingAppeals} Appeals pending > 24h`, 
-            action: 'Resolve Now',
-            icon: AlertTriangle 
-        },
-        { 
-            id: 2, 
-            level: 'WARNING', 
-            msg: 'Low participation in "Math Ch3" Exam (40%)', 
-            action: 'Check Difficulty',
-            icon: FileWarning 
-        },
-        { 
-            id: 3, 
-            level: 'INFO', 
-            msg: 'High Inactivity detected in Class 10', 
-            action: 'Send Notify',
-            icon: Users 
+    // C. Revenue Breakdown
+    const revenueData = useMemo(() => {
+        const subRev = payments.filter(p => p.status === 'APPROVED').reduce((sum, p) => sum + p.amount, 0);
+        const storeRev = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.amount, 0);
+        
+        return [
+            { name: 'Subscriptions', value: subRev },
+            { name: 'Book Store', value: storeRev }
+        ];
+    }, [payments, orders]);
+
+    // --- 3. ACTION QUEUE (Priority List) ---
+    const actionQueue = useMemo(() => {
+        const queue = [];
+        
+        if (intelligence.pendingPayments > 0) {
+            queue.push({
+                id: 'pay_q',
+                level: 'CRITICAL',
+                msg: `${intelligence.pendingPayments} Payment Requests Pending`,
+                action: 'Verify Now',
+                link: '/admin/payments',
+                icon: DollarSign
+            });
         }
-    ];
+        
+        if (intelligence.pendingOrders > 0) {
+            queue.push({
+                id: 'ord_q',
+                level: 'WARNING',
+                msg: `${intelligence.pendingOrders} Store Orders Pending`,
+                action: 'Process Order',
+                link: '/admin/store',
+                icon: ShoppingCart
+            });
+        }
+
+        if (intelligence.pendingAppeals > 0) {
+            queue.push({
+                id: 'app_q',
+                level: 'INFO',
+                msg: `${intelligence.pendingAppeals} User Appeals/Reports`,
+                action: 'Resolve',
+                link: '/admin/appeals',
+                icon: AlertTriangle
+            });
+        }
+
+        // System Health Checks
+        if (intelligence.blockedUsers > 5) {
+             queue.push({
+                id: 'usr_blk',
+                level: 'INFO',
+                msg: `${intelligence.blockedUsers} Users are currently Blocked`,
+                action: 'Review Users',
+                link: '/admin/users',
+                icon: Users
+            });
+        }
+
+        return queue;
+    }, [intelligence]);
 
     const handleRefresh = () => {
         setIsLoading(true);
-        setTimeout(() => {
-            setRefreshKey(prev => prev + 1);
-            setIsLoading(false);
-        }, 800);
+        // Simulate network delay for UX
+        setTimeout(() => setIsLoading(false), 800);
     };
 
     const MetricCard = ({ title, value, sub, trend, color, icon: Icon }: any) => (
@@ -150,15 +199,11 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals }) =>
             </div>
             
             <div className="mt-4 flex items-center text-sm">
-                {trend === 'up' ? (
+                {trend === 'up' && (
                     <span className="text-emerald-600 font-bold flex items-center bg-emerald-50 px-1.5 py-0.5 rounded mr-2">
-                        <ArrowUpRight size={14} className="mr-1" /> +12%
+                        <ArrowUpRight size={14} className="mr-1" /> Live
                     </span>
-                ) : trend === 'down' ? (
-                     <span className="text-red-500 font-bold flex items-center bg-red-50 px-1.5 py-0.5 rounded mr-2">
-                        <ArrowDownRight size={14} className="mr-1" /> -5%
-                    </span>
-                ) : null}
+                )}
                 <span className="text-slate-400">{sub}</span>
             </div>
         </Card>
@@ -171,17 +216,17 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals }) =>
       <div className="flex flex-col md:flex-row md:items-center justify-between">
         <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                <Activity className="mr-3 text-indigo-600" /> Platform Health Monitor
+                <Activity className="mr-3 text-indigo-600" size={28} /> Control Center
             </h1>
             <p className="text-slate-500 text-sm mt-1">
-                System Status: <span className="font-bold text-emerald-600">Healthy (98.2% Uptime)</span>
+                Real-time platform insights and financial overview.
             </p>
         </div>
         
         <div className="mt-4 md:mt-0 flex gap-3">
              <Button 
                 variant="outline" 
-                className="text-sm flex items-center min-w-[130px] justify-center" 
+                className="text-sm flex items-center min-w-[130px] justify-center bg-white" 
                 onClick={handleRefresh}
                 disabled={isLoading}
              >
@@ -190,7 +235,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals }) =>
                 ) : (
                     <RefreshCw size={16} className="mr-2" />
                 )}
-                {isLoading ? "Updating..." : "Refresh Data"}
+                {isLoading ? "Syncing..." : "Refresh Data"}
             </Button>
             {onLogout && (
                 <Button variant="secondary" onClick={onLogout} className="flex items-center text-sm bg-slate-200 text-slate-700 hover:bg-red-50 hover:text-red-600">
@@ -200,120 +245,60 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals }) =>
         </div>
       </div>
 
-      {/* SECTION 1: PLATFORM HEALTH SNAPSHOT */}
+      {/* SECTION 1: KEY METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard 
-            title="Total Users" 
+            title="Total Students" 
             value={intelligence.totalUsers} 
-            sub="Active Database"
+            sub={`${intelligence.activeUsers} Active Now`}
             trend="up"
             color="border-indigo-500"
             icon={Users}
         />
         <MetricCard 
-            title="Active (7d)" 
-            value={intelligence.activeUsers} 
-            sub="Engaged Users"
+            title="Total Revenue" 
+            value={`৳${intelligence.totalRevenue.toLocaleString()}`} 
+            sub="Lifetime Earnings"
             trend="up"
             color="border-emerald-500"
-            icon={Zap}
+            icon={DollarSign}
         />
         <MetricCard 
-            title="Churn Risk" 
-            value={intelligence.churnRiskCount} 
-            sub="Inactive > 14 days"
-            trend="down"
-            color="border-red-500"
+            title="Pending Items" 
+            value={intelligence.totalPending} 
+            sub="Requires Attention"
+            trend={intelligence.totalPending > 0 ? 'down' : 'up'} // Down arrow actually implies bad here? Let's treat distinct.
+            color="border-amber-500"
             icon={AlertTriangle}
         />
          <MetricCard 
-            title="Health Score" 
-            value={`${intelligence.healthScore}%`} 
-            sub="Retention Metric"
+            title="Exam Traffic" 
+            value={exams.reduce((acc, e) => acc + (e.attempts || 0), 0)} 
+            sub="Total Attempts"
             trend="up"
             color="border-purple-500"
-            icon={Activity}
+            icon={FileWarning}
         />
-      </div>
-
-      {/* SECTION 1.5: TRAFFIC ANALYTICS (24H & MONTHLY) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-              <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-800 flex items-center">
-                      <Globe size={18} className="mr-2 text-blue-500" /> 24-Hour Traffic
-                  </h3>
-                  <Badge color="bg-blue-100 text-blue-700">Today: 1,412 Hits</Badge>
-              </div>
-              <div className="h-48 w-full">
-                  <div className="flex-1 min-h-0 h-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <AreaChart data={traffic24hData}>
-                          <defs>
-                              <linearGradient id="colorTraffic24" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                              </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="time" fontSize={10} axisLine={false} tickLine={false} />
-                          <Tooltip 
-                            contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: 'none', color: '#fff' }}
-                          />
-                          <Area type="monotone" dataKey="visitors" stroke="#3b82f6" fill="url(#colorTraffic24)" strokeWidth={3} />
-                      </AreaChart>
-                  </ResponsiveContainer>
-                  </div>
-              </div>
-          </Card>
-
-          <Card>
-              <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-800 flex items-center">
-                      <BarChart2 size={18} className="mr-2 text-purple-500" /> Monthly Traffic
-                  </h3>
-                  <Badge color="bg-purple-100 text-purple-700">Total: 11,800 Hits</Badge>
-              </div>
-              <div className="h-48 w-full">
-                  <div className="flex-1 min-h-0 h-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <BarChart data={trafficMonthlyData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="week" fontSize={10} axisLine={false} tickLine={false} />
-                          <Tooltip 
-                             cursor={{fill: 'transparent'}}
-                             contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: 'none', color: '#fff' }} 
-                          />
-                          <Bar dataKey="visitors" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={40} />
-                      </BarChart>
-                  </ResponsiveContainer>
-                  </div>
-              </div>
-          </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* SECTION 2: TRENDS & ENGAGEMENT (2/3 Width) */}
+        {/* SECTION 2: CHARTS (2/3 Width) */}
         <div className="lg:col-span-2 space-y-6">
             
             {/* User Growth Chart */}
             <Card className="h-80 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <div>
-                        <h3 className="font-bold text-slate-800">User Growth & Activity</h3>
-                        <p className="text-xs text-slate-400">New registrations vs Active users (Last 7 days)</p>
+                        <h3 className="font-bold text-slate-800">New Registrations</h3>
+                        <p className="text-xs text-slate-400">Student signups in the last 7 days</p>
                     </div>
-                    <Badge color="bg-indigo-50 text-indigo-600">Weekly View</Badge>
+                    <Badge color="bg-indigo-50 text-indigo-600">Real-Time</Badge>
                 </div>
                 <div className="flex-1 w-full min-h-0">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                        <AreaChart data={growthData}>
+                        <AreaChart data={userGrowthData}>
                             <defs>
-                                <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
                                 <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
                                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
@@ -321,61 +306,100 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals }) =>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                            <Tooltip />
-                            <Area type="monotone" dataKey="activeUsers" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorActive)" name="Active Users" />
-                            <Area type="monotone" dataKey="newUsers" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorNew)" name="New Regs" />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} allowDecimals={false} />
+                            <Tooltip 
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                            />
+                            <Area type="monotone" dataKey="newUsers" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorNew)" name="New Students" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
             </Card>
+
+            {/* Exam Performance */}
+            <Card>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-slate-800">Top Exams by Attendance</h3>
+                    <Badge color="bg-purple-50 text-purple-600">Popular</Badge>
+                </div>
+                <div className="h-48 w-full">
+                  <div className="flex-1 min-h-0 h-full">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <BarChart data={examPerformanceData} layout="vertical" barSize={15}>
+                             <XAxis type="number" hide />
+                             <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11, fontWeight: 600}} />
+                             <Tooltip cursor={{fill: 'transparent'}} />
+                             <Bar dataKey="attempts" name="Attempts" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </div>
+                </div>
+            </Card>
         </div>
 
-        {/* SECTION 3: ACTION QUEUE & INSIGHTS (1/3 Width) */}
+        {/* SECTION 3: ACTION QUEUE & REVENUE (1/3 Width) */}
         <div className="space-y-6">
             
-            {/* 1. Admin Action Queue */}
-            <Card className="bg-white border border-slate-200 shadow-md">
+            {/* 1. Action Queue (Generated from Real Pending Data) */}
+            <Card className="bg-white border border-slate-200 shadow-md min-h-[200px]">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
                     <h3 className="font-bold text-slate-800 flex items-center">
                         <Zap className="mr-2 text-amber-500" size={18} /> Action Queue
                     </h3>
-                    <Badge color="bg-red-100 text-red-700">{alerts.length} Pending</Badge>
+                    <Badge color="bg-slate-100 text-slate-600">{actionQueue.length} Tasks</Badge>
                 </div>
                 
                 <div className="space-y-3">
-                    {alerts.map(alert => (
-                        <div key={alert.id} className="bg-slate-50 p-3 rounded-lg border border-slate-100 group hover:border-indigo-300 transition-colors">
-                            <div className="flex items-start space-x-3">
-                                <alert.icon size={18} className={`mt-0.5 ${alert.level === 'CRITICAL' ? 'text-red-500' : alert.level === 'WARNING' ? 'text-amber-500' : 'text-blue-500'}`} />
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-700 leading-tight">{alert.msg}</p>
-                                    <button className="text-xs font-bold text-indigo-600 mt-2 hover:underline flex items-center">
-                                        {alert.action} <ArrowRight size={10} className="ml-1" />
-                                    </button>
+                    {actionQueue.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                            <CheckCircle size={32} className="mx-auto mb-2 text-emerald-200" />
+                            <p className="text-sm">All caught up! No pending actions.</p>
+                        </div>
+                    ) : (
+                        actionQueue.map(alert => (
+                            <div key={alert.id} className="bg-slate-50 p-3 rounded-lg border border-slate-100 group hover:border-indigo-300 transition-colors">
+                                <div className="flex items-start space-x-3">
+                                    <alert.icon size={18} className={`mt-0.5 ${alert.level === 'CRITICAL' ? 'text-red-500' : alert.level === 'WARNING' ? 'text-amber-500' : 'text-blue-500'}`} />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-700 leading-tight">{alert.msg}</p>
+                                        <a href={`/#${alert.link}`} className="text-xs font-bold text-indigo-600 mt-2 hover:underline flex items-center inline-block">
+                                            {alert.action} <ArrowRight size={10} className="ml-1" />
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </Card>
 
-            {/* 2. Problematic Content Insight */}
-            <Card>
-                <h3 className="font-bold text-slate-800 mb-4">Exam Insights</h3>
-                <div className="h-48 w-full">
-                  <div className="flex-1 min-h-0 h-full">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                        <BarChart data={examPerformanceData} layout="vertical" barSize={12}>
-                             <XAxis type="number" hide />
-                             <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 10}} />
-                             <Tooltip cursor={{fill: 'transparent'}} />
-                             <Legend wrapperStyle={{fontSize: '10px'}} />
-                             <Bar dataKey="participation" name="Partic. %" fill="#818cf8" radius={[0, 4, 4, 0]} />
-                             <Bar dataKey="avgScore" name="Avg Score" fill="#34d399" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                    </div>
+            {/* 2. Revenue Breakdown Pie Chart */}
+            <Card className="h-64 flex flex-col">
+                <h3 className="font-bold text-slate-800 mb-2">Revenue Source</h3>
+                <div className="flex-1 w-full min-h-0 relative">
+                    {intelligence.totalRevenue === 0 ? (
+                        <div className="flex items-center justify-center h-full text-slate-400 text-sm">No revenue data yet.</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={revenueData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={40}
+                                    outerRadius={70}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {revenueData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => `৳${value}`} />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
             </Card>
 
