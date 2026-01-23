@@ -46,31 +46,31 @@ interface Props {
 
 const COLORS = ['#E2136E', '#10B981', '#F59E0B', '#6366F1'];
 
-const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, payments, orders, logs }) => {
+const AdminDashboard: React.FC<Props> = ({ onLogout, exams = [], users = [], appeals = [], payments = [], orders = [], logs = [] }) => {
     const [isLoading, setIsLoading] = useState(false);
     
     // --- 1. INTELLIGENCE ENGINE (Real-Time Metrics) ---
     const intelligence = useMemo(() => {
-        const students = users.filter(u => u.role === UserRole.STUDENT);
+        const students = Array.isArray(users) ? users.filter(u => u.role === UserRole.STUDENT) : [];
         const totalUsers = students.length;
         const activeUsers = students.filter(u => u.status === 'ACTIVE').length; 
         const blockedUsers = students.filter(u => u.status === 'BLOCKED').length;
         
         // Revenue Calculation (Approved Payments + Completed Orders)
-        const subscriptionRevenue = payments
-            .filter(p => p.status === 'APPROVED')
-            .reduce((sum, p) => sum + p.amount, 0);
+        const subscriptionRevenue = Array.isArray(payments) 
+            ? payments.filter(p => p.status === 'APPROVED').reduce((sum, p) => sum + p.amount, 0)
+            : 0;
         
-        const storeRevenue = orders
-            .filter(o => o.status === 'COMPLETED' || o.status === 'SHIPPED')
-            .reduce((sum, o) => sum + o.amount, 0);
+        const storeRevenue = Array.isArray(orders)
+            ? orders.filter(o => o.status === 'COMPLETED' || o.status === 'SHIPPED').reduce((sum, o) => sum + o.amount, 0)
+            : 0;
 
         const totalRevenue = subscriptionRevenue + storeRevenue;
 
         // Pending Actions
-        const pendingAppeals = appeals.filter(a => a.status === 'PENDING').length;
-        const pendingPayments = payments.filter(p => p.status === 'PENDING').length;
-        const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
+        const pendingAppeals = Array.isArray(appeals) ? appeals.filter(a => a.status === 'PENDING').length : 0;
+        const pendingPayments = Array.isArray(payments) ? payments.filter(p => p.status === 'PENDING').length : 0;
+        const pendingOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'PENDING').length : 0;
         const totalPending = pendingAppeals + pendingPayments + pendingOrders;
 
         return { 
@@ -89,6 +89,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, paym
 
     // A. Registration Trend (Last 7 Days)
     const userGrowthData = useMemo(() => {
+        if (!Array.isArray(users)) return [];
         const last7Days = Array.from({length: 7}, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (6 - i));
@@ -96,7 +97,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, paym
         });
 
         return last7Days.map(dateStr => {
-            const count = users.filter(u => u.joinedDate.startsWith(dateStr)).length;
+            const count = users.filter(u => u.joinedDate && u.joinedDate.startsWith(dateStr)).length;
             const dateObj = new Date(dateStr);
             return {
                 name: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
@@ -108,6 +109,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, paym
 
     // B. Popular Exams (Top 5 by Attempts)
     const examPerformanceData = useMemo(() => {
+        if (!Array.isArray(exams)) return [];
         return [...exams]
             .sort((a, b) => (b.attempts || 0) - (a.attempts || 0))
             .slice(0, 5)
@@ -119,8 +121,8 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, paym
 
     // C. Revenue Breakdown
     const revenueData = useMemo(() => {
-        const subRev = payments.filter(p => p.status === 'APPROVED').reduce((sum, p) => sum + p.amount, 0);
-        const storeRev = orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.amount, 0);
+        const subRev = Array.isArray(payments) ? payments.filter(p => p.status === 'APPROVED').reduce((sum, p) => sum + p.amount, 0) : 0;
+        const storeRev = Array.isArray(orders) ? orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + o.amount, 0) : 0;
         
         return [
             { name: 'Subscriptions', value: subRev },
@@ -267,7 +269,7 @@ const AdminDashboard: React.FC<Props> = ({ onLogout, exams, users, appeals, paym
             title="Pending Items" 
             value={intelligence.totalPending} 
             sub="Requires Attention"
-            trend={intelligence.totalPending > 0 ? 'down' : 'up'} // Down arrow actually implies bad here? Let's treat distinct.
+            trend={intelligence.totalPending > 0 ? 'down' : 'up'} 
             color="border-amber-500"
             icon={AlertTriangle}
         />

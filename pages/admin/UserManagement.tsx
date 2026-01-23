@@ -36,7 +36,7 @@ import {
     Send,
     BarChart2,
     Check,
-    Briefcase as BriefcaseIcon,
+    Briefcase, // Simplifed import
     Zap,
     History,
     TrendingUp,
@@ -111,6 +111,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
 
   // --- DEDUPLICATION LOGIC ---
   const uniqueUsers = useMemo(() => {
+      if (!users) return [];
       const seen = new Set();
       const sortedUsers = [...users].sort((a, b) => {
           if (a.profileCompleted === b.profileCompleted) {
@@ -132,12 +133,15 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
     const students = uniqueUsers.filter(u => u.role === UserRole.STUDENT);
     const admins = uniqueUsers.filter(u => u.role === UserRole.ADMIN);
     
+    // Safety check for deletionRequests
+    const pendingReqs = Array.isArray(deletionRequests) ? deletionRequests.filter(r => r.status === 'PENDING').length : 0;
+
     return {
         totalStudents: students.length,
         totalAdmins: admins.length,
         activeStudents: students.filter(u => u.status === 'ACTIVE').length,
         blocked: uniqueUsers.filter(u => u.status === 'BLOCKED').length,
-        pendingRequests: deletionRequests.filter(r => r.status === 'PENDING').length
+        pendingRequests: pendingReqs
     };
   }, [uniqueUsers, deletionRequests]);
 
@@ -424,6 +428,9 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
       }
   };
 
+  // Safe access to requests
+  const pendingRequestsList = Array.isArray(deletionRequests) ? deletionRequests.filter(r => r.status === 'PENDING') : [];
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -555,10 +562,10 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
         {activeTab === 'REQUESTS' && (
             <div className="space-y-4">
                 <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Pending Approvals</h3>
-                {deletionRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                {pendingRequestsList.length === 0 ? (
                     <div className="text-center py-10 text-slate-400">No pending requests from sub-admins.</div>
                 ) : (
-                    deletionRequests.filter(r => r.status === 'PENDING').map(req => (
+                    pendingRequestsList.map(req => (
                         <div key={req.id} className="p-4 border border-amber-200 bg-amber-50 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <p className="font-bold text-slate-800 text-sm">{req.actionType.replace('_', ' ')} <span className="font-mono text-xs bg-white px-1 rounded ml-2">{req.targetName}</span></p>
@@ -967,7 +974,7 @@ const UserManagement: React.FC<Props> = ({ users, setUsers, adminLogs = [], curr
                                 <div>
                                     <span className="block text-xs text-indigo-400">Class / Sector</span>
                                     <span className="font-bold text-indigo-900 flex items-center">
-                                        <BriefcaseIcon size={12} className="mr-1 text-indigo-400"/> {selectedUser.class || 'N/A'}
+                                        <Briefcase size={12} className="mr-1 text-indigo-400"/> {selectedUser.class || 'N/A'}
                                     </span>
                                 </div>
                                 <div className="col-span-2">
