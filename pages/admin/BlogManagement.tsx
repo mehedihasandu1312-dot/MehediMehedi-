@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle, Crown, Upload, Loader2, X } from 'lucide-react';
+import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPlus, ArrowLeft, FolderOpen, Eye, Home, ChevronRight, ArrowUp, AlertTriangle, CheckCircle, Crown, Upload, Loader2, X, FileText } from 'lucide-react';
 import { storage } from '../../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { authService } from '../../services/authService';
@@ -13,6 +13,19 @@ interface BlogManagementProps {
     blogs: BlogPost[];
     setBlogs: React.Dispatch<React.SetStateAction<BlogPost[]>>;
 }
+
+// Consistent Pink/Warm Gradient Palette
+const getGradientClass = (index: number) => {
+    const gradients = [
+        'bg-gradient-to-br from-pink-600 to-rose-600 shadow-pink-200',
+        'bg-gradient-to-br from-fuchsia-600 to-pink-600 shadow-fuchsia-200',
+        'bg-gradient-to-br from-rose-500 to-orange-600 shadow-orange-200',
+        'bg-gradient-to-br from-purple-600 to-fuchsia-500 shadow-purple-200',
+        'bg-gradient-to-br from-brand-600 to-red-600 shadow-red-200',
+        'bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-violet-200',
+    ];
+    return gradients[index % gradients.length];
+};
 
 const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, blogs, setBlogs }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -374,23 +387,51 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                   {displayedFolders.length === 0 ? (
                       <p className="text-sm text-slate-400 italic pl-2">No sub-folders here.</p>
                   ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                          {displayedFolders.map(folder => (
-                              <div 
-                                  key={folder.id} 
-                                  onClick={() => setCurrentFolderId(folder.id)}
-                                  className="group relative bg-amber-50/50 border border-amber-100 rounded-xl p-4 hover:bg-amber-100 hover:border-amber-300 hover:shadow-sm cursor-pointer transition-all flex flex-col items-center text-center"
-                              >
-                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button onClick={(e) => initiateDeleteFolder(e, folder.id)} className="text-amber-400 hover:text-red-500 p-1">
-                                          <Trash2 size={14} />
-                                      </button>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-slide-up">
+                          {displayedFolders.map((folder, index) => {
+                              // Count items inside for display
+                              const articleCount = blogs.filter(b => b.folderId === folder.id).length;
+                              return (
+                                  <div 
+                                      key={folder.id} 
+                                      onClick={() => setCurrentFolderId(folder.id)}
+                                      className={`relative overflow-hidden rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white border border-white/20`}
+                                  >
+                                      {/* Background Decoration */}
+                                      <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
+                                          {folder.icon ? (
+                                              <img src={folder.icon} className="w-32 h-32 object-contain drop-shadow-md brightness-200" alt="" />
+                                          ) : (
+                                              <FolderIcon className="w-32 h-32" fill="currentColor" />
+                                          )}
+                                      </div>
+
+                                      <div className="relative z-10 pr-8">
+                                          <h3 className="text-xl font-bold leading-tight mb-2 drop-shadow-md font-sans tracking-tight line-clamp-2">
+                                              {folder.name}
+                                          </h3>
+                                          <p className="text-white/80 text-xs font-medium line-clamp-2">
+                                              {folder.description || 'Category'}
+                                          </p>
+                                      </div>
+
+                                      <div className="relative z-10 flex items-center justify-between mt-auto">
+                                          <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 group-hover:bg-white/30 transition-colors">
+                                              <Newspaper size={12} className="text-white" />
+                                              <span>{articleCount} Articles</span>
+                                          </div>
+                                          
+                                          <button 
+                                              onClick={(e) => initiateDeleteFolder(e, folder.id)}
+                                              className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-red-500 text-white transition-all shadow-sm backdrop-blur-md border border-white/10 z-20"
+                                              title="Delete Folder"
+                                          >
+                                              <Trash2 size={14} />
+                                          </button>
+                                      </div>
                                   </div>
-                                  <FolderIcon className="text-amber-400 fill-amber-100 mb-2" size={32} />
-                                  <h4 className="font-bold text-slate-700 text-sm truncate w-full">{folder.name}</h4>
-                                  <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{folder.description}</p>
-                              </div>
-                          ))}
+                              )
+                          })}
                       </div>
                   )}
               </div>
