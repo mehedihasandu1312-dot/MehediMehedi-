@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, Button, Modal, Badge } from '../../components/UI';
 import { Folder, StudyContent, ContentType, MCQQuestion } from '../../types';
 import { Folder as FolderIcon, FileText, CheckSquare, AlertTriangle, ArrowLeft, CheckCircle2, Bookmark, Flag, X, Lock, Crown, Calendar, UserCheck, BookOpen, ChevronDown, ChevronUp, Search, Library, PlayCircle, Youtube, Grid, Filter, Lightbulb, ExternalLink } from 'lucide-react';
@@ -31,7 +31,6 @@ const getGradientClass = (index: number) => {
 const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, onAppealSubmit }) => {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [selectedContent, setSelectedContent] = useState<StudyContent | null>(null);
-  const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Tabs State - Default to WRITTEN since 'ALL' is removed
@@ -44,9 +43,20 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   const [appealImage, setAppealImage] = useState<string>(''); 
   const [appealContext, setAppealContext] = useState(''); // Stores hidden MCQ details
 
+  // REF for Scroll Management
+  const topRef = useRef<HTMLDivElement>(null);
+
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const isPro = user?.subscription?.status === 'ACTIVE';
+
+  // --- SCROLL TO TOP EFFECT ---
+  useEffect(() => {
+      // Whenever selectedContent changes (opens/closes), scroll to top
+      if (topRef.current) {
+          topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+  }, [selectedContent, selectedFolder]);
 
   const getDisplayQuestions = (content: StudyContent): MCQQuestion[] => {
     if (content.questionList && content.questionList.length > 0) {
@@ -151,7 +161,8 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
           return;
       }
       setSelectedContent(item);
-      window.scrollTo(0,0);
+      // Removed window.scrollTo because it doesn't work with the custom layout scroller. 
+      // The useEffect with topRef handles this now.
   };
 
   const displayFolders = folders.filter(f => !f.type || f.type === 'CONTENT');
@@ -406,7 +417,7 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
   };
 
   return (
-    <div className="animate-fade-in pb-10">
+    <div className="animate-fade-in pb-10" ref={topRef}>
       <SEO 
         title={seoData.title}
         description={seoData.desc}
@@ -417,9 +428,9 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         schema={seoData.schema} // Pass Quiz Schema here
       />
 
+      {/* HERO SECTION - Only show if NO content selected */}
       {!selectedContent && (
         <div className="mb-8">
-            {/* HERO SECTION */}
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between mb-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-pink-50 to-purple-50 rounded-full blur-3xl -mr-16 -mt-16"></div>
                 
@@ -453,7 +464,10 @@ const StudyContentPage: React.FC<StudyContentPageProps> = ({ folders, contents, 
         </div>
       )}
 
-      {!selectedFolder ? <FolderList /> : <ContentList />}
+      {/* LIST SECTION - Hide when content is selected (Focus Mode) */}
+      {!selectedContent && (
+          !selectedFolder ? <FolderList /> : <ContentList />
+      )}
 
       {/* CONTENT READER VIEW */}
       {selectedContent && (
