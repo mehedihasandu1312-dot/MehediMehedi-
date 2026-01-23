@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, Button, Badge } from '../../components/UI';
 import { BlogPost, Folder } from '../../types';
-import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, Newspaper, Lock, Crown, FileText, Search } from 'lucide-react';
+import { BookOpen, User, Calendar, ArrowRight, Folder as FolderIcon, ArrowLeft, Newspaper, Lock, Crown, FileText, Search, Home, ChevronRight, ArrowUp } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../../components/SEO';
@@ -45,6 +45,24 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
 
   const selectedFolder = folders.find(f => f.id === currentFolderId);
 
+  // Recursive Breadcrumbs
+  const getBreadcrumbs = (folderId: string | null): Folder[] => {
+    if (!folderId) return [];
+    const folder = folders.find(f => f.id === folderId);
+    if (!folder) return [];
+    return [...getBreadcrumbs(folder.parentId || null), folder];
+  };
+
+  const breadcrumbs = useMemo(() => getBreadcrumbs(currentFolderId), [currentFolderId, folders]);
+
+  const handleNavigateUp = () => {
+      if (selectedFolder?.parentId) {
+          setCurrentFolderId(selectedFolder.parentId);
+      } else {
+          setCurrentFolderId(null);
+      }
+  };
+
   const handleReadBlog = (blog: BlogPost) => {
       if (blog.isPremium && !isPro) {
           if(confirm("Premium Article. Upgrade to read?")) navigate('/student/subscription');
@@ -53,6 +71,50 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
       setReadingBlog(blog);
       if (onViewBlog) onViewBlog(blog.id);
   };
+
+  const renderFolderGrid = (folderList: Folder[]) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 animate-slide-up">
+          {folderList.map((folder, index) => {
+              const articleCount = blogs.filter(b => b.folderId === folder.id).length;
+              return (
+                  <div 
+                      key={folder.id}
+                      onClick={() => setCurrentFolderId(folder.id)}
+                      className={`relative overflow-hidden rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white border border-white/20`}
+                  >
+                      {/* Background Decoration */}
+                      <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
+                          {folder.icon ? (
+                              <img src={folder.icon} className="w-32 h-32 object-contain drop-shadow-md brightness-200" alt="" />
+                          ) : (
+                              <BookOpen className="w-32 h-32" fill="currentColor" />
+                          )}
+                      </div>
+
+                      <div className="relative z-10">
+                          <h3 className="text-xl md:text-2xl font-bold leading-tight mb-2 drop-shadow-md font-sans tracking-tight line-clamp-2">
+                              {folder.name}
+                          </h3>
+                          <p className="text-white/80 text-xs md:text-sm font-medium line-clamp-2">
+                              {folder.description || 'Read Articles'}
+                          </p>
+                      </div>
+
+                      <div className="relative z-10 flex items-center justify-between mt-auto">
+                          <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 group-hover:bg-white/30 transition-colors">
+                              <FileText size={12} className="text-white" />
+                              <span>{articleCount} Articles</span>
+                          </div>
+                          
+                          <span className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white text-white hover:text-pink-600 transition-all shadow-sm">
+                              <ArrowLeft className="rotate-180" size={16} />
+                          </span>
+                      </div>
+                  </div>
+              )
+          })}
+      </div>
+  );
 
   // --- BLOG READING VIEW ---
   if (readingBlog) {
@@ -113,138 +175,138 @@ const Blog: React.FC<BlogProps> = ({ folders, blogs, onViewBlog }) => {
         )}
 
         {/* FOLDER GRID VIEW (Root Level) */}
-        {!currentFolderId ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 animate-slide-up">
-                {displayedFolders.map((folder, index) => {
-                    const articleCount = blogs.filter(b => b.folderId === folder.id).length;
-                    return (
-                        <div 
-                            key={folder.id}
-                            onClick={() => setCurrentFolderId(folder.id)}
-                            className={`relative overflow-hidden rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl shadow-lg h-48 flex flex-col justify-between group ${getGradientClass(index)} text-white border border-white/20`}
-                        >
-                            {/* Background Decoration */}
-                            <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12 transition-transform group-hover:rotate-6 group-hover:scale-110 duration-500 pointer-events-none">
-                                {folder.icon ? (
-                                    <img src={folder.icon} className="w-32 h-32 object-contain drop-shadow-md brightness-200" alt="" />
-                                ) : (
-                                    <BookOpen className="w-32 h-32" fill="currentColor" />
-                                )}
-                            </div>
+        {!currentFolderId && renderFolderGrid(displayedFolders)}
 
-                            <div className="relative z-10">
-                                <h3 className="text-xl md:text-2xl font-bold leading-tight mb-2 drop-shadow-md font-sans tracking-tight line-clamp-2">
-                                    {folder.name}
-                                </h3>
-                                <p className="text-white/80 text-xs md:text-sm font-medium line-clamp-2">
-                                    {folder.description || 'Read Articles'}
-                                </p>
-                            </div>
-
-                            <div className="relative z-10 flex items-center justify-between mt-auto">
-                                <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 group-hover:bg-white/30 transition-colors">
-                                    <FileText size={12} className="text-white" />
-                                    <span>{articleCount} Articles</span>
-                                </div>
-                                
-                                <span className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white text-white hover:text-pink-600 transition-all shadow-sm">
-                                    <ArrowLeft className="rotate-180" size={16} />
-                                </span>
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-        ) : (
-            // --- INSIDE FOLDER (BLOG LIST) ---
+        {/* --- INSIDE FOLDER --- */}
+        {currentFolderId && (
             <div className="space-y-6 animate-fade-in">
-                {/* Header */}
+                {/* Header with Breadcrumbs */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center">
-                            <Button variant="ghost" onClick={() => setCurrentFolderId(null)} className="mr-2 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-slate-100">
-                                <ArrowLeft size={20} className="text-slate-600" />
-                            </Button>
-                            <div>
-                                <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                                    {selectedFolder?.icon && <img src={selectedFolder.icon} alt="icon" className="w-6 h-6 mr-2 object-contain" />}
-                                    {selectedFolder?.name}
-                                </h2>
-                                <p className="text-xs text-slate-500">Reading List</p>
-                            </div>
+                    <div className="flex flex-col gap-4">
+                        {/* Breadcrumbs */}
+                        <div className="flex items-center flex-wrap gap-2 text-sm text-slate-600">
+                            <button 
+                                onClick={() => setCurrentFolderId(null)}
+                                className="flex items-center hover:text-indigo-600 transition-colors font-medium"
+                            >
+                                <Home size={14} className="mr-1" /> Home
+                            </button>
+                            
+                            {breadcrumbs.map((crumb, index) => (
+                                <React.Fragment key={crumb.id}>
+                                    <ChevronRight size={14} className="text-slate-400" />
+                                    <button 
+                                        onClick={() => setCurrentFolderId(crumb.id)}
+                                        className={`hover:text-indigo-600 transition-colors ${index === breadcrumbs.length - 1 ? 'font-bold text-indigo-700' : ''}`}
+                                    >
+                                        {crumb.name}
+                                    </button>
+                                </React.Fragment>
+                            ))}
                         </div>
-                        
-                        <div className="relative w-full md:w-64">
-                            <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
-                            <input 
-                                type="text" 
-                                placeholder="Search articles..." 
-                                className="w-full pl-10 p-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-pink-200 outline-none"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-center">
+                                <Button variant="ghost" onClick={handleNavigateUp} className="mr-2 rounded-full w-10 h-10 p-0 flex items-center justify-center hover:bg-slate-100">
+                                    <ArrowLeft size={20} className="text-slate-600" />
+                                </Button>
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                                        {selectedFolder?.icon && <img src={selectedFolder.icon} alt="icon" className="w-6 h-6 mr-2 object-contain" />}
+                                        {selectedFolder?.name}
+                                    </h2>
+                                    <p className="text-xs text-slate-500">Reading List</p>
+                                </div>
+                            </div>
+                            
+                            <div className="relative w-full md:w-64">
+                                <Search size={16} className="absolute left-3 top-3.5 text-slate-400" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search articles..." 
+                                    className="w-full pl-10 p-3 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-pink-200 outline-none"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Empty State */}
-                {displayedBlogs.length === 0 ? (
+                {/* Sub-Folders Grid (If any) */}
+                {displayedFolders.length > 0 && (
+                    <div className="mb-8">
+                        <h3 className="text-sm font-bold text-slate-500 uppercase mb-4 pl-1 flex items-center">
+                            <FolderIcon size={14} className="mr-2"/> Sub-Categories
+                        </h3>
+                        {renderFolderGrid(displayedFolders)}
+                    </div>
+                )}
+
+                {/* Blog Grid */}
+                {displayedBlogs.length > 0 ? (
+                    <div>
+                        {displayedFolders.length > 0 && <div className="border-t border-slate-100 my-6"></div>}
+                        <h3 className="text-sm font-bold text-slate-500 uppercase mb-4 pl-1 flex items-center">
+                            <Newspaper size={14} className="mr-2"/> Articles
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {displayedBlogs.map(blog => (
+                                <div 
+                                    key={blog.id} 
+                                    onClick={() => handleReadBlog(blog)}
+                                    className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col h-full"
+                                >
+                                    <div className="relative h-52 overflow-hidden">
+                                        <img src={blog.thumbnail} alt={blog.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                                        {blog.isPremium && (
+                                            <div className="absolute top-3 left-3 bg-amber-400 text-black text-[10px] font-bold px-2 py-1 rounded-md shadow-md flex items-center">
+                                                <Crown size={12} className="mr-1" /> PREMIUM
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-3 left-3 text-white text-xs font-medium flex items-center">
+                                            <Calendar size={12} className="mr-1.5 opacity-80" /> {blog.date}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <div className="flex gap-2 mb-3">
+                                            {blog.tags.slice(0, 2).map(tag => (
+                                                <span key={tag} className="text-[10px] font-bold uppercase tracking-wider text-pink-600 bg-pink-50 px-2 py-1 rounded-md">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <h3 className="text-lg font-bold text-slate-800 mb-3 leading-snug group-hover:text-pink-600 transition-colors line-clamp-2">
+                                            {blog.title}
+                                        </h3>
+                                        <p className="text-slate-500 text-sm line-clamp-3 mb-4 leading-relaxed flex-1">
+                                            {blog.excerpt}
+                                        </p>
+                                        <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
+                                            <div className="flex items-center text-xs font-bold text-slate-500">
+                                                <User size={14} className="mr-1.5" /> {blog.author}
+                                            </div>
+                                            <span className="text-pink-600 text-xs font-bold flex items-center group-hover:translate-x-1 transition-transform uppercase tracking-wide">
+                                                Read More <ArrowRight size={14} className="ml-1" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : displayedFolders.length === 0 ? (
+                    // Empty State (No subfolders AND no blogs)
                     <div className="text-center py-24 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center">
                         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                             <Newspaper size={40} className="text-slate-300" />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-600">No Articles Found</h3>
-                        <p className="text-slate-400 text-sm">Check back later for updates.</p>
+                        <h3 className="text-lg font-bold text-slate-600">No Content Here</h3>
+                        <p className="text-slate-400 text-sm">This folder is currently empty.</p>
                     </div>
-                ) : (
-                    // Blog Grid
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {displayedBlogs.map(blog => (
-                            <div 
-                                key={blog.id} 
-                                onClick={() => handleReadBlog(blog)}
-                                className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col h-full"
-                            >
-                                <div className="relative h-52 overflow-hidden">
-                                    <img src={blog.thumbnail} alt={blog.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                                    {blog.isPremium && (
-                                        <div className="absolute top-3 left-3 bg-amber-400 text-black text-[10px] font-bold px-2 py-1 rounded-md shadow-md flex items-center">
-                                            <Crown size={12} className="mr-1" /> PREMIUM
-                                        </div>
-                                    )}
-                                    <div className="absolute bottom-3 left-3 text-white text-xs font-medium flex items-center">
-                                        <Calendar size={12} className="mr-1.5 opacity-80" /> {blog.date}
-                                    </div>
-                                </div>
-                                
-                                <div className="p-5 flex-1 flex flex-col">
-                                    <div className="flex gap-2 mb-3">
-                                        {blog.tags.slice(0, 2).map(tag => (
-                                            <span key={tag} className="text-[10px] font-bold uppercase tracking-wider text-pink-600 bg-pink-50 px-2 py-1 rounded-md">
-                                                {tag}
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <h3 className="text-lg font-bold text-slate-800 mb-3 leading-snug group-hover:text-pink-600 transition-colors line-clamp-2">
-                                        {blog.title}
-                                    </h3>
-                                    <p className="text-slate-500 text-sm line-clamp-3 mb-4 leading-relaxed flex-1">
-                                        {blog.excerpt}
-                                    </p>
-                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
-                                        <div className="flex items-center text-xs font-bold text-slate-500">
-                                            <User size={14} className="mr-1.5" /> {blog.author}
-                                        </div>
-                                        <span className="text-pink-600 text-xs font-bold flex items-center group-hover:translate-x-1 transition-transform uppercase tracking-wide">
-                                            Read More <ArrowRight size={14} className="ml-1" />
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                ) : null}
             </div>
         )}
     </div>
