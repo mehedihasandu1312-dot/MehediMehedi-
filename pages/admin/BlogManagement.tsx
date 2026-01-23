@@ -6,6 +6,7 @@ import { Plus, Trash2, Calendar, User, Newspaper, Folder as FolderIcon, FolderPl
 import { storage } from '../../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { authService } from '../../services/authService';
+import RichTextEditor from '../../components/RichTextEditor'; // IMPORTED
 
 interface BlogManagementProps {
     folders: Folder[];
@@ -44,7 +45,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
     content: '',
     thumbnail: '',
     tags: '',
-    isPremium: false // NEW
+    isPremium: false
   });
   
   const [isUploading, setIsUploading] = useState(false);
@@ -170,7 +171,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
       views: 0,
-      isPremium: formData.isPremium // NEW
+      isPremium: formData.isPremium
     };
     setBlogs([newBlog, ...blogs]);
     
@@ -209,7 +210,7 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
 
   // --- VIEWS ---
 
-  // 1. BLOG CREATION FORM
+  // 1. BLOG CREATION FORM (RICH TEXT ENABLED)
   if (isCreatingBlog) {
       return (
           <div className="space-y-6 animate-fade-in">
@@ -219,108 +220,105 @@ const BlogManagement: React.FC<BlogManagementProps> = ({ folders, setFolders, bl
                   </Button>
                   <h1 className="text-2xl font-bold text-slate-800">New Blog Post</h1>
               </div>
-              <div className="max-w-3xl mx-auto">
-                  <Card>
-                    <form onSubmit={handleBlogSubmit} className="space-y-4">
-                        <div className="bg-indigo-50 p-3 rounded text-sm text-indigo-700 font-medium mb-4">
-                            Publishing to: <span className="font-bold">{currentFolder?.name}</span>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                            <input required type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
-                            value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Article Title" />
-                        </div>
-                        
-                        {/* Premium Toggle */}
-                        <div>
-                            <label className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.isPremium ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-                                <div className="flex items-center">
-                                    <Crown size={20} className={`mr-2 ${formData.isPremium ? 'text-amber-600' : 'text-slate-400'}`} fill={formData.isPremium ? "currentColor" : "none"} />
-                                    <div>
-                                        <span className={`block font-bold text-sm ${formData.isPremium ? 'text-amber-800' : 'text-slate-600'}`}>
-                                            Premium Article
-                                        </span>
-                                        <span className="text-xs text-slate-500">Only accessible to paid subscribers</span>
+              
+              <form onSubmit={handleBlogSubmit} className="space-y-6 max-w-6xl mx-auto">
+                  {/* META DATA CARD */}
+                  <Card className="bg-white border border-slate-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div className="bg-indigo-50 p-3 rounded text-sm text-indigo-700 font-medium flex items-center">
+                                    <FolderOpen size={16} className="mr-2" />
+                                    Publishing to: <span className="font-bold ml-1">{currentFolder?.name}</span>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Article Title</label>
+                                    <input required type="text" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-bold" 
+                                    value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Enter an engaging title..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Author Name</label>
+                                    <input required type="text" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} placeholder="e.g. Dr. A. Rahman" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Excerpt / Summary</label>
+                                    <textarea required className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none"
+                                    value={formData.excerpt} onChange={e => setFormData({...formData, excerpt: e.target.value})} placeholder="Short summary for preview cards..." />
+                                </div>
+                                
+                                {/* Premium & Tags */}
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Tags</label>
+                                        <input type="text" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                        value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} placeholder="Math, Tips, Guide" />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <label className={`flex items-center justify-between p-2.5 rounded-lg border-2 cursor-pointer transition-all ${formData.isPremium ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                                            <div className="flex items-center mr-3">
+                                                <Crown size={18} className={`mr-2 ${formData.isPremium ? 'text-amber-600' : 'text-slate-400'}`} fill={formData.isPremium ? "currentColor" : "none"} />
+                                                <span className={`text-xs font-bold ${formData.isPremium ? 'text-amber-800' : 'text-slate-600'}`}>Premium</span>
+                                            </div>
+                                            <input type="checkbox" className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500" checked={formData.isPremium} onChange={e => setFormData({...formData, isPremium: e.target.checked})} />
+                                        </label>
                                     </div>
                                 </div>
-                                <input 
-                                    type="checkbox" 
-                                    className="w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
-                                    checked={formData.isPremium}
-                                    onChange={e => setFormData({...formData, isPremium: e.target.checked})}
-                                />
-                            </label>
+                            </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Author</label>
-                            <input required type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
-                            value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} placeholder="Author Name" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Excerpt</label>
-                            <textarea required className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" rows={2}
-                            value={formData.excerpt} onChange={e => setFormData({...formData, excerpt: e.target.value})} placeholder="Short summary..." />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Full Content</label>
-                            <textarea required className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" rows={6}
-                            value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} placeholder="Main article content..." />
-                        </div>
-                        
-                        {/* Hybrid Upload for Thumbnail */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Thumbnail</label>
-                            <div className="flex gap-2 mb-2">
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef}
-                                    className="hidden" 
-                                    accept="image/*"
-                                    onChange={handleThumbnailUpload}
-                                />
-                                <Button 
-                                    type="button" 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex items-center"
-                                >
-                                    <Upload size={14} className="mr-2" /> Upload Image
-                                </Button>
-                                {isUploading && <span className="flex items-center text-xs text-indigo-600"><Loader2 size={12} className="animate-spin mr-1"/> Uploading...</span>}
-                            </div>
-                            
-                            <div className="flex gap-2 items-center">
-                                <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
-                                value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} placeholder="Or paste Image URL..." />
-                                {formData.thumbnail && (
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setFormData({...formData, thumbnail: ''})}
-                                        className="text-red-500 p-2 hover:bg-red-50 rounded"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                )}
-                            </div>
-                            
-                            {formData.thumbnail && (
-                                <div className="mt-2">
-                                    <img src={formData.thumbnail} alt="Preview" className="h-32 rounded border border-slate-200 object-cover" />
+                        {/* Thumbnail Upload */}
+                        <div className="mt-4 border-t border-slate-100 pt-4">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Cover Image</label>
+                            <div className="flex items-center gap-4">
+                                <div className="relative group w-32 h-20 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+                                    {formData.thumbnail ? (
+                                        <img src={formData.thumbnail} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-xs text-slate-400">No Image</span>
+                                    )}
                                 </div>
-                            )}
+                                <div className="flex-1">
+                                    <div className="flex gap-2 mb-2">
+                                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleThumbnailUpload} />
+                                        <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                            {isUploading ? <Loader2 size={14} className="animate-spin mr-1"/> : <Upload size={14} className="mr-1" />}
+                                            Upload
+                                        </Button>
+                                        <Button type="button" size="sm" variant="ghost" onClick={() => setFormData({...formData, thumbnail: ''})} className="text-red-500">
+                                            Remove
+                                        </Button>
+                                    </div>
+                                    <input type="text" className="w-full p-2 border rounded-lg text-xs" placeholder="Or paste image URL..." value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} />
+                                </div>
+                            </div>
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Tags (comma separated)</label>
-                            <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
-                            value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} placeholder="Math, Science, Tips" />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={isUploading}>Publish Post</Button>
-                    </form>
                   </Card>
-              </div>
+
+                  {/* RICH TEXT EDITOR */}
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px]">
+                      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                          <h3 className="font-bold text-slate-700 flex items-center">
+                              <FileText size={18} className="mr-2 text-indigo-600" /> Article Content
+                          </h3>
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                          <RichTextEditor 
+                              initialValue={formData.content} 
+                              onChange={(html) => setFormData(prev => ({...prev, content: html}))} 
+                              placeholder="Start writing your amazing article here..."
+                          />
+                      </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 pb-10">
+                      <Button type="submit" size="lg" className="px-8 shadow-lg shadow-indigo-200" disabled={isUploading}>
+                          Publish Article
+                      </Button>
+                  </div>
+              </form>
           </div>
       );
   }
