@@ -5,14 +5,14 @@ import {
     Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, 
     AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Eraser, PenTool, 
     Book, Sigma, RefreshCw, X, Atom, Wallet, Calendar, Search, Coins, ArrowRight,
-    AlignLeft, Wind, MousePointerClick, Minus
+    AlignLeft, Wind, MousePointerClick, Minus, Mic, Square, FileAudio, Bookmark, Download, Copy
 } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
-            <SEO title="Student Super Toolkit" description="15+ Tools: GPA, Periodic Table, Expense Tracker, Word Counter & More." />
+            <SEO title="Student Super Toolkit" description="16+ Tools: Lecture Recorder, GPA, Periodic Table & More." />
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -20,14 +20,14 @@ const StudyTools: React.FC = () => {
                         <Calculator className="mr-3 text-indigo-600" size={32} />
                         Student Super Toolkit
                     </h1>
-                    <p className="text-slate-500 text-sm mt-1">GPA, Chemistry, Math, Finance, Wellness - All in one place.</p>
+                    <p className="text-slate-500 text-sm mt-1">GPA, Recording, Math, Finance, Wellness - All in one place.</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 1. GPA CALCULATOR */}
+                {/* 1. LECTURE RECORDER (NEW - Featured at Top) */}
                 <div className="lg:col-span-2">
-                    <GPACalculator />
+                    <LectureRecorder />
                 </div>
 
                 {/* 2. POMODORO TIMER */}
@@ -35,72 +35,292 @@ const StudyTools: React.FC = () => {
                     <PomodoroTimer />
                 </div>
 
-                {/* 3. PERIODIC TABLE */}
+                {/* 3. GPA CALCULATOR */}
                 <div className="lg:col-span-2">
-                    <PeriodicTableHelper />
+                    <GPACalculator />
                 </div>
 
-                {/* 4. EXPENSE TRACKER */}
-                <div>
-                    <StudentWallet />
-                </div>
-
-                {/* 5. WORD COUNTER (NEW) */}
-                <div className="lg:col-span-2">
-                    <WordCounter />
-                </div>
-
-                {/* 6. BREATHING EXERCISE (NEW) */}
-                <div>
-                    <BreathingExercise />
-                </div>
-
-                {/* 7. DIGITAL SCRATCHPAD */}
-                <div className="lg:col-span-2">
-                    <ScratchPad />
-                </div>
-
-                {/* 8. VOCABULARY BUILDER */}
-                <div>
-                    <VocabularyWidget />
-                </div>
-
-                {/* 9. SCIENTIFIC CALCULATOR */}
-                <div className="lg:col-span-2">
-                    <ScientificCalculator />
-                </div>
-
-                {/* 10. UNIT CONVERTER */}
-                <div>
-                    <UnitConverter />
-                </div>
-
-                {/* 11. MATH FORMULAS */}
-                <div className="lg:col-span-2">
-                    <FormulaReference />
-                </div>
-
-                {/* 12. BANGLA DATE */}
-                <div>
-                    <BanglaDateConverter />
-                </div>
-
-                {/* 13. TALLY COUNTER (NEW) */}
+                {/* 4. TALLY COUNTER */}
                 <div>
                     <TallyCounter />
                 </div>
 
-                {/* 14. AGE CALCULATOR */}
+                {/* 5. PERIODIC TABLE */}
+                <div className="lg:col-span-2">
+                    <PeriodicTableHelper />
+                </div>
+
+                {/* 6. EXPENSE TRACKER */}
+                <div>
+                    <StudentWallet />
+                </div>
+
+                {/* 7. WORD COUNTER */}
+                <div className="lg:col-span-2">
+                    <WordCounter />
+                </div>
+
+                {/* 8. BREATHING EXERCISE */}
+                <div>
+                    <BreathingExercise />
+                </div>
+
+                {/* 9. DIGITAL SCRATCHPAD */}
+                <div className="lg:col-span-2">
+                    <ScratchPad />
+                </div>
+
+                {/* 10. VOCABULARY BUILDER */}
+                <div>
+                    <VocabularyWidget />
+                </div>
+
+                {/* 11. SCIENTIFIC CALCULATOR */}
+                <div className="lg:col-span-2">
+                    <ScientificCalculator />
+                </div>
+
+                {/* 12. UNIT CONVERTER */}
+                <div>
+                    <UnitConverter />
+                </div>
+
+                {/* 13. MATH FORMULAS */}
+                <div className="lg:col-span-2">
+                    <FormulaReference />
+                </div>
+
+                {/* 14. BANGLA DATE */}
+                <div>
+                    <BanglaDateConverter />
+                </div>
+
+                {/* 15. AGE CALCULATOR */}
                 <div>
                     <AgeCalculator />
                 </div>
 
-                {/* 15. TO-DO LIST */}
+                {/* 16. TO-DO LIST */}
                 <div className="lg:col-span-full">
                     <TodoWidget />
                 </div>
             </div>
         </div>
+    );
+};
+
+// --- 1. LECTURE RECORDER & TRANSCRIBER (NEW) ---
+const LectureRecorder = () => {
+    const [isRecording, setIsRecording] = useState(false);
+    const [transcript, setTranscript] = useState('');
+    const [audioURL, setAudioURL] = useState<string | null>(null);
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const [bookmarks, setBookmarks] = useState<number[]>([]);
+    
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recognitionRef = useRef<any>(null);
+    const timerRef = useRef<any>(null);
+
+    useEffect(() => {
+        // Cleanup function
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (audioURL) URL.revokeObjectURL(audioURL);
+        };
+    }, []);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // 1. Setup Audio Recorder
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+                const url = URL.createObjectURL(audioBlob);
+                setAudioURL(url);
+                stream.getTracks().forEach(track => track.stop()); // Stop mic
+            };
+
+            mediaRecorder.start();
+
+            // 2. Setup Speech Recognition (Web Speech API)
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US'; // Default to English for better accuracy in lectures
+
+                recognition.onresult = (event: any) => {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript + ' ';
+                        }
+                    }
+                    if (finalTranscript) {
+                        setTranscript(prev => prev + finalTranscript);
+                    }
+                };
+
+                recognition.onerror = (event: any) => {
+                    console.error("Speech recognition error", event.error);
+                };
+
+                recognitionRef.current = recognition;
+                recognition.start();
+            } else {
+                alert("Speech to Text is not supported in this browser. Audio will still record.");
+            }
+
+            // 3. Start Timer
+            setIsRecording(true);
+            setTranscript('');
+            setBookmarks([]);
+            setElapsedTime(0);
+            timerRef.current = setInterval(() => {
+                setElapsedTime(prev => prev + 1);
+            }, 1000);
+
+        } catch (err) {
+            console.error("Error accessing microphone:", err);
+            alert("Could not access microphone. Please allow permissions.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            if (recognitionRef.current) recognitionRef.current.stop();
+            clearInterval(timerRef.current);
+            setIsRecording(false);
+        }
+    };
+
+    const addBookmark = () => {
+        setBookmarks([...bookmarks, elapsedTime]);
+    };
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const copyTranscript = () => {
+        navigator.clipboard.writeText(transcript);
+        alert("Transcript copied to clipboard!");
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-violet-600 bg-white">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                    <Mic size={20} className="mr-2 text-violet-600" /> Lecture Recorder
+                </h3>
+                {isRecording && (
+                    <div className="flex items-center text-red-500 animate-pulse">
+                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                        <span className="text-xs font-bold uppercase tracking-wider">Recording</span>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-6">
+                {/* Left: Controls */}
+                <div className="flex-1 flex flex-col items-center justify-center bg-violet-50 rounded-2xl p-6 border border-violet-100">
+                    <div className="text-5xl font-mono font-black text-slate-700 mb-6 tracking-widest">
+                        {formatTime(elapsedTime)}
+                    </div>
+
+                    <div className="flex gap-4 items-center">
+                        {!isRecording ? (
+                            <button 
+                                onClick={startRecording}
+                                className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95"
+                                title="Start Recording"
+                            >
+                                <Mic size={32} />
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={stopRecording}
+                                className="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95"
+                                title="Stop Recording"
+                            >
+                                <Square size={28} fill="currentColor" />
+                            </button>
+                        )}
+                        
+                        <button 
+                            onClick={addBookmark}
+                            disabled={!isRecording}
+                            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isRecording 
+                                ? 'border-violet-500 text-violet-600 hover:bg-violet-100' 
+                                : 'border-slate-200 text-slate-300 cursor-not-allowed'
+                            }`}
+                            title="Mark Important Timestamp"
+                        >
+                            <Bookmark size={20} fill={isRecording ? "currentColor" : "none"} />
+                        </button>
+                    </div>
+                    
+                    {isRecording && <p className="text-xs text-violet-500 mt-4 font-medium animate-pulse">Converting speech to text...</p>}
+                    
+                    {/* Audio Player (After Stop) */}
+                    {!isRecording && audioURL && (
+                        <div className="w-full mt-6 animate-fade-in">
+                            <audio controls src={audioURL} className="w-full h-8" />
+                            <a href={audioURL} download={`lecture_${new Date().toISOString()}.wav`} className="flex items-center justify-center text-xs text-violet-600 font-bold mt-2 hover:underline">
+                                <Download size={12} className="mr-1" /> Download Audio
+                            </a>
+                        </div>
+                    )}
+                </div>
+
+                {/* Right: Transcript & Bookmarks */}
+                <div className="flex-1 flex flex-col h-[250px] md:h-auto">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex-1 overflow-y-auto mb-2 relative group">
+                        {transcript ? (
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                {transcript}
+                            </p>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
+                                <FileAudio size={32} className="mb-2" />
+                                <span className="text-xs">Transcript will appear here</span>
+                            </div>
+                        )}
+                        {transcript && (
+                            <button onClick={copyTranscript} className="absolute top-2 right-2 p-1.5 bg-white shadow-sm rounded border border-slate-200 text-slate-500 hover:text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Copy size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Bookmarks List */}
+                    {bookmarks.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                            {bookmarks.map((time, idx) => (
+                                <span key={idx} className="flex-shrink-0 bg-violet-100 text-violet-700 text-[10px] font-bold px-2 py-1 rounded-md flex items-center border border-violet-200">
+                                    <Bookmark size={10} className="mr-1" fill="currentColor"/> {formatTime(time)}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Card>
     );
 };
 
