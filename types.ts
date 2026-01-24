@@ -272,7 +272,7 @@ export interface Notice {
   targetClass?: string; // NEW: Audience targeting (All or specific class)
 }
 
-// NEW: Calendar Event Interface
+// NEW: Calendar Event Interface with Attachments
 export interface CalendarEvent {
     id: string;
     date: string; // YYYY-MM-DD format
@@ -280,6 +280,8 @@ export interface CalendarEvent {
     description?: string;
     type: 'EXAM' | 'HOLIDAY' | 'CLASS' | 'EVENT';
     targetClass?: string; // "ALL" or specific class name
+    attachment?: string; // NEW: URL for Image/PDF
+    attachmentType?: 'IMAGE' | 'PDF'; // NEW
 }
 
 export interface BlogPost {

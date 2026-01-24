@@ -254,7 +254,9 @@ export const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
         title: 'Physics Marathon',
         description: 'Live Physics class for 3 hours covering key topics.',
         type: 'CLASS',
-        targetClass: 'HSC (Class 12)'
+        targetClass: 'HSC (Class 12)',
+        attachment: 'https://picsum.photos/400/300?random=1',
+        attachmentType: 'IMAGE'
     },
     {
         id: 'ce2',
@@ -268,9 +270,11 @@ export const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
         id: 'ce3',
         date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Day after tomorrow
         title: 'Math Model Test',
-        description: 'Complete syllabus mock exam.',
+        description: 'Complete syllabus mock exam. Routine Attached.',
         type: 'EXAM',
-        targetClass: 'Class 10'
+        targetClass: 'Class 10',
+        attachment: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        attachmentType: 'PDF'
     }
 ];
 

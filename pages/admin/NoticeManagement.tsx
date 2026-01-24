@@ -2,7 +2,9 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Notice, CalendarEvent } from '../../types';
-import { Plus, Trash2, Calendar as CalendarIcon, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Calendar as CalendarIcon, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone, CheckCircle, ChevronLeft, ChevronRight, FileText, Loader2, Link as LinkIcon, Download } from 'lucide-react';
+import { storage } from '../../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 interface Props {
   notices: Notice[];
@@ -27,14 +29,27 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null); // YYYY-MM-DD
-  const [eventForm, setEventForm] = useState<{ title: string; description: string; type: 'EXAM' | 'HOLIDAY' | 'CLASS' | 'EVENT'; targetClass: string }>({
-      title: '', description: '', type: 'EVENT', targetClass: ''
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+
+  // Event Form State
+  const [eventForm, setEventForm] = useState<{ 
+      title: string; 
+      description: string; 
+      type: 'EXAM' | 'HOLIDAY' | 'CLASS' | 'EVENT'; 
+      targetClass: string;
+      attachment: string;
+      attachmentType: 'IMAGE' | 'PDF' | undefined;
+  }>({
+      title: '', description: '', type: 'EVENT', targetClass: '', attachment: '', attachmentType: undefined
   });
+
+  const [isUploadingEvent, setIsUploadingEvent] = useState(false);
 
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'NOTICE' | 'EVENT' }>({ isOpen: false, id: null, type: 'NOTICE' });
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const eventFileInputRef = useRef<HTMLInputElement>(null);
 
   // --- CALENDAR LOGIC ---
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -57,6 +72,51 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
       return calendarEvents.filter(e => e.date === dateStr);
   };
 
+  const handleDateClick = (dateStr: string) => {
+      setSelectedDate(dateStr);
+      setIsDateModalOpen(true);
+      // Reset form
+      setEventForm({ title: '', description: '', type: 'EVENT', targetClass: '', attachment: '', attachmentType: undefined });
+  };
+
+  const handleEventFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsUploadingEvent(true);
+      const isPdf = file.type === 'application/pdf';
+      const fileType = isPdf ? 'PDF' : 'IMAGE';
+
+      if (file.size < 500 * 1024 && !isPdf) {
+          // Base64 for small images
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setEventForm(prev => ({ ...prev, attachment: event.target!.result as string, attachmentType: fileType }));
+                  setIsUploadingEvent(false);
+              }
+          };
+          reader.readAsDataURL(file);
+      } else {
+          // Firebase Storage for larger files and PDFs
+          const storageRef = ref(storage, `calendar_events/${Date.now()}_${file.name}`);
+          const uploadTask = uploadBytesResumable(storageRef, file);
+
+          uploadTask.on('state_changed', null, 
+              (error) => {
+                  console.error(error);
+                  alert("Upload failed.");
+                  setIsUploadingEvent(false);
+              },
+              async () => {
+                  const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                  setEventForm(prev => ({ ...prev, attachment: downloadURL, attachmentType: fileType }));
+                  setIsUploadingEvent(false);
+              }
+          );
+      }
+  };
+
   const handleAddEvent = (e: React.FormEvent) => {
       e.preventDefault();
       if (!setCalendarEvents || !selectedDate) return;
@@ -67,11 +127,13 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
           title: eventForm.title,
           description: eventForm.description,
           type: eventForm.type,
-          targetClass: eventForm.targetClass || undefined
+          targetClass: eventForm.targetClass || undefined,
+          attachment: eventForm.attachment || undefined,
+          attachmentType: eventForm.attachmentType || undefined
       };
 
       setCalendarEvents([newEvent, ...calendarEvents]);
-      setEventForm({ title: '', description: '', type: 'EVENT', targetClass: '' });
+      setEventForm({ title: '', description: '', type: 'EVENT', targetClass: '', attachment: '', attachmentType: undefined });
       setInfoModal({ isOpen: true, title: "Success", message: "Event added to calendar!" });
   };
 
@@ -291,7 +353,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
       {activeTab === 'CALENDAR' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
               {/* Calendar Widget */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-3">
                   <Card className="p-6">
                       <div className="flex justify-between items-center mb-6">
                           <h3 className="text-lg font-bold text-slate-800">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
@@ -311,18 +373,21 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
                               const day = i + 1;
                               const dateStr = formatDate(day);
                               const events = getEventsForDate(dateStr);
-                              const isSelected = selectedDate === dateStr;
                               const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
                               return (
                                   <div 
                                       key={day} 
-                                      onClick={() => setSelectedDate(dateStr)}
-                                      className={`h-24 border rounded-lg p-2 cursor-pointer transition-all hover:border-indigo-400 relative flex flex-col ${isSelected ? 'border-indigo-600 ring-2 ring-indigo-100 bg-indigo-50/30' : 'border-slate-100'} ${isToday ? 'bg-slate-50' : ''}`}
+                                      onClick={() => handleDateClick(dateStr)}
+                                      className={`min-h-[100px] border rounded-lg p-2 cursor-pointer transition-all hover:border-indigo-400 relative flex flex-col border-slate-100 hover:bg-slate-50 ${isToday ? 'bg-indigo-50/30 ring-1 ring-indigo-200' : ''}`}
                                   >
-                                      <span className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>{day}</span>
-                                      <div className="flex-1 overflow-y-auto mt-1 space-y-1 custom-scrollbar">
-                                          {events.map(ev => (
+                                      <div className="flex justify-between items-center mb-1">
+                                          <span className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>{day}</span>
+                                          {events.length > 0 && <span className="text-[10px] bg-slate-200 px-1.5 rounded-full text-slate-600 font-bold">{events.length}</span>}
+                                      </div>
+                                      
+                                      <div className="flex-1 overflow-hidden space-y-1">
+                                          {events.slice(0, 3).map(ev => (
                                               <div key={ev.id} className={`text-[9px] px-1 py-0.5 rounded truncate ${
                                                   ev.type === 'EXAM' ? 'bg-purple-100 text-purple-700' : 
                                                   ev.type === 'HOLIDAY' ? 'bg-red-100 text-red-700' : 
@@ -331,6 +396,9 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
                                                   {ev.title}
                                               </div>
                                           ))}
+                                          {events.length > 3 && (
+                                              <div className="text-[9px] text-slate-400 pl-1">+{events.length - 3} more</div>
+                                          )}
                                       </div>
                                   </div>
                               );
@@ -338,78 +406,147 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
                       </div>
                   </Card>
               </div>
-
-              {/* Event Editor */}
-              <div className="lg:col-span-1 space-y-6">
-                  <Card>
-                      <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                          <Plus size={20} className="mr-2 text-indigo-600" /> 
-                          {selectedDate ? `Add Event for ${selectedDate}` : 'Select a date'}
-                      </h3>
-                      {selectedDate ? (
-                          <form onSubmit={handleAddEvent} className="space-y-4">
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Event Title</label>
-                                  <input required type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
-                                      value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} placeholder="e.g. Physics Quiz" />
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Type</label>
-                                      <select className="w-full p-2 border rounded-lg text-sm bg-white"
-                                          value={eventForm.type} onChange={e => setEventForm({...eventForm, type: e.target.value as any})}>
-                                          <option value="EVENT">Event</option>
-                                          <option value="EXAM">Exam</option>
-                                          <option value="CLASS">Class</option>
-                                          <option value="HOLIDAY">Holiday</option>
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Audience</label>
-                                      <select className="w-full p-2 border rounded-lg text-sm bg-white"
-                                          value={eventForm.targetClass} onChange={e => setEventForm({...eventForm, targetClass: e.target.value})}>
-                                          <option value="">All</option>
-                                          {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
-                                          {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
-                                      </select>
-                                  </div>
-                              </div>
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Description</label>
-                                  <textarea className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" rows={2}
-                                      value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} placeholder="Optional details..." />
-                              </div>
-                              <Button type="submit" className="w-full h-9 text-sm">Add to Calendar</Button>
-                          </form>
-                      ) : (
-                          <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                              <CalendarIcon size={32} className="mx-auto mb-2 opacity-30" />
-                              <p className="text-sm">Click on a calendar cell to add an event.</p>
-                          </div>
-                      )}
-                  </Card>
-
-                  {/* Selected Date Events List */}
-                  {selectedDate && getEventsForDate(selectedDate).length > 0 && (
-                      <div className="space-y-2">
-                          <h4 className="text-xs font-bold text-slate-500 uppercase">Events on {selectedDate}</h4>
-                          {getEventsForDate(selectedDate).map(ev => (
-                              <div key={ev.id} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
-                                  <div>
-                                      <p className="font-bold text-slate-800 text-sm">{ev.title}</p>
-                                      <div className="flex gap-2 mt-1">
-                                          <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{ev.type}</span>
-                                          {ev.targetClass && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{ev.targetClass}</span>}
-                                      </div>
-                                  </div>
-                                  <button onClick={() => initiateDelete(ev.id, 'EVENT')} className="text-slate-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
-                              </div>
-                          ))}
-                      </div>
-                  )}
-              </div>
           </div>
       )}
+
+      {/* DATE DETAILS MODAL */}
+      <Modal isOpen={isDateModalOpen} onClose={() => setIsDateModalOpen(false)} title={`Events on ${selectedDate ? new Date(selectedDate).toLocaleDateString() : ''}`} size="lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[70vh]">
+              {/* Left: Event List */}
+              <div className="overflow-y-auto pr-2 border-r border-slate-100">
+                  <h3 className="font-bold text-slate-800 mb-4 flex items-center text-sm uppercase tracking-wide text-slate-500">
+                      Scheduled Events
+                  </h3>
+                  {selectedDate && getEventsForDate(selectedDate).length === 0 && (
+                      <div className="text-center py-10 text-slate-400 border border-dashed rounded-lg bg-slate-50">
+                          No events for this day.
+                      </div>
+                  )}
+                  {selectedDate && getEventsForDate(selectedDate).map(ev => (
+                      <div key={ev.id} className="bg-white p-4 rounded-xl border border-slate-200 mb-3 shadow-sm hover:shadow-md transition-shadow relative group">
+                          <button 
+                              onClick={() => initiateDelete(ev.id, 'EVENT')} 
+                              className="absolute top-2 right-2 text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                              <Trash2 size={16} />
+                          </button>
+                          
+                          <div className="flex justify-between items-start mb-2 pr-6">
+                              <h4 className="font-bold text-slate-800">{ev.title}</h4>
+                          </div>
+                          
+                          <div className="flex gap-2 mb-3">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                  ev.type === 'EXAM' ? 'bg-purple-100 text-purple-700' : 
+                                  ev.type === 'HOLIDAY' ? 'bg-red-100 text-red-700' : 
+                                  ev.type === 'CLASS' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                              }`}>
+                                  {ev.type}
+                              </span>
+                              {ev.targetClass && <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{ev.targetClass}</span>}
+                          </div>
+                          
+                          <p className="text-sm text-slate-600 mb-3">{ev.description || 'No details provided.'}</p>
+                          
+                          {ev.attachment && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                  {ev.attachmentType === 'IMAGE' ? (
+                                      <img src={ev.attachment} alt="Attachment" className="w-full h-32 object-cover rounded-lg border border-slate-200" />
+                                  ) : (
+                                      <a href={ev.attachment} target="_blank" rel="noreferrer" className="flex items-center text-sm font-bold text-indigo-600 bg-indigo-50 p-2 rounded-lg hover:bg-indigo-100 transition-colors">
+                                          <FileText size={16} className="mr-2"/> View Attached PDF
+                                      </a>
+                                  )}
+                              </div>
+                          )}
+                      </div>
+                  ))}
+              </div>
+
+              {/* Right: Add Form */}
+              <div className="overflow-y-auto pl-2">
+                  <h3 className="font-bold text-slate-800 mb-4 flex items-center text-sm uppercase tracking-wide text-slate-500">
+                      Add New Event
+                  </h3>
+                  <form onSubmit={handleAddEvent} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Event Title</label>
+                          <input required type="text" className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm" 
+                              value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} placeholder="e.g. Physics Quiz" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Type</label>
+                              <select className="w-full p-2.5 border rounded-lg text-sm bg-white"
+                                  value={eventForm.type} onChange={e => setEventForm({...eventForm, type: e.target.value as any})}>
+                                  <option value="EVENT">Event</option>
+                                  <option value="EXAM">Exam</option>
+                                  <option value="CLASS">Class</option>
+                                  <option value="HOLIDAY">Holiday</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Audience</label>
+                              <select className="w-full p-2.5 border rounded-lg text-sm bg-white"
+                                  value={eventForm.targetClass} onChange={e => setEventForm({...eventForm, targetClass: e.target.value})}>
+                                  <option value="">All</option>
+                                  {educationLevels.REGULAR.map(c => <option key={c} value={c}>{c}</option>)}
+                                  {educationLevels.ADMISSION.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Description</label>
+                          <textarea className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm h-24 resize-none"
+                              value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} placeholder="Optional details..." />
+                      </div>
+
+                      {/* Attachment Upload */}
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Attach File (PDF/Image)</label>
+                          <input 
+                              type="file" 
+                              ref={eventFileInputRef} 
+                              className="hidden" 
+                              onChange={handleEventFileUpload} 
+                              accept="image/*,application/pdf"
+                          />
+                          <div className="flex flex-col gap-2">
+                              <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => eventFileInputRef.current?.click()}
+                                  disabled={isUploadingEvent}
+                                  className="w-full flex justify-center text-xs"
+                              >
+                                  {isUploadingEvent ? <Loader2 size={14} className="animate-spin mr-2"/> : <Upload size={14} className="mr-2" />}
+                                  {isUploadingEvent ? 'Uploading...' : 'Upload Attachment'}
+                              </Button>
+                              
+                              {eventForm.attachment && (
+                                  <div className="relative bg-slate-50 p-2 rounded border border-slate-200 flex items-center justify-between">
+                                      <div className="flex items-center text-xs text-slate-600 truncate mr-2">
+                                          {eventForm.attachmentType === 'PDF' ? <FileText size={14} className="mr-1 text-red-500"/> : <ImageIcon size={14} className="mr-1 text-blue-500"/>}
+                                          File Attached
+                                      </div>
+                                      <button 
+                                          type="button" 
+                                          onClick={() => setEventForm(prev => ({...prev, attachment: '', attachmentType: undefined}))}
+                                          className="text-red-500 hover:bg-red-50 rounded p-1"
+                                      >
+                                          <X size={14} />
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+
+                      <Button type="submit" className="w-full" disabled={isUploadingEvent}>Add to Calendar</Button>
+                  </form>
+              </div>
+          </div>
+      </Modal>
 
       {/* DELETE CONFIRMATION MODAL */}
       <Modal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false, id: null, type: 'NOTICE' })} title="Confirm Deletion">
