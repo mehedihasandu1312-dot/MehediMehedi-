@@ -4,6 +4,8 @@ import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 
+const SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 Hours in milliseconds
+
 export const authService = {
   // --- REAL ADMIN LOGIN (EMAIL/PASSWORD) ---
   loginAdmin: async (email: string, password: string): Promise<User> => {
@@ -30,7 +32,9 @@ export const authService = {
                 throw new Error("Account Blocked. Contact support.");
             }
 
-            sessionStorage.setItem('currentUser', JSON.stringify(userData));
+            // SET SESSION WITH EXPIRY (4 HOURS)
+            const sessionUser = { ...userData, _expiry: Date.now() + SESSION_DURATION };
+            localStorage.setItem('currentUser', JSON.stringify(sessionUser));
             
             // Log Login Action
             authService.logAdminAction(userData.id, userData.name, "Login", "Admin Portal Access", "INFO");
@@ -62,15 +66,15 @@ export const authService = {
       const userRef = doc(db, "users", fbUser.uid);
       const userSnap = await getDoc(userRef);
 
+      let finalUser: User;
+
       if (userSnap.exists()) {
         const userData = { id: userSnap.id, ...userSnap.data() } as User;
         
         if (userData.status === 'BLOCKED') {
            throw new Error("This account is blocked.");
         }
-
-        sessionStorage.setItem('currentUser', JSON.stringify(userData));
-        return userData;
+        finalUser = userData;
       } else {
         // Create NEW User (Default to Student)
         const newUser: User = {
@@ -87,9 +91,14 @@ export const authService = {
         };
 
         await setDoc(userRef, newUser);
-        sessionStorage.setItem('currentUser', JSON.stringify(newUser));
-        return newUser;
+        finalUser = newUser;
       }
+
+      // SET SESSION WITH EXPIRY (4 HOURS)
+      const sessionUser = { ...finalUser, _expiry: Date.now() + SESSION_DURATION };
+      localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+      return finalUser;
+
     } catch (error: any) {
       console.error("Google Login Error:", error);
       throw error;
@@ -98,20 +107,28 @@ export const authService = {
 
   logout: async () => {
     await signOut(auth);
-    sessionStorage.removeItem('currentUser');
+    localStorage.removeItem('currentUser');
   },
 
   getCurrentUser: (): User | null => {
-    const stored = sessionStorage.getItem('currentUser');
+    const stored = localStorage.getItem('currentUser');
     if (stored) {
         const user = JSON.parse(stored);
+        
+        // CHECK EXPIRY (4 Hours)
+        if (user._expiry && Date.now() > user._expiry) {
+            signOut(auth);
+            localStorage.removeItem('currentUser');
+            return null;
+        }
+
         // Clean check for subscription expiration
         if (user.subscription && user.subscription.status === 'ACTIVE') {
             const expiry = new Date(user.subscription.expiryDate);
             if (expiry < new Date()) {
                 user.subscription.status = 'EXPIRED';
                 // Update session quietly
-                sessionStorage.setItem('currentUser', JSON.stringify(user));
+                localStorage.setItem('currentUser', JSON.stringify(user));
             }
         }
         return user;
@@ -120,14 +137,14 @@ export const authService = {
   },
 
   updateProfile: async (updates: Partial<User>): Promise<User> => {
-    const stored = sessionStorage.getItem('currentUser');
+    const stored = localStorage.getItem('currentUser');
     if (!stored) throw new Error("No user");
     
     const user = JSON.parse(stored);
     const updatedUser = { ...user, ...updates, profileCompleted: true };
     
-    // Update Session
-    sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    // Update Session (Preserve Expiry)
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
     
     // Update Cloud
     try {
