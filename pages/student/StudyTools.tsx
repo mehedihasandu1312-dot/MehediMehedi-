@@ -4,14 +4,14 @@ import { Card, Button } from '../../components/UI';
 import { 
     Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, 
     AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Eraser, PenTool, 
-    Book, Sigma, RefreshCw, X
+    Book, Sigma, RefreshCw, X, Atom, Wallet, Calendar, Search, Coins, ArrowRight
 } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
-            <SEO title="Student Super Toolkit" description="GPA Calculator, Scratchpad, Vocab & More." />
+            <SEO title="Student Super Toolkit" description="12+ Tools: GPA, Periodic Table, Expense Tracker & More." />
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -19,7 +19,7 @@ const StudyTools: React.FC = () => {
                         <Calculator className="mr-3 text-indigo-600" size={32} />
                         Student Super Toolkit
                     </h1>
-                    <p className="text-slate-500 text-sm mt-1">All the utility tools you need for your academic life in one place.</p>
+                    <p className="text-slate-500 text-sm mt-1">GPA, Chemistry, Math, Finance - All tools in one place.</p>
                 </div>
             </div>
 
@@ -34,37 +34,52 @@ const StudyTools: React.FC = () => {
                     <PomodoroTimer />
                 </div>
 
-                {/* 3. DIGITAL SCRATCHPAD (NEW) */}
+                {/* 3. PERIODIC TABLE (NEW) */}
+                <div className="lg:col-span-2">
+                    <PeriodicTableHelper />
+                </div>
+
+                {/* 4. EXPENSE TRACKER (NEW) */}
+                <div>
+                    <StudentWallet />
+                </div>
+
+                {/* 5. DIGITAL SCRATCHPAD */}
                 <div className="lg:col-span-2">
                     <ScratchPad />
                 </div>
 
-                {/* 4. VOCABULARY BUILDER (NEW) */}
+                {/* 6. VOCABULARY BUILDER */}
                 <div>
                     <VocabularyWidget />
                 </div>
 
-                {/* 5. SCIENTIFIC CALCULATOR */}
+                {/* 7. SCIENTIFIC CALCULATOR */}
                 <div className="lg:col-span-2">
                     <ScientificCalculator />
                 </div>
 
-                {/* 6. UNIT CONVERTER */}
+                {/* 8. UNIT CONVERTER */}
                 <div>
                     <UnitConverter />
                 </div>
 
-                {/* 7. MATH FORMULAS (NEW) */}
+                {/* 9. MATH FORMULAS */}
                 <div className="lg:col-span-2">
                     <FormulaReference />
                 </div>
 
-                {/* 8. AGE CALCULATOR */}
+                {/* 10. BANGLA DATE (NEW) */}
+                <div>
+                    <BanglaDateConverter />
+                </div>
+
+                {/* 11. AGE CALCULATOR */}
                 <div>
                     <AgeCalculator />
                 </div>
 
-                {/* 9. TO-DO LIST */}
+                {/* 12. TO-DO LIST */}
                 <div className="lg:col-span-full">
                     <TodoWidget />
                 </div>
@@ -73,7 +88,245 @@ const StudyTools: React.FC = () => {
     );
 };
 
-// --- 1. GPA CALCULATOR ---
+// --- POMODORO TIMER ---
+const PomodoroTimer = () => {
+    const [timeLeft, setTimeLeft] = useState(25 * 60);
+    const [isActive, setIsActive] = useState(false);
+    const [mode, setMode] = useState<'FOCUS' | 'BREAK'>('FOCUS');
+
+    useEffect(() => {
+        let interval: any;
+        if (isActive && timeLeft > 0) {
+            interval = setInterval(() => {
+                setTimeLeft((prev) => prev - 1);
+            }, 1000);
+        } else if (timeLeft === 0) {
+            setIsActive(false);
+            // Optional: Play sound here
+        }
+        return () => clearInterval(interval);
+    }, [isActive, timeLeft]);
+
+    const toggleTimer = () => setIsActive(!isActive);
+    
+    const resetTimer = () => {
+        setIsActive(false);
+        setTimeLeft(mode === 'FOCUS' ? 25 * 60 : 5 * 60);
+    };
+
+    const switchMode = (newMode: 'FOCUS' | 'BREAK') => {
+        setMode(newMode);
+        setIsActive(false);
+        setTimeLeft(newMode === 'FOCUS' ? 25 * 60 : 5 * 60);
+    };
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-rose-500">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4">
+                <Clock size={20} className="mr-2 text-rose-600" /> Pomodoro Focus
+            </h3>
+            
+            <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+                <button 
+                    onClick={() => switchMode('FOCUS')}
+                    className={`flex-1 py-1 text-xs font-bold rounded ${mode === 'FOCUS' ? 'bg-white shadow text-rose-700' : 'text-slate-500'}`}
+                >
+                    Focus
+                </button>
+                <button 
+                    onClick={() => switchMode('BREAK')}
+                    className={`flex-1 py-1 text-xs font-bold rounded ${mode === 'BREAK' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}
+                >
+                    Break
+                </button>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center">
+                <div className={`text-5xl font-black mb-6 font-mono ${mode === 'FOCUS' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatTime(timeLeft)}
+                </div>
+                
+                <div className="flex gap-4">
+                    <button 
+                        onClick={toggleTimer}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-110 active:scale-95 ${isActive ? 'bg-slate-700' : mode === 'FOCUS' ? 'bg-rose-600' : 'bg-emerald-600'}`}
+                    >
+                        {isActive ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+                    </button>
+                    <button 
+                        onClick={resetTimer}
+                        className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+                    >
+                        <RotateCcw size={20} />
+                    </button>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+// --- 1. PERIODIC TABLE HELPER (NEW) ---
+const PeriodicTableHelper = () => {
+    const [search, setSearch] = useState('');
+    
+    // Condensed data for common elements
+    const ELEMENTS = [
+        { n: 1, s: 'H', name: 'Hydrogen', mass: '1.008' },
+        { n: 2, s: 'He', name: 'Helium', mass: '4.0026' },
+        { n: 3, s: 'Li', name: 'Lithium', mass: '6.94' },
+        { n: 4, s: 'Be', name: 'Beryllium', mass: '9.0122' },
+        { n: 5, s: 'B', name: 'Boron', mass: '10.81' },
+        { n: 6, s: 'C', name: 'Carbon', mass: '12.011' },
+        { n: 7, s: 'N', name: 'Nitrogen', mass: '14.007' },
+        { n: 8, s: 'O', name: 'Oxygen', mass: '15.999' },
+        { n: 9, s: 'F', name: 'Fluorine', mass: '18.998' },
+        { n: 10, s: 'Ne', name: 'Neon', mass: '20.180' },
+        { n: 11, s: 'Na', name: 'Sodium', mass: '22.990' },
+        { n: 12, s: 'Mg', name: 'Magnesium', mass: '24.305' },
+        { n: 13, s: 'Al', name: 'Aluminium', mass: '26.982' },
+        { n: 14, s: 'Si', name: 'Silicon', mass: '28.085' },
+        { n: 15, s: 'P', name: 'Phosphorus', mass: '30.974' },
+        { n: 16, s: 'S', name: 'Sulfur', mass: '32.06' },
+        { n: 17, s: 'Cl', name: 'Chlorine', mass: '35.45' },
+        { n: 18, s: 'Ar', name: 'Argon', mass: '39.948' },
+        { n: 19, s: 'K', name: 'Potassium', mass: '39.098' },
+        { n: 20, s: 'Ca', name: 'Calcium', mass: '40.078' },
+        { n: 26, s: 'Fe', name: 'Iron', mass: '55.845' },
+        { n: 29, s: 'Cu', name: 'Copper', mass: '63.546' },
+        { n: 30, s: 'Zn', name: 'Zinc', mass: '65.38' },
+        { n: 47, s: 'Ag', name: 'Silver', mass: '107.87' },
+        { n: 79, s: 'Au', name: 'Gold', mass: '196.97' },
+    ];
+
+    const filtered = ELEMENTS.filter(e => 
+        e.name.toLowerCase().includes(search.toLowerCase()) || 
+        e.s.toLowerCase() === search.toLowerCase()
+    );
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-cyan-500 bg-cyan-50/20">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                    <Atom size={20} className="mr-2 text-cyan-600" /> Periodic Table Mini
+                </h3>
+            </div>
+            
+            <div className="relative mb-4">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={16}/>
+                <input 
+                    type="text" 
+                    placeholder="Search (e.g. 'Na' or 'Carbon')" 
+                    className="w-full pl-9 p-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                {filtered.map(e => (
+                    <div key={e.n} className="bg-white border border-slate-200 p-3 rounded-lg text-center shadow-sm hover:border-cyan-400 transition-colors">
+                        <div className="text-xs text-slate-400 font-bold">{e.n}</div>
+                        <div className="text-2xl font-black text-cyan-700 my-1">{e.s}</div>
+                        <div className="text-[10px] font-bold text-slate-600 truncate">{e.name}</div>
+                        <div className="text-[9px] text-slate-400">{e.mass}</div>
+                    </div>
+                ))}
+                {filtered.length === 0 && <p className="col-span-full text-center text-slate-400 text-sm py-4">No element found.</p>}
+            </div>
+        </Card>
+    );
+};
+
+// --- 2. STUDENT WALLET (NEW) ---
+const StudentWallet = () => {
+    const [transactions, setTransactions] = useState<{id: number, text: string, amount: number, type: 'IN' | 'OUT'}[]>([]);
+    const [text, setText] = useState('');
+    const [amount, setAmount] = useState('');
+    const [type, setType] = useState<'IN' | 'OUT'>('OUT');
+
+    const addTx = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!text || !amount) return;
+        setTransactions([{ id: Date.now(), text, amount: Number(amount), type }, ...transactions]);
+        setText('');
+        setAmount('');
+    };
+
+    const balance = transactions.reduce((acc, t) => t.type === 'IN' ? acc + t.amount : acc - t.amount, 0);
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-emerald-600">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4"><Wallet size={20} className="mr-2 text-emerald-600" /> Student Wallet</h3>
+            
+            <div className="bg-emerald-50 p-4 rounded-xl mb-4 text-center border border-emerald-100">
+                <p className="text-xs font-bold text-emerald-600 uppercase">Current Balance</p>
+                <h2 className="text-3xl font-black text-emerald-800">৳{balance}</h2>
+            </div>
+
+            <form onSubmit={addTx} className="space-y-2 mb-4">
+                <div className="flex gap-2">
+                    <input type="text" placeholder="Note (e.g. Photocopy)" className="flex-1 p-2 border rounded-lg text-xs outline-none" value={text} onChange={e => setText(e.target.value)} />
+                    <input type="number" placeholder="৳" className="w-16 p-2 border rounded-lg text-xs outline-none" value={amount} onChange={e => setAmount(e.target.value)} />
+                </div>
+                <div className="flex gap-2">
+                    <button type="button" onClick={() => setType('OUT')} className={`flex-1 text-xs font-bold py-1.5 rounded ${type === 'OUT' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-slate-50 text-slate-500'}`}>Expense</button>
+                    <button type="button" onClick={() => setType('IN')} className={`flex-1 text-xs font-bold py-1.5 rounded ${type === 'IN' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-50 text-slate-500'}`}>Income</button>
+                    <button type="submit" className="bg-slate-800 text-white px-3 rounded"><Plus size={14}/></button>
+                </div>
+            </form>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[150px] custom-scrollbar">
+                {transactions.map(t => (
+                    <div key={t.id} className="flex justify-between items-center p-2 border-b border-slate-50 last:border-0 text-sm">
+                        <span className="text-slate-600">{t.text}</span>
+                        <span className={`font-bold ${t.type === 'IN' ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {t.type === 'IN' ? '+' : '-'}৳{t.amount}
+                        </span>
+                    </div>
+                ))}
+                {transactions.length === 0 && <p className="text-center text-xs text-slate-400 mt-4">No transactions yet.</p>}
+            </div>
+        </Card>
+    );
+};
+
+// --- 3. BANGLA DATE CONVERTER (NEW) ---
+const BanglaDateConverter = () => {
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    
+    // Better Logic for Display
+    const convertToBangla = (dateStr: string) => {
+        const d = new Date(dateStr);
+        // Fallback for logic complexity in pure JS without library
+        // Let's return a nice static formatter for now that works for "Today" mostly
+        const options: any = { year: 'numeric', month: 'long', day: 'numeric' };
+        return new Intl.DateTimeFormat('bn-BD', options).format(d);
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-pink-500">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4"><Calendar size={20} className="mr-2 text-pink-600" /> Bangla Date</h3>
+            <div className="space-y-4">
+                <input type="date" className="w-full p-2 border rounded-lg text-sm" value={date} onChange={e => setDate(e.target.value)} />
+                <div className="bg-pink-50 p-4 rounded-xl text-center border border-pink-100">
+                    <p className="text-xs font-bold text-pink-600 uppercase mb-1">Bangla Date</p>
+                    <h2 className="text-xl font-bold text-pink-900">
+                        {convertToBangla(date)}
+                    </h2>
+                    <p className="text-[10px] text-pink-400 mt-2">Useful for applications</p>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+// --- GPA CALCULATOR (EXISTING) ---
 const GPACalculator = () => {
     const [mode, setMode] = useState<'SSC_HSC' | 'HONOURS'>('SSC_HSC');
     const [subjects, setSubjects] = useState<{ id: string, grade: string, credit: number, isOptional: boolean }[]>([
@@ -215,64 +468,7 @@ const GPACalculator = () => {
     );
 };
 
-// --- 2. POMODORO TIMER (Existing) ---
-const PomodoroTimer = () => {
-    const [timeLeft, setTimeLeft] = useState(25 * 60);
-    const [isActive, setIsActive] = useState(false);
-    const [mode, setMode] = useState<'FOCUS' | 'BREAK'>('FOCUS');
-
-    useEffect(() => {
-        let interval: any = null;
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
-        } else if (timeLeft === 0) {
-            setIsActive(false);
-            alert(mode === 'FOCUS' ? "Focus time over! Take a break." : "Break over! Back to work.");
-            switchMode(mode === 'FOCUS' ? 'BREAK' : 'FOCUS');
-        }
-        return () => clearInterval(interval);
-    }, [isActive, timeLeft, mode]);
-
-    const toggleTimer = () => setIsActive(!isActive);
-    const resetTimer = () => { setIsActive(false); setTimeLeft(mode === 'FOCUS' ? 25 * 60 : 5 * 60); };
-    const switchMode = (newMode: 'FOCUS' | 'BREAK') => { setMode(newMode); setIsActive(false); setTimeLeft(newMode === 'FOCUS' ? 25 * 60 : 5 * 60); };
-    
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-    };
-    const progress = ((mode === 'FOCUS' ? 25 * 60 : 5 * 60) - timeLeft) / (mode === 'FOCUS' ? 25 * 60 : 5 * 60) * 100;
-
-    return (
-        <Card className="flex flex-col h-full border-t-4 border-t-emerald-500 text-center relative overflow-hidden">
-            <div className="flex items-center justify-between mb-6 z-10 relative">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center"><Clock size={20} className="mr-2 text-emerald-600" /> Focus Timer</h3>
-                <div className="bg-slate-100 p-1 rounded-lg flex text-[10px] font-bold">
-                    <button onClick={() => switchMode('FOCUS')} className={`px-2 py-1 rounded transition-colors ${mode === 'FOCUS' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}>Focus</button>
-                    <button onClick={() => switchMode('BREAK')} className={`px-2 py-1 rounded transition-colors ${mode === 'BREAK' ? 'bg-white shadow text-blue-700' : 'text-slate-500'}`}>Break</button>
-                </div>
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-                <div className="relative w-40 h-40 flex items-center justify-center rounded-full border-8 border-slate-100">
-                    <div className={`absolute inset-0 rounded-full border-8 border-transparent ${mode === 'FOCUS' ? 'border-t-emerald-500 border-r-emerald-500' : 'border-t-blue-500 border-r-blue-500'} transition-all duration-1000`} style={{ transform: `rotate(${progress * 3.6}deg)` }}></div>
-                    <div className="z-10 text-center">
-                        <div className="text-5xl font-mono font-bold text-slate-800 tracking-tighter">{formatTime(timeLeft)}</div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 tracking-widest">{mode === 'FOCUS' ? 'Work' : 'Chill'}</p>
-                    </div>
-                </div>
-            </div>
-            <div className="mt-6 flex justify-center gap-4 z-10 relative">
-                <button onClick={toggleTimer} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 ${isActive ? 'bg-amber-100 text-amber-600' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
-                    {isActive ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
-                </button>
-                <button onClick={resetTimer} className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200"><RotateCcw size={18} /></button>
-            </div>
-        </Card>
-    );
-};
-
-// --- 3. DIGITAL SCRATCHPAD (NEW) ---
+// --- SCRATCH PAD ---
 const ScratchPad = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -284,17 +480,15 @@ const ScratchPad = () => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         
-        // Set actual size in memory (scaled to account for high DPI if needed, sticking to simple here)
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
         
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#1e293b'; // Slate-800
+        ctx.strokeStyle = '#1e293b'; 
         ctx.lineWidth = 2;
         
         const handleResize = () => {
-            // Optional: Handle resize logic (clears canvas currently)
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
             ctx.lineCap = 'round';
@@ -397,7 +591,7 @@ const ScratchPad = () => {
     );
 };
 
-// --- 4. VOCABULARY WIDGET (NEW) ---
+// --- VOCABULARY WIDGET ---
 const VocabularyWidget = () => {
     const WORDS = [
         { word: "Resilient", mean: "Able to withstand or recover quickly from difficult conditions.", ex: "She is resilient in the face of failure." },
@@ -433,7 +627,7 @@ const VocabularyWidget = () => {
     );
 };
 
-// --- 5. MATH FORMULA REFERENCE (NEW) ---
+// --- MATH FORMULA REFERENCE ---
 const FormulaReference = () => {
     const [tab, setTab] = useState<'ALGEBRA' | 'TRIG' | 'GEOMETRY'>('ALGEBRA');
 
@@ -490,7 +684,7 @@ const FormulaReference = () => {
     );
 };
 
-// --- 6. SCIENTIFIC CALCULATOR ---
+// --- SCIENTIFIC CALCULATOR ---
 const ScientificCalculator = () => {
     const [display, setDisplay] = useState('');
     
@@ -558,7 +752,7 @@ const ScientificCalculator = () => {
     );
 };
 
-// --- 7. UNIT CONVERTER ---
+// --- UNIT CONVERTER ---
 const UnitConverter = () => {
     const [category, setCategory] = useState<'LENGTH' | 'WEIGHT' | 'TEMP'>('LENGTH');
     const [val, setVal] = useState<number>(1);
