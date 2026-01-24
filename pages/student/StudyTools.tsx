@@ -1,16 +1,17 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button } from '../../components/UI';
 import { 
     Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, 
-    AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Delete, X
+    AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Eraser, PenTool, 
+    Book, Sigma, RefreshCw, X
 } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
-            <SEO title="Student Super Toolkit" description="GPA Calculator, Scientific Calc, Unit Converter & More." />
+            <SEO title="Student Super Toolkit" description="GPA Calculator, Scratchpad, Vocab & More." />
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -23,7 +24,7 @@ const StudyTools: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 1. GPA CALCULATOR (Span 2 Cols on Large) */}
+                {/* 1. GPA CALCULATOR */}
                 <div className="lg:col-span-2">
                     <GPACalculator />
                 </div>
@@ -33,23 +34,38 @@ const StudyTools: React.FC = () => {
                     <PomodoroTimer />
                 </div>
 
-                {/* 3. SCIENTIFIC CALCULATOR */}
+                {/* 3. DIGITAL SCRATCHPAD (NEW) */}
+                <div className="lg:col-span-2">
+                    <ScratchPad />
+                </div>
+
+                {/* 4. VOCABULARY BUILDER (NEW) */}
+                <div>
+                    <VocabularyWidget />
+                </div>
+
+                {/* 5. SCIENTIFIC CALCULATOR */}
                 <div className="lg:col-span-2">
                     <ScientificCalculator />
                 </div>
 
-                {/* 4. UNIT CONVERTER */}
+                {/* 6. UNIT CONVERTER */}
                 <div>
                     <UnitConverter />
                 </div>
 
-                {/* 5. AGE CALCULATOR */}
+                {/* 7. MATH FORMULAS (NEW) */}
+                <div className="lg:col-span-2">
+                    <FormulaReference />
+                </div>
+
+                {/* 8. AGE CALCULATOR */}
                 <div>
                     <AgeCalculator />
                 </div>
 
-                {/* 6. TO-DO LIST */}
-                <div className="lg:col-span-2">
+                {/* 9. TO-DO LIST */}
+                <div className="lg:col-span-full">
                     <TodoWidget />
                 </div>
             </div>
@@ -57,7 +73,7 @@ const StudyTools: React.FC = () => {
     );
 };
 
-// --- 1. GPA CALCULATOR (Existing & Optimized) ---
+// --- 1. GPA CALCULATOR ---
 const GPACalculator = () => {
     const [mode, setMode] = useState<'SSC_HSC' | 'HONOURS'>('SSC_HSC');
     const [subjects, setSubjects] = useState<{ id: string, grade: string, credit: number, isOptional: boolean }[]>([
@@ -141,7 +157,7 @@ const GPACalculator = () => {
         <Card className="flex flex-col h-full border-t-4 border-t-indigo-500 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                    <Calculator size={20} className="mr-2 text-indigo-600" /> GPA / CGPA Calculator
+                    <Calculator size={20} className="mr-2 text-indigo-600" /> GPA Calculator
                 </h3>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                     <button onClick={() => setMode('SSC_HSC')} className={`px-3 py-1 text-xs font-bold rounded ${mode === 'SSC_HSC' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}>SSC/HSC</button>
@@ -211,7 +227,6 @@ const PomodoroTimer = () => {
             interval = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
         } else if (timeLeft === 0) {
             setIsActive(false);
-            // new Audio('/notification.mp3').play().catch(() => {}); // Optional sound
             alert(mode === 'FOCUS' ? "Focus time over! Take a break." : "Break over! Back to work.");
             switchMode(mode === 'FOCUS' ? 'BREAK' : 'FOCUS');
         }
@@ -257,7 +272,225 @@ const PomodoroTimer = () => {
     );
 };
 
-// --- 3. SCIENTIFIC CALCULATOR ---
+// --- 3. DIGITAL SCRATCHPAD (NEW) ---
+const ScratchPad = () => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [tool, setTool] = useState<'PEN' | 'ERASER'>('PEN');
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        // Set actual size in memory (scaled to account for high DPI if needed, sticking to simple here)
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#1e293b'; // Slate-800
+        ctx.lineWidth = 2;
+        
+        const handleResize = () => {
+            // Optional: Handle resize logic (clears canvas currently)
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        setIsDrawing(true);
+        const { x, y } = getPos(e, canvas);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    const draw = (e: React.MouseEvent | React.TouchEvent) => {
+        if (!isDrawing) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const { x, y } = getPos(e, canvas);
+        
+        if (tool === 'ERASER') {
+            ctx.clearRect(x - 10, y - 10, 20, 20);
+        } else {
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+    };
+
+    const stopDrawing = () => {
+        setIsDrawing(false);
+    };
+
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        
+        if ('touches' in e) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = (e as React.MouseEvent).clientX;
+            clientY = (e as React.MouseEvent).clientY;
+        }
+        
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    };
+
+    return (
+        <Card className="flex flex-col h-[400px] border-t-4 border-t-slate-600 bg-white">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                    <PenTool size={20} className="mr-2 text-slate-600" /> Scratchpad (Rough)
+                </h3>
+                <div className="flex gap-2">
+                    <button onClick={() => setTool('PEN')} className={`p-2 rounded ${tool === 'PEN' ? 'bg-slate-200 text-slate-800' : 'text-slate-400'}`}><PenTool size={16}/></button>
+                    <button onClick={() => setTool('ERASER')} className={`p-2 rounded ${tool === 'ERASER' ? 'bg-slate-200 text-slate-800' : 'text-slate-400'}`}><Eraser size={16}/></button>
+                    <button onClick={clearCanvas} className="p-2 rounded text-red-500 hover:bg-red-50"><Trash2 size={16}/></button>
+                </div>
+            </div>
+            <div className="flex-1 border-2 border-slate-100 rounded-xl overflow-hidden bg-[#fdfdfd] cursor-crosshair relative touch-none">
+                <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+                <canvas 
+                    ref={canvasRef}
+                    className="w-full h-full"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                />
+            </div>
+        </Card>
+    );
+};
+
+// --- 4. VOCABULARY WIDGET (NEW) ---
+const VocabularyWidget = () => {
+    const WORDS = [
+        { word: "Resilient", mean: "Able to withstand or recover quickly from difficult conditions.", ex: "She is resilient in the face of failure." },
+        { word: "Pragmatic", mean: "Dealing with things sensibly and realistically.", ex: "We need a pragmatic solution to this problem." },
+        { word: "Ambiguous", mean: "Open to more than one interpretation; having a double meaning.", ex: "The instructions were ambiguous." },
+        { word: "Diligent", mean: "Having or showing care and conscientiousness in one's work.", ex: "A diligent student always succeeds." },
+        { word: "Inevitable", mean: "Certain to happen; unavoidable.", ex: "Change is inevitable." }
+    ];
+
+    const [idx, setIdx] = useState(0);
+
+    const nextWord = () => {
+        setIdx((prev) => (prev + 1) % WORDS.length);
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-pink-500 bg-pink-50/30">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                    <Book size={20} className="mr-2 text-pink-600" /> Daily Vocab
+                </h3>
+                <button onClick={nextWord} className="text-pink-500 hover:bg-pink-100 p-2 rounded-full transition-colors"><RefreshCw size={16}/></button>
+            </div>
+            
+            <div className="flex-1 flex flex-col justify-center items-center text-center p-4">
+                <h2 className="text-3xl font-black text-pink-700 mb-2">{WORDS[idx].word}</h2>
+                <p className="text-sm font-medium text-slate-600 mb-4 italic">"{WORDS[idx].mean}"</p>
+                <div className="bg-white p-3 rounded-lg border border-pink-100 text-xs text-slate-500 w-full">
+                    <span className="font-bold text-pink-600">Ex: </span>{WORDS[idx].ex}
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+// --- 5. MATH FORMULA REFERENCE (NEW) ---
+const FormulaReference = () => {
+    const [tab, setTab] = useState<'ALGEBRA' | 'TRIG' | 'GEOMETRY'>('ALGEBRA');
+
+    const FORMULAS: any = {
+        ALGEBRA: [
+            { name: "(a + b)²", val: "a² + 2ab + b²" },
+            { name: "(a - b)²", val: "a² - 2ab + b²" },
+            { name: "a² - b²", val: "(a - b)(a + b)" },
+            { name: "Quadratic", val: "x = [-b ± √(b² - 4ac)] / 2a" }
+        ],
+        TRIG: [
+            { name: "sin²θ + cos²θ", val: "1" },
+            { name: "tanθ", val: "sinθ / cosθ" },
+            { name: "sin(2θ)", val: "2sinθcosθ" },
+            { name: "Euler", val: "e^ix = cos(x) + i·sin(x)" }
+        ],
+        GEOMETRY: [
+            { name: "Circle Area", val: "πr²" },
+            { name: "Sphere Vol", val: "4/3 πr³" },
+            { name: "Triangle Area", val: "1/2 × base × height" },
+            { name: "Trapezoid", val: "1/2 (a + b)h" }
+        ]
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-teal-500">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                    <Sigma size={20} className="mr-2 text-teal-600" /> Math Cheat Sheet
+                </h3>
+            </div>
+            
+            <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
+                {['ALGEBRA', 'TRIG', 'GEOMETRY'].map(t => (
+                    <button 
+                        key={t}
+                        onClick={() => setTab(t as any)}
+                        className={`flex-1 py-1.5 text-[10px] md:text-xs font-bold rounded ${tab === t ? 'bg-white shadow text-teal-700' : 'text-slate-500'}`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 overflow-y-auto max-h-[250px] pr-1">
+                {FORMULAS[tab].map((f: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                        <span className="text-xs font-bold text-slate-500">{f.name}</span>
+                        <span className="text-sm font-mono font-bold text-teal-700">{f.val}</span>
+                    </div>
+                ))}
+            </div>
+        </Card>
+    );
+};
+
+// --- 6. SCIENTIFIC CALCULATOR ---
 const ScientificCalculator = () => {
     const [display, setDisplay] = useState('');
     
@@ -325,7 +558,7 @@ const ScientificCalculator = () => {
     );
 };
 
-// --- 4. UNIT CONVERTER ---
+// --- 7. UNIT CONVERTER ---
 const UnitConverter = () => {
     const [category, setCategory] = useState<'LENGTH' | 'WEIGHT' | 'TEMP'>('LENGTH');
     const [val, setVal] = useState<number>(1);
@@ -388,7 +621,7 @@ const UnitConverter = () => {
     );
 };
 
-// --- 5. AGE CALCULATOR ---
+// --- 8. AGE CALCULATOR ---
 const AgeCalculator = () => {
     const [dob, setDob] = useState('');
     const [age, setAge] = useState<{y: number, m: number, d: number} | null>(null);
@@ -437,7 +670,7 @@ const AgeCalculator = () => {
     );
 };
 
-// --- 6. TO-DO LIST ---
+// --- 9. TO-DO LIST ---
 const TodoWidget = () => {
     const [tasks, setTasks] = useState<{id: number, text: string, done: boolean}[]>([]);
     const [newTask, setNewTask] = useState('');
