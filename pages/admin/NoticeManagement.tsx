@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { Notice, CalendarEvent } from '../../types';
-import { Plus, Trash2, Calendar as CalendarIcon, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone, CheckCircle, ChevronLeft, ChevronRight, FileText, Loader2, Link as LinkIcon, Download } from 'lucide-react';
+import { Plus, Trash2, Calendar as CalendarIcon, Image as ImageIcon, X, Upload, AlertTriangle, Target, Megaphone, CheckCircle, ChevronLeft, ChevronRight, FileText, Loader2, Link as LinkIcon, Download, Globe } from 'lucide-react';
 import { storage } from '../../services/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -43,6 +43,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
       title: '', description: '', type: 'EVENT', targetClass: '', attachment: '', attachmentType: undefined
   });
 
+  const [attachmentMethod, setAttachmentMethod] = useState<'UPLOAD' | 'LINK'>('UPLOAD');
   const [isUploadingEvent, setIsUploadingEvent] = useState(false);
 
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; type: 'NOTICE' | 'EVENT' }>({ isOpen: false, id: null, type: 'NOTICE' });
@@ -77,6 +78,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
       setIsDateModalOpen(true);
       // Reset form
       setEventForm({ title: '', description: '', type: 'EVENT', targetClass: '', attachment: '', attachmentType: undefined });
+      setAttachmentMethod('UPLOAD');
   };
 
   const handleEventFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,11 +131,12 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
           type: eventForm.type,
           targetClass: eventForm.targetClass || undefined,
           attachment: eventForm.attachment || undefined,
-          attachmentType: eventForm.attachmentType || undefined
+          attachmentType: eventForm.attachment ? (eventForm.attachmentType || 'PDF') : undefined // Default link to PDF type for icon
       };
 
       setCalendarEvents([newEvent, ...calendarEvents]);
       setEventForm({ title: '', description: '', type: 'EVENT', targetClass: '', attachment: '', attachmentType: undefined });
+      setAttachmentMethod('UPLOAD');
       setInfoModal({ isOpen: true, title: "Success", message: "Event added to calendar!" });
   };
 
@@ -454,7 +457,7 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
                                       <img src={ev.attachment} alt="Attachment" className="w-full h-32 object-cover rounded-lg border border-slate-200" />
                                   ) : (
                                       <a href={ev.attachment} target="_blank" rel="noreferrer" className="flex items-center text-sm font-bold text-indigo-600 bg-indigo-50 p-2 rounded-lg hover:bg-indigo-100 transition-colors">
-                                          <FileText size={16} className="mr-2"/> View Attached PDF
+                                          <LinkIcon size={16} className="mr-2"/> View/Download File
                                       </a>
                                   )}
                               </div>
@@ -501,45 +504,80 @@ const NoticeManagement: React.FC<Props> = ({ notices, setNotices, educationLevel
                               value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} placeholder="Optional details..." />
                       </div>
 
-                      {/* Attachment Upload */}
+                      {/* Attachment Section */}
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Attach File (PDF/Image)</label>
-                          <input 
-                              type="file" 
-                              ref={eventFileInputRef} 
-                              className="hidden" 
-                              onChange={handleEventFileUpload} 
-                              accept="image/*,application/pdf"
-                          />
-                          <div className="flex flex-col gap-2">
-                              <Button 
-                                  type="button" 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => eventFileInputRef.current?.click()}
-                                  disabled={isUploadingEvent}
-                                  className="w-full flex justify-center text-xs"
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Attach File</label>
+                          
+                          {/* Method Toggle */}
+                          <div className="flex bg-slate-100 p-1 rounded-lg mb-2">
+                              <button 
+                                  type="button"
+                                  onClick={() => setAttachmentMethod('UPLOAD')}
+                                  className={`flex-1 py-1 text-xs font-bold rounded ${attachmentMethod === 'UPLOAD' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}
                               >
-                                  {isUploadingEvent ? <Loader2 size={14} className="animate-spin mr-2"/> : <Upload size={14} className="mr-2" />}
-                                  {isUploadingEvent ? 'Uploading...' : 'Upload Attachment'}
-                              </Button>
-                              
-                              {eventForm.attachment && (
-                                  <div className="relative bg-slate-50 p-2 rounded border border-slate-200 flex items-center justify-between">
-                                      <div className="flex items-center text-xs text-slate-600 truncate mr-2">
-                                          {eventForm.attachmentType === 'PDF' ? <FileText size={14} className="mr-1 text-red-500"/> : <ImageIcon size={14} className="mr-1 text-blue-500"/>}
-                                          File Attached
-                                      </div>
-                                      <button 
-                                          type="button" 
-                                          onClick={() => setEventForm(prev => ({...prev, attachment: '', attachmentType: undefined}))}
-                                          className="text-red-500 hover:bg-red-50 rounded p-1"
-                                      >
-                                          <X size={14} />
-                                      </button>
-                                  </div>
-                              )}
+                                  Upload
+                              </button>
+                              <button 
+                                  type="button"
+                                  onClick={() => setAttachmentMethod('LINK')}
+                                  className={`flex-1 py-1 text-xs font-bold rounded ${attachmentMethod === 'LINK' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}
+                              >
+                                  Link / Drive
+                              </button>
                           </div>
+
+                          {attachmentMethod === 'UPLOAD' ? (
+                              <>
+                                  <input 
+                                      type="file" 
+                                      ref={eventFileInputRef} 
+                                      className="hidden" 
+                                      onChange={handleEventFileUpload} 
+                                      accept="image/*,application/pdf"
+                                  />
+                                  <div className="flex flex-col gap-2">
+                                      <Button 
+                                          type="button" 
+                                          variant="outline" 
+                                          size="sm" 
+                                          onClick={() => eventFileInputRef.current?.click()}
+                                          disabled={isUploadingEvent}
+                                          className="w-full flex justify-center text-xs"
+                                      >
+                                          {isUploadingEvent ? <Loader2 size={14} className="animate-spin mr-2"/> : <Upload size={14} className="mr-2" />}
+                                          {isUploadingEvent ? 'Uploading...' : 'Upload File (PDF/Img)'}
+                                      </Button>
+                                  </div>
+                              </>
+                          ) : (
+                              <div className="relative">
+                                  <LinkIcon className="absolute left-3 top-2.5 text-slate-400" size={14} />
+                                  <input 
+                                      type="url" 
+                                      className="w-full pl-9 p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                      placeholder="https://drive.google.com/..."
+                                      value={eventForm.attachment}
+                                      onChange={(e) => setEventForm({...eventForm, attachment: e.target.value, attachmentType: 'PDF'})}
+                                  />
+                              </div>
+                          )}
+
+                          {/* Preview of Attached Item */}
+                          {eventForm.attachment && (
+                              <div className="relative bg-slate-50 p-2 rounded border border-slate-200 flex items-center justify-between mt-2">
+                                  <div className="flex items-center text-xs text-slate-600 truncate mr-2">
+                                      {eventForm.attachmentType === 'PDF' || attachmentMethod === 'LINK' ? <FileText size={14} className="mr-1 text-red-500"/> : <ImageIcon size={14} className="mr-1 text-blue-500"/>}
+                                      {attachmentMethod === 'LINK' ? 'Link Attached' : 'File Uploaded'}
+                                  </div>
+                                  <button 
+                                      type="button" 
+                                      onClick={() => setEventForm(prev => ({...prev, attachment: '', attachmentType: undefined}))}
+                                      className="text-red-500 hover:bg-red-50 rounded p-1"
+                                  >
+                                      <X size={14} />
+                                  </button>
+                              </div>
+                          )}
                       </div>
 
                       <Button type="submit" className="w-full" disabled={isUploadingEvent}>Add to Calendar</Button>

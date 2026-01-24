@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Badge, Card, Modal, Button } from '../../components/UI';
 import { Notice as NoticeType, CalendarEvent } from '../../types';
-import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon, Target, ChevronLeft, FileText, Download } from 'lucide-react';
+import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon, Target, ChevronLeft, FileText, Download, ExternalLink } from 'lucide-react';
 
 interface Props {
     notices?: NoticeType[];
@@ -328,8 +328,7 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead, calen
                                           rel="noreferrer" 
                                           className="flex items-center justify-center w-full p-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm border border-indigo-200"
                                       >
-                                          <FileText size={16} className="mr-2"/> View Attached PDF
-                                          <Download size={14} className="ml-auto opacity-50" />
+                                          <ExternalLink size={16} className="mr-2"/> View Attached File / Link
                                       </a>
                                   )}
                               </div>
