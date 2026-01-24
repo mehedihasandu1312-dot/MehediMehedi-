@@ -5,14 +5,15 @@ import {
     Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, 
     AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Eraser, PenTool, 
     Book, Sigma, RefreshCw, X, Atom, Wallet, Calendar, Search, Coins, ArrowRight,
-    AlignLeft, Wind, MousePointerClick, Minus, Mic, Square, FileAudio, Bookmark, Download, Copy
+    AlignLeft, Wind, MousePointerClick, Minus, Mic, Square, FileAudio, Bookmark, Download, Copy,
+    Moon, Bed
 } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
-            <SEO title="Student Super Toolkit" description="16+ Tools: Lecture Recorder, GPA, Periodic Table & More." />
+            <SEO title="Student Super Toolkit" description="18+ Tools: Lecture Recorder, Sleep Calc, GPA, & More." />
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -20,87 +21,92 @@ const StudyTools: React.FC = () => {
                         <Calculator className="mr-3 text-indigo-600" size={32} />
                         Student Super Toolkit
                     </h1>
-                    <p className="text-slate-500 text-sm mt-1">GPA, Recording, Math, Finance, Wellness - All in one place.</p>
+                    <p className="text-slate-500 text-sm mt-1">Lecture Recorder, Sleep Calc, GPA, Math & More.</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 1. LECTURE RECORDER (NEW - Featured at Top) */}
+                {/* 1. LECTURE RECORDER (Top Feature) */}
                 <div className="lg:col-span-2">
                     <LectureRecorder />
                 </div>
 
-                {/* 2. POMODORO TIMER */}
+                {/* 2. SLEEP CALCULATOR (New Wellness Tool) */}
+                <div>
+                    <SleepCalculator />
+                </div>
+
+                {/* 3. POMODORO TIMER */}
                 <div>
                     <PomodoroTimer />
                 </div>
 
-                {/* 3. GPA CALCULATOR */}
+                {/* 4. GPA CALCULATOR */}
                 <div className="lg:col-span-2">
                     <GPACalculator />
                 </div>
 
-                {/* 4. TALLY COUNTER */}
+                {/* 5. TALLY COUNTER */}
                 <div>
                     <TallyCounter />
                 </div>
 
-                {/* 5. PERIODIC TABLE */}
+                {/* 6. PERIODIC TABLE */}
                 <div className="lg:col-span-2">
                     <PeriodicTableHelper />
                 </div>
 
-                {/* 6. EXPENSE TRACKER */}
+                {/* 7. EXPENSE TRACKER */}
                 <div>
                     <StudentWallet />
                 </div>
 
-                {/* 7. WORD COUNTER */}
+                {/* 8. WORD COUNTER */}
                 <div className="lg:col-span-2">
                     <WordCounter />
                 </div>
 
-                {/* 8. BREATHING EXERCISE */}
+                {/* 9. BREATHING EXERCISE */}
                 <div>
                     <BreathingExercise />
                 </div>
 
-                {/* 9. DIGITAL SCRATCHPAD */}
+                {/* 10. DIGITAL SCRATCHPAD */}
                 <div className="lg:col-span-2">
                     <ScratchPad />
                 </div>
 
-                {/* 10. VOCABULARY BUILDER */}
+                {/* 11. VOCABULARY BUILDER */}
                 <div>
                     <VocabularyWidget />
                 </div>
 
-                {/* 11. SCIENTIFIC CALCULATOR */}
+                {/* 12. SCIENTIFIC CALCULATOR */}
                 <div className="lg:col-span-2">
                     <ScientificCalculator />
                 </div>
 
-                {/* 12. UNIT CONVERTER */}
+                {/* 13. UNIT CONVERTER */}
                 <div>
                     <UnitConverter />
                 </div>
 
-                {/* 13. MATH FORMULAS */}
+                {/* 14. MATH FORMULAS */}
                 <div className="lg:col-span-2">
                     <FormulaReference />
                 </div>
 
-                {/* 14. BANGLA DATE */}
+                {/* 15. BANGLA DATE */}
                 <div>
                     <BanglaDateConverter />
                 </div>
 
-                {/* 15. AGE CALCULATOR */}
+                {/* 16. AGE CALCULATOR */}
                 <div>
                     <AgeCalculator />
                 </div>
 
-                {/* 16. TO-DO LIST */}
+                {/* 17. TO-DO LIST */}
                 <div className="lg:col-span-full">
                     <TodoWidget />
                 </div>
@@ -109,7 +115,7 @@ const StudyTools: React.FC = () => {
     );
 };
 
-// --- 1. LECTURE RECORDER & TRANSCRIBER (NEW) ---
+// --- 1. LECTURE RECORDER & TRANSCRIBER ---
 const LectureRecorder = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState('');
@@ -123,7 +129,6 @@ const LectureRecorder = () => {
     const timerRef = useRef<any>(null);
 
     useEffect(() => {
-        // Cleanup function
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
             if (audioURL) URL.revokeObjectURL(audioURL);
@@ -134,7 +139,7 @@ const LectureRecorder = () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // 1. Setup Audio Recorder
+            // Audio Recorder Setup
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
@@ -147,18 +152,18 @@ const LectureRecorder = () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
                 const url = URL.createObjectURL(audioBlob);
                 setAudioURL(url);
-                stream.getTracks().forEach(track => track.stop()); // Stop mic
+                stream.getTracks().forEach(track => track.stop());
             };
 
             mediaRecorder.start();
 
-            // 2. Setup Speech Recognition (Web Speech API)
+            // Speech Recognition Setup
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
                 const recognition = new SpeechRecognition();
                 recognition.continuous = true;
                 recognition.interimResults = true;
-                recognition.lang = 'en-US'; // Default to English for better accuracy in lectures
+                recognition.lang = 'en-US';
 
                 recognition.onresult = (event: any) => {
                     let finalTranscript = '';
@@ -172,17 +177,11 @@ const LectureRecorder = () => {
                     }
                 };
 
-                recognition.onerror = (event: any) => {
-                    console.error("Speech recognition error", event.error);
-                };
-
                 recognitionRef.current = recognition;
                 recognition.start();
-            } else {
-                alert("Speech to Text is not supported in this browser. Audio will still record.");
             }
 
-            // 3. Start Timer
+            // Timer Setup
             setIsRecording(true);
             setTranscript('');
             setBookmarks([]);
@@ -192,8 +191,8 @@ const LectureRecorder = () => {
             }, 1000);
 
         } catch (err) {
-            console.error("Error accessing microphone:", err);
-            alert("Could not access microphone. Please allow permissions.");
+            console.error("Mic Error:", err);
+            alert("Please allow microphone access to record.");
         }
     };
 
@@ -206,9 +205,7 @@ const LectureRecorder = () => {
         }
     };
 
-    const addBookmark = () => {
-        setBookmarks([...bookmarks, elapsedTime]);
-    };
+    const addBookmark = () => setBookmarks([...bookmarks, elapsedTime]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -218,7 +215,7 @@ const LectureRecorder = () => {
 
     const copyTranscript = () => {
         navigator.clipboard.writeText(transcript);
-        alert("Transcript copied to clipboard!");
+        alert("Transcript copied!");
     };
 
     return (
@@ -230,13 +227,12 @@ const LectureRecorder = () => {
                 {isRecording && (
                     <div className="flex items-center text-red-500 animate-pulse">
                         <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                        <span className="text-xs font-bold uppercase tracking-wider">Recording</span>
+                        <span className="text-xs font-bold uppercase">REC</span>
                     </div>
                 )}
             </div>
 
             <div className="flex flex-col md:flex-row gap-6">
-                {/* Left: Controls */}
                 <div className="flex-1 flex flex-col items-center justify-center bg-violet-50 rounded-2xl p-6 border border-violet-100">
                     <div className="text-5xl font-mono font-black text-slate-700 mb-6 tracking-widest">
                         {formatTime(elapsedTime)}
@@ -246,16 +242,14 @@ const LectureRecorder = () => {
                         {!isRecording ? (
                             <button 
                                 onClick={startRecording}
-                                className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95"
-                                title="Start Recording"
+                                className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all"
                             >
                                 <Mic size={32} />
                             </button>
                         ) : (
                             <button 
                                 onClick={stopRecording}
-                                className="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95"
-                                title="Stop Recording"
+                                className="w-16 h-16 rounded-full bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center shadow-lg hover:scale-105 transition-all"
                             >
                                 <Square size={28} fill="currentColor" />
                             </button>
@@ -264,41 +258,30 @@ const LectureRecorder = () => {
                         <button 
                             onClick={addBookmark}
                             disabled={!isRecording}
-                            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all ${
-                                isRecording 
-                                ? 'border-violet-500 text-violet-600 hover:bg-violet-100' 
-                                : 'border-slate-200 text-slate-300 cursor-not-allowed'
-                            }`}
-                            title="Mark Important Timestamp"
+                            className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all ${isRecording ? 'border-violet-500 text-violet-600 hover:bg-violet-100' : 'border-slate-200 text-slate-300'}`}
                         >
                             <Bookmark size={20} fill={isRecording ? "currentColor" : "none"} />
                         </button>
                     </div>
                     
-                    {isRecording && <p className="text-xs text-violet-500 mt-4 font-medium animate-pulse">Converting speech to text...</p>}
-                    
-                    {/* Audio Player (After Stop) */}
                     {!isRecording && audioURL && (
                         <div className="w-full mt-6 animate-fade-in">
                             <audio controls src={audioURL} className="w-full h-8" />
                             <a href={audioURL} download={`lecture_${new Date().toISOString()}.wav`} className="flex items-center justify-center text-xs text-violet-600 font-bold mt-2 hover:underline">
-                                <Download size={12} className="mr-1" /> Download Audio
+                                <Download size={12} className="mr-1" /> Save Audio
                             </a>
                         </div>
                     )}
                 </div>
 
-                {/* Right: Transcript & Bookmarks */}
                 <div className="flex-1 flex flex-col h-[250px] md:h-auto">
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex-1 overflow-y-auto mb-2 relative group">
                         {transcript ? (
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                {transcript}
-                            </p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{transcript}</p>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
                                 <FileAudio size={32} className="mb-2" />
-                                <span className="text-xs">Transcript will appear here</span>
+                                <span className="text-xs">Transcript preview...</span>
                             </div>
                         )}
                         {transcript && (
@@ -308,7 +291,6 @@ const LectureRecorder = () => {
                         )}
                     </div>
 
-                    {/* Bookmarks List */}
                     {bookmarks.length > 0 && (
                         <div className="flex gap-2 overflow-x-auto pb-1">
                             {bookmarks.map((time, idx) => (
@@ -319,6 +301,76 @@ const LectureRecorder = () => {
                         </div>
                     )}
                 </div>
+            </div>
+        </Card>
+    );
+};
+
+// --- SLEEP CYCLE CALCULATOR (NEW) ---
+const SleepCalculator = () => {
+    const [wakeTime, setWakeTime] = useState('');
+    const [bedTimes, setBedTimes] = useState<string[]>([]);
+
+    const calculateBedtime = () => {
+        if (!wakeTime) return;
+        
+        // Typical sleep cycle is 90 minutes. 
+        // A good night's sleep consists of 5-6 cycles.
+        // It takes ~15 mins to fall asleep.
+        
+        const [hours, minutes] = wakeTime.split(':').map(Number);
+        const wakeDate = new Date();
+        wakeDate.setHours(hours, minutes, 0);
+
+        const cycles = [6, 5, 4]; // 9h, 7.5h, 6h
+        const times = cycles.map(c => {
+            const sleepTime = new Date(wakeDate.getTime() - (c * 90 * 60 * 1000) - (15 * 60 * 1000)); // Subtract cycles + 15m fall asleep time
+            return sleepTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+
+        setBedTimes(times);
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-indigo-900 bg-slate-900 text-white">
+            <h3 className="text-lg font-bold flex items-center mb-4">
+                <Moon size={20} className="mr-2 text-indigo-400" /> Sleep Cycle Calc
+            </h3>
+            
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-xs font-bold text-indigo-300 mb-1">I want to wake up at:</label>
+                    <input 
+                        type="time" 
+                        className="w-full p-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-indigo-500"
+                        value={wakeTime}
+                        onChange={(e) => setWakeTime(e.target.value)}
+                    />
+                </div>
+                
+                <Button onClick={calculateBedtime} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                    Calculate Bedtime
+                </Button>
+
+                {bedTimes.length > 0 && (
+                    <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 animate-fade-in">
+                        <p className="text-xs text-slate-400 mb-2">You should fall asleep at:</p>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center p-2 bg-indigo-900/50 rounded-lg border border-indigo-500/30">
+                                <span className="text-lg font-bold text-indigo-300">{bedTimes[0]}</span>
+                                <span className="text-[10px] bg-indigo-500 text-white px-1.5 rounded">Best (9h)</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-slate-700/50 rounded-lg">
+                                <span className="text-base font-bold text-slate-300">{bedTimes[1]}</span>
+                                <span className="text-[10px] text-slate-400">Good (7.5h)</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-slate-700/50 rounded-lg">
+                                <span className="text-base font-bold text-slate-300">{bedTimes[2]}</span>
+                                <span className="text-[10px] text-slate-400">Okay (6h)</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </Card>
     );
