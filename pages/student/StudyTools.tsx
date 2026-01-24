@@ -4,14 +4,15 @@ import { Card, Button } from '../../components/UI';
 import { 
     Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, 
     AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Eraser, PenTool, 
-    Book, Sigma, RefreshCw, X, Atom, Wallet, Calendar, Search, Coins, ArrowRight
+    Book, Sigma, RefreshCw, X, Atom, Wallet, Calendar, Search, Coins, ArrowRight,
+    AlignLeft, Wind, MousePointerClick, Minus
 } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
-            <SEO title="Student Super Toolkit" description="12+ Tools: GPA, Periodic Table, Expense Tracker & More." />
+            <SEO title="Student Super Toolkit" description="15+ Tools: GPA, Periodic Table, Expense Tracker, Word Counter & More." />
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -19,7 +20,7 @@ const StudyTools: React.FC = () => {
                         <Calculator className="mr-3 text-indigo-600" size={32} />
                         Student Super Toolkit
                     </h1>
-                    <p className="text-slate-500 text-sm mt-1">GPA, Chemistry, Math, Finance - All tools in one place.</p>
+                    <p className="text-slate-500 text-sm mt-1">GPA, Chemistry, Math, Finance, Wellness - All in one place.</p>
                 </div>
             </div>
 
@@ -34,52 +35,67 @@ const StudyTools: React.FC = () => {
                     <PomodoroTimer />
                 </div>
 
-                {/* 3. PERIODIC TABLE (NEW) */}
+                {/* 3. PERIODIC TABLE */}
                 <div className="lg:col-span-2">
                     <PeriodicTableHelper />
                 </div>
 
-                {/* 4. EXPENSE TRACKER (NEW) */}
+                {/* 4. EXPENSE TRACKER */}
                 <div>
                     <StudentWallet />
                 </div>
 
-                {/* 5. DIGITAL SCRATCHPAD */}
+                {/* 5. WORD COUNTER (NEW) */}
+                <div className="lg:col-span-2">
+                    <WordCounter />
+                </div>
+
+                {/* 6. BREATHING EXERCISE (NEW) */}
+                <div>
+                    <BreathingExercise />
+                </div>
+
+                {/* 7. DIGITAL SCRATCHPAD */}
                 <div className="lg:col-span-2">
                     <ScratchPad />
                 </div>
 
-                {/* 6. VOCABULARY BUILDER */}
+                {/* 8. VOCABULARY BUILDER */}
                 <div>
                     <VocabularyWidget />
                 </div>
 
-                {/* 7. SCIENTIFIC CALCULATOR */}
+                {/* 9. SCIENTIFIC CALCULATOR */}
                 <div className="lg:col-span-2">
                     <ScientificCalculator />
                 </div>
 
-                {/* 8. UNIT CONVERTER */}
+                {/* 10. UNIT CONVERTER */}
                 <div>
                     <UnitConverter />
                 </div>
 
-                {/* 9. MATH FORMULAS */}
+                {/* 11. MATH FORMULAS */}
                 <div className="lg:col-span-2">
                     <FormulaReference />
                 </div>
 
-                {/* 10. BANGLA DATE (NEW) */}
+                {/* 12. BANGLA DATE */}
                 <div>
                     <BanglaDateConverter />
                 </div>
 
-                {/* 11. AGE CALCULATOR */}
+                {/* 13. TALLY COUNTER (NEW) */}
+                <div>
+                    <TallyCounter />
+                </div>
+
+                {/* 14. AGE CALCULATOR */}
                 <div>
                     <AgeCalculator />
                 </div>
 
-                {/* 12. TO-DO LIST */}
+                {/* 15. TO-DO LIST */}
                 <div className="lg:col-span-full">
                     <TodoWidget />
                 </div>
@@ -92,17 +108,17 @@ const StudyTools: React.FC = () => {
 const PomodoroTimer = () => {
     const [timeLeft, setTimeLeft] = useState(25 * 60);
     const [isActive, setIsActive] = useState(false);
-    const [mode, setMode] = useState<'FOCUS' | 'BREAK'>('FOCUS');
+    const [mode, setMode] = useState<'FOCUS' | 'SHORT' | 'LONG'>('FOCUS');
 
     useEffect(() => {
-        let interval: any;
+        let interval: any = null;
         if (isActive && timeLeft > 0) {
             interval = setInterval(() => {
                 setTimeLeft((prev) => prev - 1);
             }, 1000);
         } else if (timeLeft === 0) {
             setIsActive(false);
-            // Optional: Play sound here
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         }
         return () => clearInterval(interval);
     }, [isActive, timeLeft]);
@@ -111,67 +127,234 @@ const PomodoroTimer = () => {
     
     const resetTimer = () => {
         setIsActive(false);
-        setTimeLeft(mode === 'FOCUS' ? 25 * 60 : 5 * 60);
+        if (mode === 'FOCUS') setTimeLeft(25 * 60);
+        else if (mode === 'SHORT') setTimeLeft(5 * 60);
+        else setTimeLeft(15 * 60);
     };
 
-    const switchMode = (newMode: 'FOCUS' | 'BREAK') => {
+    const switchMode = (newMode: 'FOCUS' | 'SHORT' | 'LONG') => {
         setMode(newMode);
         setIsActive(false);
-        setTimeLeft(newMode === 'FOCUS' ? 25 * 60 : 5 * 60);
+        if (newMode === 'FOCUS') setTimeLeft(25 * 60);
+        else if (newMode === 'SHORT') setTimeLeft(5 * 60);
+        else setTimeLeft(15 * 60);
     };
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
-        return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
     return (
-        <Card className="flex flex-col h-full border-t-4 border-t-rose-500">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4">
-                <Clock size={20} className="mr-2 text-rose-600" /> Pomodoro Focus
-            </h3>
+        <Card className="flex flex-col h-full border-t-4 border-t-red-500 bg-red-50/20">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                    <Clock size={20} className="mr-2 text-red-600" /> Pomodoro Focus
+                </h3>
+            </div>
             
             <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
-                <button 
-                    onClick={() => switchMode('FOCUS')}
-                    className={`flex-1 py-1 text-xs font-bold rounded ${mode === 'FOCUS' ? 'bg-white shadow text-rose-700' : 'text-slate-500'}`}
-                >
-                    Focus
-                </button>
-                <button 
-                    onClick={() => switchMode('BREAK')}
-                    className={`flex-1 py-1 text-xs font-bold rounded ${mode === 'BREAK' ? 'bg-white shadow text-emerald-700' : 'text-slate-500'}`}
-                >
-                    Break
-                </button>
+                <button onClick={() => switchMode('FOCUS')} className={`flex-1 py-1.5 text-xs font-bold rounded ${mode === 'FOCUS' ? 'bg-white shadow text-red-600' : 'text-slate-500'}`}>Focus</button>
+                <button onClick={() => switchMode('SHORT')} className={`flex-1 py-1.5 text-xs font-bold rounded ${mode === 'SHORT' ? 'bg-white shadow text-teal-600' : 'text-slate-500'}`}>Short</button>
+                <button onClick={() => switchMode('LONG')} className={`flex-1 py-1.5 text-xs font-bold rounded ${mode === 'LONG' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>Long</button>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center">
-                <div className={`text-5xl font-black mb-6 font-mono ${mode === 'FOCUS' ? 'text-rose-600' : 'text-emerald-600'}`}>
+            <div className="flex-1 flex flex-col justify-center items-center mb-6">
+                <div className={`text-6xl font-black tabular-nums tracking-tight ${mode === 'FOCUS' ? 'text-red-600' : mode === 'SHORT' ? 'text-teal-600' : 'text-blue-600'}`}>
                     {formatTime(timeLeft)}
                 </div>
-                
-                <div className="flex gap-4">
-                    <button 
-                        onClick={toggleTimer}
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-110 active:scale-95 ${isActive ? 'bg-slate-700' : mode === 'FOCUS' ? 'bg-rose-600' : 'bg-emerald-600'}`}
-                    >
-                        {isActive ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
-                    </button>
-                    <button 
-                        onClick={resetTimer}
-                        className="w-12 h-12 rounded-full flex items-center justify-center bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
-                    >
-                        <RotateCcw size={20} />
-                    </button>
-                </div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">{isActive ? 'Running' : 'Paused'}</p>
+            </div>
+
+            <div className="flex gap-3">
+                <Button 
+                    onClick={toggleTimer} 
+                    className={`flex-1 ${isActive ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-800 hover:bg-slate-900'} text-white border-0`}
+                >
+                    {isActive ? <Pause size={20} /> : <Play size={20} />}
+                </Button>
+                <button 
+                    onClick={resetTimer}
+                    className="p-3 rounded-xl bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+                >
+                    <RotateCcw size={20} />
+                </button>
             </div>
         </Card>
     );
 };
 
-// --- 1. PERIODIC TABLE HELPER (NEW) ---
+// --- 1. ASSIGNMENT WORD COUNTER (NEW) ---
+const WordCounter = () => {
+    const [text, setText] = useState('');
+    
+    const stats = {
+        words: text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length,
+        chars: text.length,
+        charsNoSpace: text.replace(/\s/g, '').length,
+        sentences: text.split(/[.!?]+/).filter(Boolean).length,
+        paragraphs: text.split(/\n+/).filter(Boolean).length
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-indigo-500">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4">
+                <AlignLeft size={20} className="mr-2 text-indigo-600" /> Assignment Word Counter
+            </h3>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                <div className="bg-indigo-50 p-2 rounded text-center border border-indigo-100">
+                    <span className="block text-xl font-bold text-indigo-700">{stats.words}</span>
+                    <span className="text-[10px] text-indigo-500 uppercase font-bold">Words</span>
+                </div>
+                <div className="bg-slate-50 p-2 rounded text-center border border-slate-200">
+                    <span className="block text-xl font-bold text-slate-700">{stats.chars}</span>
+                    <span className="text-[10px] text-slate-500 uppercase font-bold">Chars</span>
+                </div>
+                <div className="bg-slate-50 p-2 rounded text-center border border-slate-200">
+                    <span className="block text-xl font-bold text-slate-700">{stats.sentences}</span>
+                    <span className="text-[10px] text-slate-500 uppercase font-bold">Sentences</span>
+                </div>
+                <div className="bg-slate-50 p-2 rounded text-center border border-slate-200">
+                    <span className="block text-xl font-bold text-slate-700">{stats.paragraphs}</span>
+                    <span className="text-[10px] text-slate-500 uppercase font-bold">Paras</span>
+                </div>
+            </div>
+
+            <textarea 
+                className="w-full flex-1 p-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
+                placeholder="Paste your assignment or essay here to count..."
+                rows={5}
+                value={text}
+                onChange={e => setText(e.target.value)}
+            ></textarea>
+            
+            <div className="flex justify-between items-center mt-2">
+                <span className="text-[10px] text-slate-400">Chars (no space): {stats.charsNoSpace}</span>
+                <button 
+                    onClick={() => setText('')} 
+                    className="text-xs text-red-500 hover:text-red-700 font-bold"
+                >
+                    Clear Text
+                </button>
+            </div>
+        </Card>
+    );
+};
+
+// --- 2. EXAM STRESS RELIEF (BREATHING) (NEW) ---
+const BreathingExercise = () => {
+    const [isRunning, setIsRunning] = useState(false);
+    const [phase, setPhase] = useState<'Inhale' | 'Hold' | 'Exhale'>('Inhale');
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        let interval: any;
+        if (isRunning) {
+            // Simple breathing cycle: 4s Inhale, 4s Hold, 4s Exhale
+            const cycle = async () => {
+                setPhase('Inhale');
+                setScale(1.5); // Expand
+                await new Promise(r => setTimeout(r, 4000));
+                
+                if (!isRunning) return;
+                setPhase('Hold');
+                // Scale stays
+                await new Promise(r => setTimeout(r, 2000)); // Short hold
+                
+                if (!isRunning) return;
+                setPhase('Exhale');
+                setScale(1); // Contract
+                await new Promise(r => setTimeout(r, 4000));
+            };
+
+            cycle(); // Initial
+            interval = setInterval(cycle, 10000); // Repeat every 10s
+        } else {
+            setPhase('Inhale');
+            setScale(1);
+        }
+        return () => clearInterval(interval);
+    }, [isRunning]);
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-sky-400 bg-sky-50/30 text-center relative overflow-hidden">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4 justify-center relative z-10">
+                <Wind size={20} className="mr-2 text-sky-600" /> Stress Relief
+            </h3>
+            
+            <div className="flex-1 flex flex-col items-center justify-center relative z-10 min-h-[150px]">
+                <div 
+                    className="w-24 h-24 bg-sky-200 rounded-full flex items-center justify-center shadow-lg transition-all duration-[4000ms] ease-in-out border-4 border-sky-100"
+                    style={{ transform: `scale(${scale})` }}
+                >
+                    <div className="text-xs font-bold text-sky-700 uppercase tracking-widest">
+                        {isRunning ? phase : 'Start'}
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-4 relative z-10">
+                <Button 
+                    onClick={() => setIsRunning(!isRunning)} 
+                    className={`w-full ${isRunning ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-sky-500 hover:bg-sky-600 text-white'}`}
+                >
+                    {isRunning ? 'Stop Exercise' : 'Start Breathing'}
+                </Button>
+            </div>
+        </Card>
+    );
+};
+
+// --- 3. TALLY COUNTER (NEW) ---
+const TallyCounter = () => {
+    const [count, setCount] = useState(0);
+
+    const handleCount = (val: number) => {
+        setCount(prev => Math.max(0, prev + val));
+        // Optional: Simple vibration for mobile feel
+        if (navigator.vibrate) navigator.vibrate(50);
+    };
+
+    return (
+        <Card className="flex flex-col h-full border-t-4 border-t-amber-500">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4">
+                <MousePointerClick size={20} className="mr-2 text-amber-600" /> Tally Counter
+            </h3>
+            
+            <div className="flex-1 flex flex-col justify-center items-center bg-amber-50 rounded-2xl border-4 border-amber-100 mb-4 py-6">
+                <span className="text-6xl font-mono font-black text-amber-600 tracking-wider">
+                    {count.toString().padStart(3, '0')}
+                </span>
+                <span className="text-[10px] text-amber-400 font-bold uppercase mt-2">Count</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+                <button 
+                    onClick={() => setCount(0)}
+                    className="p-3 rounded-xl bg-slate-100 text-slate-500 font-bold hover:bg-slate-200 flex justify-center items-center"
+                >
+                    <RotateCcw size={18} />
+                </button>
+                <button 
+                    onClick={() => handleCount(-1)}
+                    className="p-3 rounded-xl bg-red-100 text-red-600 font-bold hover:bg-red-200 flex justify-center items-center"
+                >
+                    <Minus size={20} />
+                </button>
+                <button 
+                    onClick={() => handleCount(1)}
+                    className="p-3 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-lg shadow-amber-200 flex justify-center items-center active:scale-95 transition-transform"
+                >
+                    <Plus size={24} />
+                </button>
+            </div>
+        </Card>
+    );
+};
+
+// --- PERIODIC TABLE HELPER ---
 const PeriodicTableHelper = () => {
     const [search, setSearch] = useState('');
     
@@ -243,7 +426,7 @@ const PeriodicTableHelper = () => {
     );
 };
 
-// --- 2. STUDENT WALLET (NEW) ---
+// --- STUDENT WALLET ---
 const StudentWallet = () => {
     const [transactions, setTransactions] = useState<{id: number, text: string, amount: number, type: 'IN' | 'OUT'}[]>([]);
     const [text, setText] = useState('');
@@ -296,7 +479,7 @@ const StudentWallet = () => {
     );
 };
 
-// --- 3. BANGLA DATE CONVERTER (NEW) ---
+// --- BANGLA DATE CONVERTER ---
 const BanglaDateConverter = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     
@@ -326,7 +509,7 @@ const BanglaDateConverter = () => {
     );
 };
 
-// --- GPA CALCULATOR (EXISTING) ---
+// --- GPA CALCULATOR ---
 const GPACalculator = () => {
     const [mode, setMode] = useState<'SSC_HSC' | 'HONOURS'>('SSC_HSC');
     const [subjects, setSubjects] = useState<{ id: string, grade: string, credit: number, isOptional: boolean }[]>([
