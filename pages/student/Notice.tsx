@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Badge, Card, Modal, Button } from '../../components/UI';
 import { Notice as NoticeType, CalendarEvent } from '../../types';
-import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon, Target, ChevronLeft, FileText, Download, ExternalLink } from 'lucide-react';
+import { Bell, Calendar, AlertCircle, ChevronRight, ArrowLeft, ImageIcon, Target, ChevronLeft, FileText, Download, ExternalLink, CalendarPlus } from 'lucide-react';
 
 interface Props {
     notices?: NoticeType[];
@@ -40,6 +40,22 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead, calen
   const handleDateClick = (dateStr: string) => {
       setSelectedDate(dateStr);
       setIsDateModalOpen(true);
+  };
+
+  // --- GOOGLE CALENDAR SYNC ---
+  const addToGoogleCalendar = (event: CalendarEvent) => {
+      const title = encodeURIComponent(event.title);
+      const details = encodeURIComponent(event.description || "Event from EduMaster Pro");
+      
+      // Format Date: YYYYMMDD (Google Calendar requires this format)
+      // Since our events are YYYY-MM-DD, we just remove dashes.
+      const dateStr = event.date.replace(/-/g, '');
+      
+      // For all-day event, start and end dates are the same (or end date is next day)
+      // Construct URL
+      const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dateStr}/${dateStr}`;
+      
+      window.open(url, '_blank');
   };
 
   const getPriorityColor = (priority: string) => {
@@ -259,7 +275,7 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead, calen
                               <div 
                                   key={day} 
                                   onClick={() => handleDateClick(dateStr)}
-                                  className={`min-h-[100px] border rounded-xl p-2 cursor-pointer transition-all relative flex flex-col hover:border-indigo-300 ${isToday ? 'bg-indigo-50/50 border-indigo-200 ring-1 ring-indigo-200' : 'border-slate-100 hover:bg-slate-50'}`}
+                                  className={`min-h-[100px] border rounded-xl p-2 cursor-pointer transition-all hover:border-indigo-300 ${isToday ? 'bg-indigo-50/50 border-indigo-200 ring-1 ring-indigo-200' : 'border-slate-100 hover:bg-slate-50'}`}
                               >
                                   <div className="flex justify-between items-center mb-1">
                                       <span className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>{day}</span>
@@ -300,16 +316,25 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead, calen
                   selectedDate && getEventsForDate(selectedDate).map(ev => (
                       <Card key={ev.id} className="border-l-4 border-l-indigo-500 shadow-sm hover:shadow-md transition-shadow">
                           <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-bold text-slate-800 text-base">{ev.title}</h4>
-                              <div className="flex gap-2">
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                      ev.type === 'EXAM' ? 'bg-purple-100 text-purple-700' : 
-                                      ev.type === 'HOLIDAY' ? 'bg-red-100 text-red-700' : 
-                                      ev.type === 'CLASS' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                                  }`}>
-                                      {ev.type}
-                                  </span>
+                              <div>
+                                <h4 className="font-bold text-slate-800 text-base">{ev.title}</h4>
+                                <div className="flex gap-2 mt-1">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                        ev.type === 'EXAM' ? 'bg-purple-100 text-purple-700' : 
+                                        ev.type === 'HOLIDAY' ? 'bg-red-100 text-red-700' : 
+                                        ev.type === 'CLASS' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                                    }`}>
+                                        {ev.type}
+                                    </span>
+                                </div>
                               </div>
+                              <button 
+                                onClick={(e) => addToGoogleCalendar(ev)}
+                                className="text-xs font-bold text-indigo-600 border border-indigo-200 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center hover:bg-indigo-100 transition-colors"
+                                title="Add to Google Calendar"
+                              >
+                                  <CalendarPlus size={14} className="mr-1.5" /> Sync
+                              </button>
                           </div>
                           
                           <p className="text-sm text-slate-600 mb-3 leading-relaxed">{ev.description || 'No additional details.'}</p>
