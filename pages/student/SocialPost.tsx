@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, Button, Badge, Modal } from '../../components/UI';
 import { SocialPost as SocialPostType } from '../../types';
 import { authService } from '../../services/authService';
@@ -17,12 +17,15 @@ import {
   Flag,
   AlertOctagon,
   Ban,
-  Lock,
-  CheckCircle,
-  AlertTriangle,
+  MapPin,
+  Briefcase,
   Share2,
   Clock,
-  Hash
+  Hash,
+  Camera,
+  Edit3,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 // Extended type to handle local comments and reach for this component
@@ -53,13 +56,14 @@ const REPORT_REASONS = [
 // --- TIME FORMATTER FUNCTION ---
 const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
-    // Handle invalid dates (legacy mock data might be "2 hours ago")
+    // Handle invalid dates or legacy strings like "2 hours ago"
     if (isNaN(date.getTime())) return dateString;
 
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (seconds < 60) return 'Just now';
+    if (seconds < 5) return 'Just now';
+    if (seconds < 60) return `${seconds}s ago`;
     
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -70,7 +74,7 @@ const formatTimeAgo = (dateString: string) => {
     const days = Math.floor(hours / 24);
     if (days < 7) return `${days}d ago`;
     
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 interface Props {
@@ -91,13 +95,38 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [postToReport, setPostToReport] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
+  
+  // State to force re-render for time updates
+  const [ticker, setTicker] = useState(0);
 
   // Info Modal State
   const [notificationModal, setNotificationModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'INFO' | 'ERROR' | 'SUCCESS' }>({ isOpen: false, title: '', message: '', type: 'INFO' });
 
+  // Update time every minute
+  useEffect(() => {
+      const interval = setInterval(() => {
+          setTicker(prev => prev + 1);
+      }, 60000); // 1 minute
+      return () => clearInterval(interval);
+  }, []);
+
   const showNotification = (title: string, message: string, type: 'INFO' | 'ERROR' | 'SUCCESS' = 'INFO') => {
       setNotificationModal({ isOpen: true, title, message, type });
   };
+
+  // --- DASHBOARD STATS CALCULATION ---
+  const myStats = useMemo(() => {
+      if (!currentUser) return { posts: 0, likesReceived: 0, friends: 0 };
+      
+      const myPosts = posts.filter(p => p.authorName === currentUser.name);
+      const totalLikes = myPosts.reduce((acc, curr) => acc + curr.likes, 0);
+      
+      return {
+          posts: myPosts.length,
+          likesReceived: totalLikes,
+          friends: currentUser.friends?.length || 12 // Mock if empty
+      };
+  }, [posts, currentUser]);
 
   const calculateReach = (post: ExtendedPost) => {
     const baseReach = post.reach || 150;
@@ -148,11 +177,7 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
   };
 
   const toggleCommentBox = (id: string) => {
-    if (activeCommentBox === id) {
-      setActiveCommentBox(null);
-    } else {
-      setActiveCommentBox(id);
-    }
+    setActiveCommentBox(activeCommentBox === id ? null : id);
   };
 
   const handleAddComment = (postId: string) => {
@@ -213,13 +238,72 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-20">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-20">
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* MAIN FEED */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          {/* LEFT: PERSONAL DASHBOARD */}
+          <div className="hidden lg:block lg:col-span-1 space-y-6">
+              <Card className="p-0 overflow-hidden border-0 shadow-lg relative group">
+                  {/* Cover Photo */}
+                  <div className="h-24 bg-gradient-to-r from-indigo-500 to-purple-600 relative">
+                      <div className="absolute inset-0 bg-black/10"></div>
+                  </div>
+                  
+                  {/* Profile Info */}
+                  <div className="px-4 pb-4 relative">
+                      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
+                          <div className="relative">
+                              <img 
+                                src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
+                                alt="Profile" 
+                                className="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover"
+                              />
+                              <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
+                          </div>
+                      </div>
+                      
+                      <div className="mt-12 text-center">
+                          <h3 className="font-bold text-slate-800 text-lg">{currentUser?.name}</h3>
+                          <p className="text-xs text-slate-500">{currentUser?.institute || 'Student'}</p>
+                          <p className="text-xs text-indigo-600 font-medium mt-1">{currentUser?.class}</p>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mt-6 border-t border-slate-100 pt-4 text-center">
+                          <div>
+                              <span className="block font-bold text-slate-800">{myStats.posts}</span>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold">Posts</span>
+                          </div>
+                          <div className="border-x border-slate-100">
+                              <span className="block font-bold text-slate-800">{myStats.friends}</span>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold">Friends</span>
+                          </div>
+                          <div>
+                              <span className="block font-bold text-slate-800">{myStats.likesReceived}</span>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold">Likes</span>
+                          </div>
+                      </div>
+                  </div>
+              </Card>
+
+              {/* Quick Menu */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-3 hover:bg-slate-50 cursor-pointer flex items-center text-sm font-medium text-slate-700 transition-colors">
+                      <Clock size={18} className="mr-3 text-blue-500" /> Memories
+                  </div>
+                  <div className="p-3 hover:bg-slate-50 cursor-pointer flex items-center text-sm font-medium text-slate-700 transition-colors">
+                      <Hash size={18} className="mr-3 text-purple-500" /> Saved Posts
+                  </div>
+                  <div className="p-3 hover:bg-slate-50 cursor-pointer flex items-center text-sm font-medium text-slate-700 transition-colors">
+                      <Flag size={18} className="mr-3 text-orange-500" /> Pages
+                  </div>
+              </div>
+          </div>
+
+          {/* MIDDLE: FEED */}
           <div className="lg:col-span-2 space-y-6">
               
-              {/* COMPOSER */}
+              {/* CREATE POST */}
               {currentUser?.status === 'BLOCKED' ? (
                   <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-xl shadow-sm">
                       <div className="flex items-start">
@@ -233,64 +317,62 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                       </div>
                   </div>
               ) : (
-                  <Card className="p-5 shadow-soft border-0 ring-1 ring-slate-100 relative z-20">
-                    <div className="flex space-x-4">
-                      <img 
-                        src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
-                        alt="Profile" 
-                        className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover"
-                      />
-                      <div className="flex-1">
-                         <div className="bg-slate-50 rounded-2xl p-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
+                  <Card className="p-4 shadow-sm border-0 ring-1 ring-slate-100">
+                    <div className="flex gap-3 mb-3">
+                        <img 
+                            src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
+                            className="w-10 h-10 rounded-full border border-slate-100 object-cover shrink-0" 
+                        />
+                        <div className="flex-1 bg-slate-50 rounded-2xl px-4 py-2.5 cursor-text hover:bg-slate-100 transition-colors border border-transparent focus-within:bg-white focus-within:border-indigo-200 focus-within:ring-2 focus-within:ring-indigo-50">
                              <textarea
-                                className="w-full bg-transparent border-none p-2 resize-none text-slate-700 placeholder:text-slate-400 focus:ring-0 text-base"
+                                className="w-full bg-transparent border-none p-0 resize-none text-slate-700 placeholder:text-slate-500 focus:ring-0 text-sm leading-relaxed"
                                 placeholder={`What's on your mind, ${currentUser?.name.split(' ')[0]}?`}
                                 rows={2}
                                 value={newPostText}
                                 onChange={(e) => setNewPostText(e.target.value)}
                              />
-                             {newPostImage && (
-                               <div className="relative mt-2 rounded-lg overflow-hidden border border-slate-200 inline-block">
-                                  <img src={newPostImage} alt="Preview" className="max-h-60 w-auto object-cover" />
-                                  <button onClick={() => setNewPostImage('')} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full hover:bg-red-500 transition-colors">
-                                     <X size={14} />
-                                  </button>
-                               </div>
-                             )}
-                         </div>
-                         
-                         <div className="flex justify-between items-center mt-3 px-1">
-                            <div className="flex space-x-1">
-                               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                               <button onClick={() => fileInputRef.current?.click()} className="flex items-center space-x-2 px-3 py-1.5 rounded-full hover:bg-emerald-50 text-emerald-600 transition-colors">
-                                   <ImageIcon size={18} />
-                                   <span className="text-xs font-bold">Photo</span>
+                        </div>
+                    </div>
+                    
+                    {newPostImage && (
+                       <div className="relative mb-3 mx-2 rounded-xl overflow-hidden border border-slate-200">
+                          <img src={newPostImage} alt="Preview" className="w-full max-h-80 object-cover" />
+                          <button onClick={() => setNewPostImage('')} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors backdrop-blur-sm">
+                             <X size={16} />
+                          </button>
+                       </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 px-1">
+                        <div className="flex gap-1">
+                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                           <button onClick={() => fileInputRef.current?.click()} className="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors">
+                               <ImageIcon size={18} />
+                               <span className="text-xs font-bold hidden sm:inline">Photo</span>
+                           </button>
+                           
+                           <div className="relative">
+                               <button onClick={() => setShowFeelingPicker(!showFeelingPicker)} className="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors">
+                                   {selectedFeeling ? <span className="text-lg">{selectedFeeling.icon}</span> : <Smile size={18} />}
+                                   <span className="text-xs font-bold hidden sm:inline">{selectedFeeling ? selectedFeeling.label : 'Feeling'}</span>
                                </button>
                                
-                               <div className="relative">
-                                   <button onClick={() => setShowFeelingPicker(!showFeelingPicker)} className="flex items-center space-x-2 px-3 py-1.5 rounded-full hover:bg-amber-50 text-amber-600 transition-colors">
-                                       {selectedFeeling ? <span className="text-lg">{selectedFeeling.icon}</span> : <Smile size={18} />}
-                                       <span className="text-xs font-bold">{selectedFeeling ? selectedFeeling.label : 'Feeling'}</span>
-                                   </button>
-                                   
-                                   {showFeelingPicker && (
-                                      <div className="absolute top-10 left-0 bg-white shadow-xl border border-slate-100 rounded-2xl p-2 z-50 w-64 grid grid-cols-2 gap-1 animate-scale-up">
-                                          {FEELINGS.map(f => (
-                                              <button key={f.label} onClick={() => { setSelectedFeeling(f); setShowFeelingPicker(false); }} className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded-xl transition-colors text-left">
-                                                  <span className="text-lg">{f.icon}</span>
-                                                  <span className="text-xs font-medium text-slate-700">{f.label}</span>
-                                              </button>
-                                          ))}
-                                      </div>
-                                   )}
-                               </div>
-                            </div>
-                            
-                            <Button size="sm" onClick={handleCreatePost} disabled={!newPostText.trim() && !newPostImage} className="rounded-full px-6 bg-indigo-600 hover:bg-indigo-700">
-                               Post
-                            </Button>
-                         </div>
-                      </div>
+                               {showFeelingPicker && (
+                                  <div className="absolute top-10 left-0 bg-white shadow-xl border border-slate-100 rounded-xl p-2 z-50 w-64 grid grid-cols-2 gap-1 animate-scale-up">
+                                      {FEELINGS.map(f => (
+                                          <button key={f.label} onClick={() => { setSelectedFeeling(f); setShowFeelingPicker(false); }} className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded-lg transition-colors text-left">
+                                              <span className="text-lg">{f.icon}</span>
+                                              <span className="text-xs font-medium text-slate-700">{f.label}</span>
+                                          </button>
+                                      ))}
+                                  </div>
+                               )}
+                           </div>
+                        </div>
+                        
+                        <Button size="sm" onClick={handleCreatePost} disabled={!newPostText.trim() && !newPostImage} className="rounded-lg px-6 bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200">
+                           Post
+                        </Button>
                     </div>
                   </Card>
               )}
@@ -306,22 +388,21 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                       {/* HEADER */}
                       <div className="p-4 flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                              <div className="relative">
+                              <div className="relative cursor-pointer">
                                   <img src={post.authorAvatar} alt={post.authorName} className="w-10 h-10 rounded-full border border-slate-100 object-cover" />
-                                  {/* Online Indicator Mock */}
                                   <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
                               </div>
                               <div>
-                                  <div className="flex items-center">
-                                      <h4 className="font-bold text-slate-800 text-sm mr-2">{post.authorName}</h4>
+                                  <div className="flex items-center flex-wrap">
+                                      <h4 className="font-bold text-slate-800 text-sm mr-2 cursor-pointer hover:underline">{post.authorName}</h4>
                                       {post.feeling && (
-                                          <span className="text-xs text-slate-500 flex items-center bg-slate-100 px-2 py-0.5 rounded-full">
-                                              is {post.feeling.icon} {post.feeling.label}
+                                          <span className="text-xs text-slate-500 flex items-center">
+                                              is <span className="mx-1 text-base">{post.feeling.icon}</span> feeling {post.feeling.label.toLowerCase()}
                                           </span>
                                       )}
                                   </div>
                                   <div className="flex items-center text-[11px] text-slate-400 font-medium mt-0.5">
-                                     <span>{formatTimeAgo(post.timestamp)}</span>
+                                     <span key={ticker}>{formatTimeAgo(post.timestamp)}</span>
                                      <span className="mx-1">•</span>
                                      <Globe size={10} />
                                   </div>
@@ -333,8 +414,8 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                                   <MoreHorizontal size={20} />
                               </button>
                               {activeMenuId === post.id && (
-                                  <div className="absolute right-0 top-10 w-40 bg-white shadow-xl border border-slate-100 rounded-xl z-20 overflow-hidden animate-scale-up">
-                                      <button onClick={() => openReportModal(post.id)} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center font-medium">
+                                  <div className="absolute right-0 top-8 w-40 bg-white shadow-xl border border-slate-100 rounded-xl z-20 overflow-hidden animate-scale-up">
+                                      <button onClick={() => openReportModal(post.id)} className="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center">
                                           <Flag size={14} className="mr-2" /> Report Post
                                       </button>
                                   </div>
@@ -348,40 +429,40 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                       </div>
 
                       {post.imageUrl && (
-                          <div className="w-full bg-slate-100">
+                          <div className="w-full bg-slate-100 cursor-pointer">
                               <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover max-h-[500px]" />
                           </div>
                       )}
 
                       {/* STATS */}
-                      <div className="px-4 py-3 flex items-center justify-between border-b border-slate-50 text-xs text-slate-500">
+                      <div className="px-4 py-2.5 flex items-center justify-between text-xs text-slate-500 border-b border-slate-50">
                           <div className="flex items-center space-x-4">
-                             <div className="flex items-center space-x-1">
-                                <div className="bg-indigo-500 p-1 rounded-full"><Heart size={8} className="text-white fill-white" /></div>
-                                <span className="font-bold text-slate-700">{post.likes}</span>
+                             <div className="flex items-center space-x-1 cursor-pointer hover:text-indigo-600 transition-colors">
+                                <div className="bg-indigo-100 p-1 rounded-full"><Heart size={10} className="text-indigo-600 fill-indigo-600" /></div>
+                                <span className="font-bold">{post.likes}</span>
                              </div>
                              <div className="flex items-center space-x-1">
                                 <TrendingUp size={12} className="text-slate-400" />
                                 <span>{currentReach.toLocaleString()} views</span>
                              </div>
                           </div>
-                          <div>{commentsList.length > 0 ? `${commentsList.length} comments` : 'No comments'}</div>
+                          <div className="cursor-pointer hover:underline">{commentsList.length > 0 ? `${commentsList.length} comments` : 'No comments'}</div>
                       </div>
 
                       {/* ACTIONS */}
                       <div className="flex items-center justify-between px-2 py-1">
                           <button 
                               onClick={() => currentUser?.status !== 'BLOCKED' ? handleLike(post.id) : showNotification("Restricted", "You are banned.", "ERROR")}
-                              className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-95 ${post.isLiked ? 'text-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-50'}`}
+                              className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${post.isLiked ? 'text-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-50'}`}
                           >
-                              <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} className={post.isLiked ? "animate-pulse" : ""} />
+                              <Heart size={18} fill={post.isLiked ? "currentColor" : "none"} className={post.isLiked ? "animate-bounce-short" : ""} />
                               <span>Like</span>
                           </button>
-                          <button onClick={() => toggleCommentBox(post.id)} className="flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+                          <button onClick={() => toggleCommentBox(post.id)} className="flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors">
                               <MessageCircle size={18} />
                               <span>Comment</span>
                           </button>
-                          <button className="flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+                          <button className="flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors">
                               <Share2 size={18} />
                               <span>Share</span>
                           </button>
@@ -390,17 +471,17 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                       {/* COMMENTS SECTION */}
                       {activeCommentBox === post.id && (
                         <div className="bg-slate-50 p-4 animate-fade-in border-t border-slate-100">
-                            <div className="space-y-4 mb-4">
+                            <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                {commentsList.map(comment => (
                                  <div key={comment.id} className="flex gap-3">
-                                    <img src={comment.avatar} alt="av" className="w-8 h-8 rounded-full border border-slate-200 mt-1" />
+                                    <img src={comment.avatar} alt="av" className="w-8 h-8 rounded-full border border-slate-200 mt-1 object-cover" />
                                     <div>
                                         <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-200/60 inline-block">
                                            <div className="flex items-center gap-2 mb-0.5">
-                                               <p className="text-xs font-bold text-slate-800">{comment.author}</p>
+                                               <p className="text-xs font-bold text-slate-800 hover:underline cursor-pointer">{comment.author}</p>
                                                <span className="text-[10px] text-slate-400">{formatTimeAgo(comment.time)}</span>
                                            </div>
-                                           <p className="text-sm text-slate-700">{comment.text}</p>
+                                           <p className="text-sm text-slate-700 leading-snug">{comment.text}</p>
                                         </div>
                                     </div>
                                  </div>
@@ -412,18 +493,18 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
                                     Commenting disabled.
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-2">
-                                    <img src={currentUser?.avatar} className="w-8 h-8 rounded-full border border-slate-200" />
+                                <div className="flex items-center gap-2 sticky bottom-0">
+                                    <img src={currentUser?.avatar} className="w-8 h-8 rounded-full border border-slate-200 object-cover" />
                                     <div className="flex-1 relative">
                                         <input 
                                             type="text" 
-                                            className="w-full pl-4 pr-10 py-2.5 rounded-full border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm bg-white"
+                                            className="w-full pl-4 pr-10 py-2.5 rounded-full border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm bg-white shadow-sm"
                                             placeholder="Write a comment..."
                                             value={commentText}
                                             onChange={(e) => setCommentText(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
                                         />
-                                        <button onClick={() => handleAddComment(post.id)} className="absolute right-1.5 top-1.5 p-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors" disabled={!commentText.trim()}>
+                                        <button onClick={() => handleAddComment(post.id)} className="absolute right-1.5 top-1.5 p-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors shadow-sm" disabled={!commentText.trim()}>
                                             <Send size={14} />
                                         </button>
                                     </div>
@@ -436,51 +517,45 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
               })}
           </div>
 
-          {/* RIGHT SIDEBAR (Trending & Community) */}
-          <div className="hidden lg:block space-y-6">
+          {/* RIGHT: TRENDING & SUGGESTIONS */}
+          <div className="hidden lg:block lg:col-span-1 space-y-6">
               {/* TRENDING TOPICS */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sticky top-6">
                   <h3 className="font-bold text-slate-800 mb-4 flex items-center">
-                      <Hash size={18} className="mr-2 text-indigo-600" /> Trending Topics
+                      <TrendingUp size={18} className="mr-2 text-indigo-600" /> Trending Now
                   </h3>
                   <div className="space-y-4">
                       {['PhysicsExam', 'HSC2024', 'OrganicChemistry', 'MathTricks', 'EduMaster'].map((tag, i) => (
                           <div key={i} className="flex justify-between items-center group cursor-pointer">
                               <div>
                                   <p className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600 transition-colors">#{tag}</p>
-                                  <p className="text-xs text-slate-400">{10 + i * 5}k posts</p>
+                                  <p className="text-[10px] text-slate-400">{10 + i * 5}k posts</p>
                               </div>
-                              <TrendingUp size={14} className="text-slate-300 group-hover:text-indigo-500" />
+                              <div className="bg-slate-50 p-1.5 rounded-full group-hover:bg-indigo-50 transition-colors">
+                                  <Hash size={12} className="text-slate-400 group-hover:text-indigo-500" />
+                              </div>
                           </div>
                       ))}
                   </div>
-              </div>
-
-              {/* ACTIVE STUDENTS (Mock) */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-                  <h3 className="font-bold text-slate-800 mb-4 flex items-center">
-                      <UserIcon size={18} className="mr-2 text-emerald-600" /> Active Learners
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                      {[1,2,3,4,5,6].map(i => (
-                          <div key={i} className="relative group cursor-pointer">
-                              <img src={`https://i.pravatar.cc/150?img=${10+i}`} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt="User" />
-                              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
-                          </div>
-                      ))}
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border-2 border-white shadow-sm cursor-pointer hover:bg-slate-200">
-                          +42
+                  
+                  <div className="border-t border-slate-100 my-5 pt-5">
+                      <h3 className="font-bold text-slate-800 mb-4 flex items-center text-sm">
+                          <UserIcon size={16} className="mr-2 text-emerald-600" /> Suggested Friends
+                      </h3>
+                      <div className="space-y-3">
+                          {[1,2,3].map(i => (
+                              <div key={i} className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                      <img src={`https://i.pravatar.cc/150?img=${10+i}`} className="w-8 h-8 rounded-full" alt="User" />
+                                      <div>
+                                          <p className="text-xs font-bold text-slate-700">User {i}</p>
+                                          <p className="text-[9px] text-slate-400">Class 12</p>
+                                      </div>
+                                  </div>
+                                  <button className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">Add</button>
+                              </div>
+                          ))}
                       </div>
-                  </div>
-              </div>
-
-              {/* FOOTER */}
-              <div className="text-center text-xs text-slate-400">
-                  <p>© 2024 EduMaster Community</p>
-                  <div className="flex justify-center gap-3 mt-2">
-                      <span className="hover:underline cursor-pointer">Guidelines</span>
-                      <span className="hover:underline cursor-pointer">Privacy</span>
-                      <span className="hover:underline cursor-pointer">Report</span>
                   </div>
               </div>
           </div>
