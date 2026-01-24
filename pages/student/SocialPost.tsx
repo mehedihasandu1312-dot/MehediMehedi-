@@ -25,7 +25,9 @@ import {
   Camera,
   Edit3,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Bookmark,
+  LayoutGrid
 } from 'lucide-react';
 
 // Extended type to handle local comments and reach for this component
@@ -56,7 +58,6 @@ const REPORT_REASONS = [
 // --- TIME FORMATTER FUNCTION ---
 const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
-    // Handle invalid dates or legacy strings like "2 hours ago"
     if (isNaN(date.getTime())) return dateString;
 
     const now = new Date();
@@ -142,7 +143,7 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
       id: `new_${Date.now()}`,
       authorName: currentUser?.name || 'Student',
       authorAvatar: currentUser?.avatar || 'https://ui-avatars.com/api/?name=Student',
-      timestamp: new Date().toISOString(), // SAVE AS ISO DATE
+      timestamp: new Date().toISOString(),
       content: newPostText,
       imageUrl: newPostImage || undefined,
       likes: 0,
@@ -238,69 +239,76 @@ const SocialPost: React.FC<Props> = ({ posts = [], setPosts }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-20">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-24">
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* --- TOP DASHBOARD (VISIBLE ON MOBILE) --- */}
+      <Card className="p-0 overflow-hidden border-0 shadow-md relative group mb-2">
+          {/* Cover Photo */}
+          <div className="h-28 md:h-32 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 relative">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
+          </div>
           
-          {/* LEFT: PERSONAL DASHBOARD */}
-          <div className="hidden lg:block lg:col-span-1 space-y-6">
-              <Card className="p-0 overflow-hidden border-0 shadow-lg relative group">
-                  {/* Cover Photo */}
-                  <div className="h-24 bg-gradient-to-r from-indigo-500 to-purple-600 relative">
-                      <div className="absolute inset-0 bg-black/10"></div>
+          {/* Profile Section */}
+          <div className="px-6 pb-4">
+              <div className="flex flex-col md:flex-row items-center md:items-end -mt-12 mb-4 gap-4">
+                  {/* Avatar */}
+                  <div className="relative z-10">
+                      <img 
+                        src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
+                        alt="Profile" 
+                        className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover bg-white"
+                      />
+                      <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
                   </div>
                   
-                  {/* Profile Info */}
-                  <div className="px-4 pb-4 relative">
-                      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
-                          <div className="relative">
-                              <img 
-                                src={currentUser?.avatar || "https://ui-avatars.com/api/?name=Me"} 
-                                alt="Profile" 
-                                className="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover"
-                              />
-                              <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
-                          </div>
+                  {/* Name & Info */}
+                  <div className="flex-1 text-center md:text-left">
+                      <h3 className="font-extrabold text-slate-800 text-2xl">{currentUser?.name}</h3>
+                      <div className="flex items-center justify-center md:justify-start gap-2 text-sm text-slate-500">
+                          <span className="flex items-center"><Briefcase size={14} className="mr-1"/> {currentUser?.institute || 'Student'}</span>
+                          <span>•</span>
+                          <span className="text-indigo-600 font-bold">{currentUser?.class}</span>
                       </div>
-                      
-                      <div className="mt-12 text-center">
-                          <h3 className="font-bold text-slate-800 text-lg">{currentUser?.name}</h3>
-                          <p className="text-xs text-slate-500">{currentUser?.institute || 'Student'}</p>
-                          <p className="text-xs text-indigo-600 font-medium mt-1">{currentUser?.class}</p>
-                      </div>
+                  </div>
 
-                      <div className="grid grid-cols-3 gap-2 mt-6 border-t border-slate-100 pt-4 text-center">
-                          <div>
-                              <span className="block font-bold text-slate-800">{myStats.posts}</span>
-                              <span className="text-[10px] text-slate-400 uppercase font-bold">Posts</span>
-                          </div>
-                          <div className="border-x border-slate-100">
-                              <span className="block font-bold text-slate-800">{myStats.friends}</span>
-                              <span className="text-[10px] text-slate-400 uppercase font-bold">Friends</span>
-                          </div>
-                          <div>
-                              <span className="block font-bold text-slate-800">{myStats.likesReceived}</span>
-                              <span className="text-[10px] text-slate-400 uppercase font-bold">Likes</span>
-                          </div>
+                  {/* Stats Box */}
+                  <div className="flex gap-4 md:gap-8 bg-slate-50 px-6 py-3 rounded-xl border border-slate-100 shadow-sm w-full md:w-auto justify-around">
+                      <div className="text-center">
+                          <span className="block font-black text-xl text-slate-800">{myStats.posts}</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Posts</span>
                       </div>
-                  </div>
-              </Card>
-
-              {/* Quick Menu */}
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-3 hover:bg-slate-50 cursor-pointer flex items-center text-sm font-medium text-slate-700 transition-colors">
-                      <Clock size={18} className="mr-3 text-blue-500" /> Memories
-                  </div>
-                  <div className="p-3 hover:bg-slate-50 cursor-pointer flex items-center text-sm font-medium text-slate-700 transition-colors">
-                      <Hash size={18} className="mr-3 text-purple-500" /> Saved Posts
-                  </div>
-                  <div className="p-3 hover:bg-slate-50 cursor-pointer flex items-center text-sm font-medium text-slate-700 transition-colors">
-                      <Flag size={18} className="mr-3 text-orange-500" /> Pages
+                      <div className="w-px bg-slate-200"></div>
+                      <div className="text-center">
+                          <span className="block font-black text-xl text-slate-800">{myStats.friends}</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Friends</span>
+                      </div>
+                      <div className="w-px bg-slate-200"></div>
+                      <div className="text-center">
+                          <span className="block font-black text-xl text-slate-800">{myStats.likesReceived}</span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Likes</span>
+                      </div>
                   </div>
               </div>
-          </div>
 
-          {/* MIDDLE: FEED */}
+              {/* Quick Menu */}
+              <div className="flex items-center justify-around md:justify-start md:gap-6 border-t border-slate-100 pt-3">
+                  <button className="flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-indigo-50">
+                      <Clock size={18} className="mr-2 text-blue-500" /> Memories
+                  </button>
+                  <button className="flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-indigo-50">
+                      <Bookmark size={18} className="mr-2 text-purple-500" /> Saved
+                  </button>
+                  <button className="flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-indigo-50">
+                      <LayoutGrid size={18} className="mr-2 text-orange-500" /> Pages
+                  </button>
+              </div>
+          </div>
+      </Card>
+
+      {/* --- MAIN CONTENT GRID --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* FEED COLUMN */}
           <div className="lg:col-span-2 space-y-6">
               
               {/* CREATE POST */}
