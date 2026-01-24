@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Button } from '../../components/UI';
-import { Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, GraduationCap, BookOpen, AlertCircle } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-5xl mx-auto">
-            <SEO title="Study Tools" description="GPA Calculator and Focus Timer for Students." />
+            <SEO title="Study Tools" description="BD Standard GPA Calculator and Focus Timer." />
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -15,12 +15,12 @@ const StudyTools: React.FC = () => {
                         <Calculator className="mr-3 text-indigo-600" size={28} />
                         Student Toolkit
                     </h1>
-                    <p className="text-slate-500 text-sm mt-1">Utility tools to boost your academic productivity.</p>
+                    <p className="text-slate-500 text-sm mt-1">GPA Calculator (BD Standard) & Productivity Timer.</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 1. CGPA/GPA CALCULATOR */}
+                {/* 1. ADVANCED GPA CALCULATOR */}
                 <GPACalculator />
 
                 {/* 2. POMODORO TIMER */}
@@ -32,19 +32,34 @@ const StudyTools: React.FC = () => {
 
 // --- SUB-COMPONENT: GPA CALCULATOR ---
 const GPACalculator = () => {
-    const [subjects, setSubjects] = useState<{ id: string, grade: string, credit: number }[]>([
-        { id: '1', grade: 'A+', credit: 1 },
-        { id: '2', grade: 'A', credit: 1 },
-        { id: '3', grade: 'A-', credit: 1 },
+    const [mode, setMode] = useState<'SSC_HSC' | 'HONOURS'>('SSC_HSC');
+    const [subjects, setSubjects] = useState<{ id: string, grade: string, credit: number, isOptional: boolean }[]>([
+        { id: '1', grade: 'A+', credit: 3, isOptional: false },
+        { id: '2', grade: 'A+', credit: 3, isOptional: false },
+        { id: '3', grade: 'A', credit: 3, isOptional: false },
+        { id: '4', grade: 'A-', credit: 3, isOptional: false },
+        { id: '5', grade: 'A+', credit: 3, isOptional: false },
+        { id: '6', grade: 'A+', credit: 3, isOptional: true }, // Default optional
     ]);
     const [result, setResult] = useState<number | null>(null);
+    const [resultDetails, setResultDetails] = useState<string>('');
 
     const GRADES: Record<string, number> = {
         'A+': 5.00, 'A': 4.00, 'A-': 3.50, 'B': 3.00, 'C': 2.00, 'D': 1.00, 'F': 0.00
     };
 
+    // Reset when switching modes
+    useEffect(() => {
+        setResult(null);
+        setResultDetails('');
+        if (mode === 'SSC_HSC') {
+            // Default setup for SSC/HSC (usually 6-9 subjects, equal weight)
+            setSubjects(prev => prev.map(s => ({ ...s, credit: 1 }))); 
+        }
+    }, [mode]);
+
     const addSubject = () => {
-        setSubjects([...subjects, { id: Date.now().toString(), grade: 'A+', credit: 1 }]);
+        setSubjects([...subjects, { id: Date.now().toString(), grade: 'A+', credit: mode === 'HONOURS' ? 3 : 1, isOptional: false }]);
     };
 
     const removeSubject = (id: string) => {
@@ -53,44 +68,130 @@ const GPACalculator = () => {
         }
     };
 
-    const updateSubject = (id: string, field: 'grade' | 'credit', value: any) => {
-        setSubjects(subjects.map(s => s.id === id ? { ...s, [field]: value } : s));
-    };
-
-    const calculateGPA = () => {
-        let totalPoints = 0;
-        let totalCredits = 0;
-        let hasFail = false;
-
-        subjects.forEach(s => {
-            const point = GRADES[s.grade];
-            if (point === 0) hasFail = true;
-            totalPoints += point * s.credit;
-            totalCredits += Number(s.credit);
-        });
-
-        if (hasFail) {
-            setResult(0.00);
+    const updateSubject = (id: string, field: 'grade' | 'credit' | 'isOptional', value: any) => {
+        if (field === 'isOptional' && value === true) {
+            // Ensure only one optional subject for SSC/HSC (Radio behavior)
+            setSubjects(subjects.map(s => s.id === id ? { ...s, isOptional: true } : { ...s, isOptional: false }));
         } else {
-            setResult(Number((totalPoints / totalCredits).toFixed(2)));
+            setSubjects(subjects.map(s => s.id === id ? { ...s, [field]: value } : s));
         }
     };
 
+    const calculateResult = () => {
+        let finalGPA = 0;
+        let details = "";
+
+        if (mode === 'SSC_HSC') {
+            // --- SSC/HSC LOGIC (With 4th Subject) ---
+            let totalPoints = 0;
+            let mainSubjectCount = 0;
+            let hasMainFail = false;
+            let optionalPointsAdded = 0;
+
+            const optionalSub = subjects.find(s => s.isOptional);
+            const mainSubs = subjects.filter(s => !s.isOptional);
+
+            // 1. Check Main Subjects
+            mainSubs.forEach(s => {
+                const gp = GRADES[s.grade];
+                if (gp === 0) hasMainFail = true;
+                totalPoints += gp;
+                mainSubjectCount++;
+            });
+
+            if (hasMainFail) {
+                setResult(0.00);
+                setResultDetails("Failed in Main Subject(s)");
+                return;
+            }
+
+            // 2. Handle Optional (4th) Subject
+            if (optionalSub) {
+                const gp = GRADES[optionalSub.grade];
+                if (gp > 2.00) {
+                    optionalPointsAdded = gp - 2.00;
+                    totalPoints += optionalPointsAdded;
+                }
+            }
+
+            // 3. Calculate GPA
+            if (mainSubjectCount > 0) {
+                finalGPA = totalPoints / mainSubjectCount;
+                if (finalGPA > 5.00) finalGPA = 5.00; // Cap at 5.00
+            }
+
+            details = optionalSub 
+                ? `Main Pts: ${totalPoints - optionalPointsAdded} + 4th Sub Bonus: ${optionalPointsAdded.toFixed(2)}`
+                : "No Optional Subject Selected";
+
+        } else {
+            // --- HONOURS/UNIVERSITY LOGIC (Weighted Average) ---
+            let totalPoints = 0;
+            let totalCredits = 0;
+            let hasFail = false;
+
+            subjects.forEach(s => {
+                const point = GRADES[s.grade];
+                if (point === 0) hasFail = true;
+                totalPoints += point * s.credit;
+                totalCredits += Number(s.credit);
+            });
+
+            if (hasFail) {
+                setResult(0.00);
+                setResultDetails("Failed in one or more courses");
+                return;
+            } else {
+                finalGPA = totalCredits > 0 ? totalPoints / totalCredits : 0;
+            }
+            details = `Total Points: ${totalPoints.toFixed(2)} / Total Credits: ${totalCredits}`;
+        }
+
+        setResult(Number(finalGPA.toFixed(2)));
+        setResultDetails(details);
+    };
+
     return (
-        <Card className="flex flex-col h-full border-t-4 border-t-indigo-500">
+        <Card className="flex flex-col h-full border-t-4 border-t-indigo-500 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center">
                     <Calculator size={20} className="mr-2 text-indigo-600" /> GPA Calculator
                 </h3>
-                <Button size="sm" variant="outline" onClick={addSubject} className="text-xs">
-                    <Plus size={14} className="mr-1" /> Add Subject
-                </Button>
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <button 
+                        onClick={() => setMode('SSC_HSC')}
+                        className={`px-3 py-1 text-xs font-bold rounded ${mode === 'SSC_HSC' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}
+                    >
+                        SSC / HSC
+                    </button>
+                    <button 
+                        onClick={() => setMode('HONOURS')}
+                        className={`px-3 py-1 text-xs font-bold rounded ${mode === 'HONOURS' ? 'bg-white shadow text-indigo-700' : 'text-slate-500'}`}
+                    >
+                        Honours
+                    </button>
+                </div>
             </div>
 
+            {mode === 'SSC_HSC' && (
+                <div className="mb-3 bg-amber-50 p-3 rounded-lg border border-amber-100 flex items-start text-xs text-amber-800">
+                    <AlertCircle size={14} className="mr-2 mt-0.5 shrink-0" />
+                    <p>Select your <strong>4th Subject</strong> using the radio button. Points above 2.00 in the 4th subject will be added to your total.</p>
+                </div>
+            )}
+
             <div className="flex-1 space-y-2 mb-4 max-h-[300px] overflow-y-auto pr-1">
+                {/* Header Row */}
+                <div className="flex gap-2 text-xs font-bold text-slate-400 px-2 uppercase">
+                    <span className="w-8">#</span>
+                    <span className="flex-1">Grade</span>
+                    <span className="w-24 text-center">{mode === 'HONOURS' ? 'Credit' : '4th Subject?'}</span>
+                    <span className="w-8"></span>
+                </div>
+
                 {subjects.map((sub, idx) => (
-                    <div key={sub.id} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        <span className="text-xs font-bold text-slate-400 w-6">#{idx + 1}</span>
+                    <div key={sub.id} className={`flex gap-2 items-center p-2 rounded-lg border transition-colors ${sub.isOptional ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <span className="text-xs font-bold text-slate-500 w-8">{idx + 1}</span>
                         
                         <div className="flex-1">
                             <select 
@@ -102,40 +203,58 @@ const GPACalculator = () => {
                             </select>
                         </div>
 
-                        <div className="w-20">
-                            <input 
-                                type="number" 
-                                min="1" 
-                                max="4"
-                                className="w-full p-2 text-sm border rounded text-center focus:ring-2 focus:ring-indigo-500 outline-none"
-                                value={sub.credit}
-                                onChange={(e) => updateSubject(sub.id, 'credit', Number(e.target.value))}
-                                title="Credit/Weight"
-                            />
+                        <div className="w-24 flex justify-center">
+                            {mode === 'HONOURS' ? (
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="6"
+                                    className="w-16 p-2 text-sm border rounded text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    value={sub.credit}
+                                    onChange={(e) => updateSubject(sub.id, 'credit', Number(e.target.value))}
+                                />
+                            ) : (
+                                <input 
+                                    type="radio" 
+                                    name="optional_subject"
+                                    className="w-5 h-5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                    checked={sub.isOptional}
+                                    onChange={() => updateSubject(sub.id, 'isOptional', true)}
+                                    title="Mark as 4th Subject"
+                                />
+                            )}
                         </div>
 
-                        <button onClick={() => removeSubject(sub.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                        <button onClick={() => removeSubject(sub.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors w-8 flex justify-center">
                             <Trash2 size={16} />
                         </button>
                     </div>
                 ))}
             </div>
 
-            <div className="mt-auto pt-4 border-t border-slate-100">
-                {result !== null && (
-                    <div className="mb-4 text-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 animate-fade-in">
-                        <p className="text-xs text-indigo-600 font-bold uppercase mb-1">Your GPA Result</p>
-                        <h2 className="text-4xl font-black text-indigo-800">{result.toFixed(2)}</h2>
-                        <p className="text-xs text-slate-500 mt-1">{result === 5.00 ? "Excellent! A+" : result === 0 ? "Failed" : "Keep Improving!"}</p>
-                    </div>
-                )}
-                <Button onClick={calculateGPA} className="w-full bg-indigo-600 hover:bg-indigo-700">Calculate GPA</Button>
+            <div className="mt-auto">
+                <Button size="sm" variant="outline" onClick={addSubject} className="w-full border-dashed border-slate-300 text-slate-500 hover:text-indigo-600 mb-4">
+                    <Plus size={14} className="mr-1" /> Add Another Subject
+                </Button>
+
+                <div className="pt-4 border-t border-slate-100">
+                    {result !== null && (
+                        <div className="mb-4 text-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 animate-scale-up">
+                            <p className="text-xs text-indigo-600 font-bold uppercase mb-1">Your Result</p>
+                            <h2 className={`text-4xl font-black ${result >= 5.00 ? 'text-emerald-600' : result === 0 ? 'text-red-600' : 'text-indigo-800'}`}>
+                                {result.toFixed(2)}
+                            </h2>
+                            <p className="text-[10px] text-slate-500 mt-2 font-mono">{resultDetails}</p>
+                        </div>
+                    )}
+                    <Button onClick={calculateResult} className="w-full bg-indigo-600 hover:bg-indigo-700">Calculate GPA</Button>
+                </div>
             </div>
         </Card>
     );
 };
 
-// --- SUB-COMPONENT: POMODORO TIMER ---
+// --- SUB-COMPONENT: POMODORO TIMER (Unchanged) ---
 const PomodoroTimer = () => {
     const [timeLeft, setTimeLeft] = useState(25 * 60);
     const [isActive, setIsActive] = useState(false);
