@@ -1,116 +1,121 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, Button } from '../../components/UI';
 import { 
     Calculator, Clock, Play, Pause, RotateCcw, Plus, Trash2, CheckCircle2, 
     AlertCircle, Scale, CalendarDays, CheckSquare, Hash, Eraser, PenTool, 
     Book, Sigma, RefreshCw, X, Atom, Wallet, Calendar, Search, Coins, ArrowRight,
     AlignLeft, Wind, MousePointerClick, Minus, Mic, Square, FileAudio, Bookmark, Download, Copy,
-    Moon, Bed
+    Moon, Bed, Filter, Grid
 } from 'lucide-react';
 import SEO from '../../components/SEO';
 
 const StudyTools: React.FC = () => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeCategory, setActiveCategory] = useState('All');
+
+    // Tool Configuration with Categories and Layout Spans
+    const tools = [
+        { id: 'lecture', title: 'Lecture Recorder', category: 'Productivity', component: <LectureRecorder />, span: 'lg:col-span-2' },
+        { id: 'sleep', title: 'Sleep Calculator', category: 'Wellness', component: <SleepCalculator />, span: '' },
+        { id: 'pomodoro', title: 'Pomodoro Timer', category: 'Productivity', component: <PomodoroTimer />, span: '' },
+        { id: 'gpa', title: 'GPA Calculator', category: 'Math', component: <GPACalculator />, span: 'lg:col-span-2' },
+        { id: 'tally', title: 'Tally Counter', category: 'Utilities', component: <TallyCounter />, span: '' },
+        { id: 'periodic', title: 'Periodic Table', category: 'Science', component: <PeriodicTableHelper />, span: 'lg:col-span-2' },
+        { id: 'wallet', title: 'Student Wallet', category: 'Finance', component: <StudentWallet />, span: '' },
+        { id: 'word', title: 'Word Counter', category: 'Utilities', component: <WordCounter />, span: 'lg:col-span-2' },
+        { id: 'breath', title: 'Breathing Exercise', category: 'Wellness', component: <BreathingExercise />, span: '' },
+        { id: 'scratch', title: 'Scratchpad', category: 'Utilities', component: <ScratchPad />, span: 'lg:col-span-2' },
+        { id: 'vocab', title: 'Vocabulary', category: 'Language', component: <VocabularyWidget />, span: '' },
+        { id: 'scientific', title: 'Scientific Calc', category: 'Math', component: <ScientificCalculator />, span: 'lg:col-span-2' },
+        { id: 'unit', title: 'Unit Converter', category: 'Math', component: <UnitConverter />, span: '' },
+        { id: 'formula', title: 'Math Formulas', category: 'Math', component: <FormulaReference />, span: 'lg:col-span-2' },
+        { id: 'bangla', title: 'Bangla Date', category: 'Utilities', component: <BanglaDateConverter />, span: '' },
+        { id: 'age', title: 'Age Calculator', category: 'Utilities', component: <AgeCalculator />, span: '' },
+        { id: 'todo', title: 'Study Tasks', category: 'Productivity', component: <TodoWidget />, span: 'lg:col-span-full' },
+    ];
+
+    const categories = ['All', 'Productivity', 'Math', 'Science', 'Wellness', 'Utilities', 'Finance', 'Language'];
+
+    const filteredTools = useMemo(() => {
+        return tools.filter(tool => {
+            const matchesSearch = tool.title.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesCategory = activeCategory === 'All' || tool.category === activeCategory;
+            return matchesSearch && matchesCategory;
+        });
+    }, [searchTerm, activeCategory]);
+
     return (
-        <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
+        <div className="space-y-6 animate-fade-in pb-20 max-w-7xl mx-auto">
             <SEO title="Student Super Toolkit" description="18+ Tools: Lecture Recorder, Sleep Calc, GPA, & More." />
             
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 flex items-center">
                         <Calculator className="mr-3 text-indigo-600" size={32} />
-                        Student Super Toolkit
+                        Student Toolkit
                     </h1>
-                    <p className="text-slate-500 text-sm mt-1">Lecture Recorder, Sleep Calc, GPA, Math & More.</p>
+                    <p className="text-slate-500 text-sm mt-1">GPA, Recording, Math, Finance, Wellness - All in one place.</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 1. LECTURE RECORDER (Top Feature) */}
-                <div className="lg:col-span-2">
-                    <LectureRecorder />
-                </div>
+            {/* Filter & Search Bar */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 sticky top-4 z-30">
+                <div className="flex flex-col md:flex-row gap-4 justify-between">
+                    {/* Categories */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide flex-1">
+                        <Filter size={18} className="text-slate-400 shrink-0 mr-1" />
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveCategory(cat)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                                    activeCategory === cat 
+                                    ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
+                                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
 
-                {/* 2. SLEEP CALCULATOR (New Wellness Tool) */}
-                <div>
-                    <SleepCalculator />
-                </div>
-
-                {/* 3. POMODORO TIMER */}
-                <div>
-                    <PomodoroTimer />
-                </div>
-
-                {/* 4. GPA CALCULATOR */}
-                <div className="lg:col-span-2">
-                    <GPACalculator />
-                </div>
-
-                {/* 5. TALLY COUNTER */}
-                <div>
-                    <TallyCounter />
-                </div>
-
-                {/* 6. PERIODIC TABLE */}
-                <div className="lg:col-span-2">
-                    <PeriodicTableHelper />
-                </div>
-
-                {/* 7. EXPENSE TRACKER */}
-                <div>
-                    <StudentWallet />
-                </div>
-
-                {/* 8. WORD COUNTER */}
-                <div className="lg:col-span-2">
-                    <WordCounter />
-                </div>
-
-                {/* 9. BREATHING EXERCISE */}
-                <div>
-                    <BreathingExercise />
-                </div>
-
-                {/* 10. DIGITAL SCRATCHPAD */}
-                <div className="lg:col-span-2">
-                    <ScratchPad />
-                </div>
-
-                {/* 11. VOCABULARY BUILDER */}
-                <div>
-                    <VocabularyWidget />
-                </div>
-
-                {/* 12. SCIENTIFIC CALCULATOR */}
-                <div className="lg:col-span-2">
-                    <ScientificCalculator />
-                </div>
-
-                {/* 13. UNIT CONVERTER */}
-                <div>
-                    <UnitConverter />
-                </div>
-
-                {/* 14. MATH FORMULAS */}
-                <div className="lg:col-span-2">
-                    <FormulaReference />
-                </div>
-
-                {/* 15. BANGLA DATE */}
-                <div>
-                    <BanglaDateConverter />
-                </div>
-
-                {/* 16. AGE CALCULATOR */}
-                <div>
-                    <AgeCalculator />
-                </div>
-
-                {/* 17. TO-DO LIST */}
-                <div className="lg:col-span-full">
-                    <TodoWidget />
+                    {/* Search */}
+                    <div className="relative w-full md:w-64 shrink-0">
+                        <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="Find a tool..." 
+                            className="w-full pl-9 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 focus:bg-white transition-colors"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
+
+            {/* Tools Grid */}
+            {filteredTools.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredTools.map(tool => (
+                        <div key={tool.id} className={`${tool.span} animate-scale-up`}>
+                            {tool.component}
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                    <Grid size={48} className="mx-auto mb-4 opacity-20" />
+                    <p>No tools found matching "{searchTerm}"</p>
+                    <button 
+                        onClick={() => { setSearchTerm(''); setActiveCategory('All'); }}
+                        className="mt-4 text-indigo-600 font-bold hover:underline text-sm"
+                    >
+                        Clear Filters
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -313,10 +318,6 @@ const SleepCalculator = () => {
 
     const calculateBedtime = () => {
         if (!wakeTime) return;
-        
-        // Typical sleep cycle is 90 minutes. 
-        // A good night's sleep consists of 5-6 cycles.
-        // It takes ~15 mins to fall asleep.
         
         const [hours, minutes] = wakeTime.split(':').map(Number);
         const wakeDate = new Date();
