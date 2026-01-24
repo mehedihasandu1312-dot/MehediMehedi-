@@ -24,7 +24,8 @@ import {
   Crown,
   CreditCard,
   ShoppingBag,
-  Package
+  Package,
+  Calculator
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { authService } from '../services/authService';
@@ -90,8 +91,9 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
     <>
       <NavItem to="/student/dashboard" icon={LayoutDashboard} label="Dashboard" />
       <NavItem to="/student/notice" icon={Bell} label="Notices" badgeCount={unseenNoticeCount} />
+      <NavItem to="/student/tools" icon={Calculator} label="Study Tools" /> {/* NEW LINK */}
       <NavItem to="/student/subscription" icon={CreditCard} label="Upgrade Plan" />
-      <NavItem to="/student/store" icon={ShoppingBag} label="Book Store" /> {/* NEW */}
+      <NavItem to="/student/store" icon={ShoppingBag} label="Book Store" />
       <NavItem to="/student/social" icon={MessageSquare} label="Social Feed" />
       <NavItem to="/student/content" icon={BookOpen} label="Study Content" />
       <NavItem to="/student/exams" icon={FileQuestion} label="Exams" />
@@ -106,7 +108,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
     <>
       <NavItem to="/admin/dashboard" icon={LayoutDashboard} label="Dashboard" />
       <NavItem to="/admin/payments" icon={CreditCard} label="Payments" />
-      <NavItem to="/admin/store" icon={Package} label="Store Mgmt" /> {/* NEW */}
+      <NavItem to="/admin/store" icon={Package} label="Store Mgmt" />
       <NavItem to="/admin/settings" icon={Sliders} label="System Settings" />
       <NavItem to="/admin/users" icon={Users} label="Student Mgmt" />
       <NavItem to="/admin/content" icon={FolderPlus} label="Content Mgmt" />
@@ -116,7 +118,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
       <NavItem to="/admin/blog" icon={Newspaper} label="Blog Mgmt" />
       <NavItem to="/admin/notice" icon={Bell} label="Notice Mgmt" />
       <NavItem to="/admin/social" icon={Share2} label="Social Mgmt" />
-      <NavItem to="/admin/profile" icon={Settings} label="Profile Settings" /> {/* NEW LINK */}
+      <NavItem to="/admin/profile" icon={Settings} label="Profile Settings" />
     </>
   );
 

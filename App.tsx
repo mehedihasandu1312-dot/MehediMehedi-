@@ -16,6 +16,7 @@ import ProfileSettings from './pages/student/ProfileSettings';
 import StudentAppeals from './pages/student/StudentAppeals';
 import Subscription from './pages/student/Subscription'; 
 import Store from './pages/student/Store'; // NEW
+import StudyTools from './pages/student/StudyTools'; // NEW
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AppealManagement from './pages/admin/AppealManagement';
 import ContentManagement from './pages/admin/ContentManagement';
@@ -388,6 +389,7 @@ const App: React.FC = () => {
                 path="/student/store" 
                 element={<Store user={user} products={storeProducts} orders={storeOrders} setOrders={setStoreOrders} />} // NEW
               />
+              <Route path="/student/tools" element={<StudyTools />} /> {/* NEW ROUTE */}
               <Route path="/student/social" element={<SocialPost posts={socialPosts} setPosts={setSocialPosts} />} />
               <Route 
                 path="/student/content" 
