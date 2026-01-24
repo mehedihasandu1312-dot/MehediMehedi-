@@ -28,9 +28,9 @@ import ExamGrading from './pages/admin/ExamGrading';
 import SystemSettingsPage from './pages/admin/SystemSettings';
 import PaymentManagement from './pages/admin/PaymentManagement'; 
 import StoreManagement from './pages/admin/StoreManagement'; // NEW
-import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder, MCQQuestion, PaymentRequest, DeletionRequest } from './types';
+import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder, MCQQuestion, PaymentRequest, DeletionRequest, CalendarEvent } from './types';
 import { authService } from './services/authService';
-import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS, MOCK_PRODUCTS, MOCK_STORE_ORDERS } from './constants';
+import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS, MOCK_PRODUCTS, MOCK_STORE_ORDERS, MOCK_CALENDAR_EVENTS } from './constants';
 import { db } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -181,6 +181,9 @@ const App: React.FC = () => {
   // NEW DELETION REQUESTS COLLECTION
   const [deletionRequests, setDeletionRequests, deletionLoading] = useFirestoreCollection<DeletionRequest>('deletion_requests', []);
 
+  // NEW CALENDAR EVENTS COLLECTION
+  const [calendarEvents, setCalendarEvents, calendarLoading] = useFirestoreCollection<CalendarEvent>('calendar_events', MOCK_CALENDAR_EVENTS);
+
   // --- LOCAL STATE FOR SEEN NOTICES ---
   const [readNoticeIds, setReadNoticeIds] = useState<string[]>([]);
 
@@ -207,7 +210,7 @@ const App: React.FC = () => {
   const globalLoading = usersLoading || examsLoading || foldersLoading || contentsLoading || 
                         blogFoldersLoading || blogsLoading || noticesLoading || appealsLoading || 
                         socialLoading || reportsLoading || logsLoading || settingsLoading || submissionsLoading ||
-                        productsLoading || ordersLoading || paymentsLoading || deletionLoading;
+                        productsLoading || ordersLoading || paymentsLoading || deletionLoading || calendarLoading;
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
@@ -372,6 +375,8 @@ const App: React.FC = () => {
                         notices={studentNotices} 
                         readIds={readNoticeIds}
                         onMarkRead={handleMarkNoticeRead}
+                        calendarEvents={calendarEvents} // Pass Calendar Events
+                        userClass={user.class}
                     />
                 } 
               />
@@ -515,7 +520,15 @@ const App: React.FC = () => {
                     />
                 } 
               />
-              <Route path="/admin/notice" element={<NoticeManagement notices={notices} setNotices={setNotices} educationLevels={currentEducationLevels} />} />
+              <Route path="/admin/notice" element={
+                  <NoticeManagement 
+                      notices={notices} 
+                      setNotices={setNotices} 
+                      educationLevels={currentEducationLevels} 
+                      calendarEvents={calendarEvents} // Pass Calendar
+                      setCalendarEvents={setCalendarEvents} // Pass Setter
+                  />
+              } />
               <Route 
                 path="/admin/social" 
                 element={

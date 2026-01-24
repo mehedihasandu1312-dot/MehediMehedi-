@@ -1,5 +1,5 @@
 
-import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog, StoreProduct, StoreOrder } from './types';
+import { UserRole, User, Folder, StudyContent, Exam, Appeal, ContentType, Notice, BlogPost, SocialPost, SocialReport, ExamSubmission, AdminActivityLog, StoreProduct, StoreOrder, CalendarEvent } from './types';
 
 // --- CONFIGURATION ---
 // IMPORTANT: This email has Super Admin privileges (cannot be blocked, sees all admins)
@@ -245,6 +245,33 @@ export const MOCK_NOTICES: Notice[] = [
   { id: 'n1', title: 'System Maintenance Update', date: '2023-10-25', content: 'The platform will be down for maintenance from 2 AM to 4 AM on Sunday.', priority: 'HIGH' },
   { id: 'n2', title: 'New Physics Content Added', date: '2023-10-24', content: 'Check out the new chapter on Electromagnetism in the study section.', priority: 'MEDIUM' },
   { id: 'n3', title: 'Welcome to the new term!', date: '2023-10-20', content: 'We wish all students a productive learning journey this semester.', priority: 'LOW' },
+];
+
+export const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
+    {
+        id: 'ce1',
+        date: new Date().toISOString().split('T')[0], // Today
+        title: 'Physics Marathon',
+        description: 'Live Physics class for 3 hours covering key topics.',
+        type: 'CLASS',
+        targetClass: 'HSC (Class 12)'
+    },
+    {
+        id: 'ce2',
+        date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+        title: 'Victory Day Holiday',
+        description: 'Platform support will be limited.',
+        type: 'HOLIDAY',
+        targetClass: 'ALL'
+    },
+    {
+        id: 'ce3',
+        date: new Date(Date.now() + 172800000).toISOString().split('T')[0], // Day after tomorrow
+        title: 'Math Model Test',
+        description: 'Complete syllabus mock exam.',
+        type: 'EXAM',
+        targetClass: 'Class 10'
+    }
 ];
 
 export const MOCK_BLOG_FOLDERS: Folder[] = [
