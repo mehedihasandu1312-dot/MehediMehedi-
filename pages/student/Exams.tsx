@@ -81,7 +81,7 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
                   {status === 'UPCOMING' && (
                       <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit mb-2 flex items-center">
                           <Calendar size={10} className="mr-1"/> 
-                          {new Date(exam.startTime!).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})}
+                          {new Date(exam.startTime!).toLocaleString()}
                       </p>
                   )}
 
@@ -332,7 +332,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                                   <h4 className="font-bold text-slate-800 text-lg">{exams.find(e => e.id === sub.examId)?.title || 'Unknown Exam'}</h4>
                                   <div className="flex items-center text-xs text-slate-500 mt-2 space-x-3">
                                       <span className="flex items-center"><Calendar size={14} className="mr-1"/> {new Date(sub.submittedAt).toLocaleDateString()}</span>
-                                      <span className="flex items-center"><Clock size={14} className="mr-1"/> {new Date(sub.submittedAt).toLocaleTimeString()}</span>
+                                      <span className="flex items-center"><Clock size={14} className="mr-1"/> {new Date(sub.submittedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                   </div>
                               </div>
                               <div className="text-right">

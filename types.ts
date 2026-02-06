@@ -237,7 +237,7 @@ export interface ExamSubmission {
     questionId: string;
     selectedOption?: number; // For MCQ
     writtenImages?: string[]; // For Written (Array of base64/urls)
-    feedback?: string; // NEW: Admin feedback for specific mistakes
+    feedback?: string; // NEW: Admin feedback text for specific mistakes
   }[];
 }
 
@@ -270,18 +270,6 @@ export interface Notice {
   image?: string; // Added image support for notices
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   targetClass?: string; // NEW: Audience targeting (All or specific class)
-}
-
-// NEW: Calendar Event Interface with Attachments
-export interface CalendarEvent {
-    id: string;
-    date: string; // YYYY-MM-DD format
-    title: string;
-    description?: string;
-    type: 'EXAM' | 'HOLIDAY' | 'CLASS' | 'EVENT';
-    targetClass?: string; // "ALL" or specific class name
-    attachment?: string; // NEW: URL for Image/PDF
-    attachmentType?: 'IMAGE' | 'PDF'; // NEW
 }
 
 export interface BlogPost {

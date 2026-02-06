@@ -25,7 +25,7 @@ import {
   CreditCard,
   ShoppingBag,
   Package,
-  Calculator
+  PenTool
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { authService } from '../services/authService';
@@ -91,7 +91,7 @@ const Layout: React.FC<LayoutProps> = ({ user, setUser, children, unseenNoticeCo
     <>
       <NavItem to="/student/dashboard" icon={LayoutDashboard} label="Dashboard" />
       <NavItem to="/student/notice" icon={Bell} label="Notices" badgeCount={unseenNoticeCount} />
-      <NavItem to="/student/tools" icon={Calculator} label="Study Tools" /> {/* NEW LINK */}
+      <NavItem to="/student/tools" icon={PenTool} label="Tools" /> {/* NEW LINK */}
       <NavItem to="/student/subscription" icon={CreditCard} label="Upgrade Plan" />
       <NavItem to="/student/store" icon={ShoppingBag} label="Book Store" />
       <NavItem to="/student/social" icon={MessageSquare} label="Social Feed" />
