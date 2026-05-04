@@ -31,6 +31,25 @@ const getGradientClass = (index: number) => {
     return gradients[index % gradients.length];
 };
 
+// Helper for Consistent English Date/Time
+const formatEnglishDateTime = (isoDate: string) => {
+    return new Date(isoDate).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+};
+
+const formatEnglishDate = (isoDate: string) => {
+    return new Date(isoDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+};
+
 // Modern Status Badge Logic
 const getExamStatus = (exam: Exam) => {
     if (exam.type === 'GENERAL') return { status: 'OPEN', label: 'PRACTICE', color: 'bg-emerald-500', text: 'text-white' };
@@ -81,7 +100,7 @@ const ExamCard: React.FC<{ exam: Exam; onStart: (exam: Exam) => void; isLocked: 
                   {status === 'UPCOMING' && (
                       <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit mb-2 flex items-center">
                           <Calendar size={10} className="mr-1"/> 
-                          {new Date(exam.startTime!).toLocaleString()}
+                          {formatEnglishDateTime(exam.startTime!)}
                       </p>
                   )}
 
@@ -150,7 +169,7 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
       }
       const { status } = getExamStatus(exam);
       if (status === 'UPCOMING') {
-          alert(`Starts at ${new Date(exam.startTime!).toLocaleString()}`);
+          alert(`Starts at ${formatEnglishDateTime(exam.startTime!)}`);
           return;
       }
       setPendingExam(exam);
@@ -331,8 +350,8 @@ const ExamsPage: React.FC<ExamsPageProps> = ({ exams, folders, onExamComplete, s
                               <div>
                                   <h4 className="font-bold text-slate-800 text-lg">{exams.find(e => e.id === sub.examId)?.title || 'Unknown Exam'}</h4>
                                   <div className="flex items-center text-xs text-slate-500 mt-2 space-x-3">
-                                      <span className="flex items-center"><Calendar size={14} className="mr-1"/> {new Date(sub.submittedAt).toLocaleDateString()}</span>
-                                      <span className="flex items-center"><Clock size={14} className="mr-1"/> {new Date(sub.submittedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                      <span className="flex items-center"><Calendar size={14} className="mr-1"/> {formatEnglishDate(sub.submittedAt)}</span>
+                                      <span className="flex items-center"><Clock size={14} className="mr-1"/> {new Date(sub.submittedAt).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}</span>
                                   </div>
                               </div>
                               <div className="text-right">

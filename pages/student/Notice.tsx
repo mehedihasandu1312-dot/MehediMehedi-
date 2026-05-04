@@ -28,6 +28,15 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead }) => 
       }
   };
 
+  // Helper for consistent English formatting
+  const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+      });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in h-[calc(100vh-140px)] flex flex-col">
       <div className="flex items-center justify-between shrink-0 mb-2">
@@ -79,7 +88,7 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead }) => 
                                             </h3>
                                         </div>
                                         <span className="text-[10px] text-slate-400 shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
-                                            {new Date(notice.date).toLocaleDateString()}
+                                            {formatDate(notice.date)}
                                         </span>
                                     </div>
                                     
@@ -128,7 +137,7 @@ const Notice: React.FC<Props> = ({ notices = [], readIds = [], onMarkRead }) => 
                           </div>
                           <div className="flex items-center text-slate-500 text-xs font-medium">
                               <Calendar size={14} className="mr-1.5" />
-                              {new Date(selectedNotice.date).toLocaleDateString()}
+                              {formatDate(selectedNotice.date)}
                           </div>
                       </div>
 

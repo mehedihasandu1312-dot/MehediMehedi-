@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import ProfileSetup from './pages/ProfileSetup';
@@ -331,7 +331,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login setUser={setUser} />} />
         
@@ -558,7 +558,7 @@ const App: React.FC = () => {
               </div>
           </div>
       </Modal>
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 

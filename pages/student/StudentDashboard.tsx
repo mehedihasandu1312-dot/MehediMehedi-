@@ -211,7 +211,8 @@ const StudentDashboard: React.FC<Props> = ({ user, onLogout, exams, results, all
       const sorted = [...myResults].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       return sorted.slice(-7).map(r => {
           const d = new Date(r.date);
-          const dayName = isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString(undefined, { weekday: 'short' });
+          // FORCE ENGLISH LOCALE
+          const dayName = isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('en-US', { weekday: 'short' });
           return {
               date: dayName,
               score: r.totalMarks > 0 ? ((r.score / r.totalMarks) * 100).toFixed(0) : 0

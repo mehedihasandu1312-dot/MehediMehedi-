@@ -1,5 +1,6 @@
 {
   "name": "EduMaster Pro",
   "description": "A comprehensive educational platform bridging Admins and Students with role-based dashboards, exam systems, content management, and study appeals.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }
