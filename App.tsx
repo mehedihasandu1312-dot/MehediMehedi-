@@ -32,7 +32,7 @@ import StoreManagement from './pages/admin/StoreManagement';
 import { User, UserRole, Exam, Folder, StudyContent, StudentResult, BlogPost, Notice as NoticeType, Appeal, SocialPost as SocialPostType, SocialReport, AdminActivityLog, SystemSettings, ExamSubmission, StoreProduct, StoreOrder, MCQQuestion, PaymentRequest, DeletionRequest } from './types';
 import { authService } from './services/authService';
 import { MOCK_EXAMS, MOCK_FOLDERS, MOCK_CONTENT, MOCK_BLOG_FOLDERS, MOCK_BLOGS, MOCK_USERS, MOCK_NOTICES, MOCK_APPEALS, MOCK_SOCIAL_POSTS, MOCK_REPORTS, MOCK_ADMIN_LOGS, EDUCATION_LEVELS as DEFAULT_EDUCATION_LEVELS, MOCK_SUBMISSIONS, MOCK_PRODUCTS, MOCK_STORE_ORDERS } from './constants';
-import { db } from './services/firebase';
+import { db, auth } from './services/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Modal, Button } from './components/UI';
@@ -57,30 +57,52 @@ function useFirestoreCollection<T extends { id: string }>(
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
-  // 1. READ: Real-time Listener
+  // 1. READ: Real-time Listener (Resubscribe on Auth Change)
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
-      // FIX: Ensure ID is included from doc.id, overriding data if necessary
-      const fetchedData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as T);
+    let unsubscribeSnapshot: (() => void) | undefined;
+    
+    // Listen to Firebase Auth state to re-subscribe when user logs in/out,
+    // solving "Missing or insufficient permissions" on initial page load if not logged in.
+    const unsubscribeAuth = auth.onAuthStateChanged(() => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
       
-      // SORT: Latest (Largest ID) First
-      fetchedData.sort((a, b) => {
-          const idA = a.id.toString();
-          const idB = b.id.toString();
-          if (idA < idB) return 1; 
-          if (idA > idB) return -1;
-          return 0;
-      });
+      unsubscribeSnapshot = onSnapshot(collection(db, collectionName), (snapshot) => {
+        // FIX: Ensure ID is included from doc.id, overriding data if necessary
+        const fetchedData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as T);
+        
+        // SORT: Latest (Largest ID) First
+        fetchedData.sort((a, b) => {
+            const idA = a.id.toString();
+            const idB = b.id.toString();
+            if (idA < idB) return 1; 
+            if (idA > idB) return -1;
+            return 0;
+        });
 
-      setData(fetchedData);
-      setLoading(false);
-      setInitialized(true);
-    }, (error) => {
-      console.error(`Error listening to ${collectionName}:`, error);
-      setLoading(false);
+        setData(fetchedData);
+        setLoading(false);
+        setInitialized(true);
+      }, (error: any) => {
+        if (error.code === 'permission-denied') {
+            // Gracefully handle legitimately blocked collections 
+            // (e.g. students trying to read admin collections globally)
+            setData([]);
+            setLoading(false);
+        } else {
+            console.warn(`Listen error for ${collectionName}:`, error.message);
+            setLoading(false);
+        }
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+      }
+    };
   }, [collectionName]);
 
   // 2. SEED: Upload Mock Data if Collection is Empty
